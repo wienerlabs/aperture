@@ -8,6 +8,8 @@ import { ThemeToggle } from '@/components/shared/ThemeToggle';
 const SECTIONS = [
   { id: 'getting-started', label: 'Getting Started' },
   { id: 'introduction', label: 'Introduction' },
+  { id: 'docker-deployment', label: 'Docker Deployment' },
+  { id: 'authentication', label: 'Authentication' },
   { id: 'how-it-works', label: 'How It Works' },
   { id: 'architecture', label: 'Architecture' },
   { id: 'sdk-reference', label: 'SDK Reference' },
@@ -128,16 +130,17 @@ export default function DocsPage() {
                 items: [
                   <>Navigate to the <strong className="text-amber-400">Policies</strong> tab</>,
                   <>Click <strong className="text-amber-400">Create Policy</strong></>,
-                  <>Configure: max daily spend, max per transaction, allowed categories, token whitelist</>,
+                  <>Configure: max daily spend, max per transaction, token whitelist</>,
+                  <>Add <strong className="text-amber-400">x402, mpp</strong> to allowed endpoint categories (required for agent)</>,
                   <>Sign the transaction -- policy is registered on <strong className="text-amber-400">Solana Devnet</strong></>,
                 ],
               },
               {
                 step: 3,
-                title: 'Simulate a Payment',
+                title: 'Make a Payment',
                 items: [
                   <>Go to the <strong className="text-amber-400">Payments</strong> tab</>,
-                  <>Click <strong className="text-amber-400">Simulate Payment</strong></>,
+                  <>Click <strong className="text-amber-400">Payment</strong></>,
                   <>A real <strong className="text-amber-400">RISC Zero ZK proof</strong> is generated (may take a few seconds on warm cache)</>,
                   <>Sign the transaction -- proof is verified on Solana with an explorer link</>,
                 ],
@@ -229,6 +232,71 @@ export default function DocsPage() {
             Traditional compliance requires exposing transaction details to auditors.
             Aperture proves compliance cryptographically: <strong className="text-amber-400">Prove compliance. Reveal nothing.</strong>
           </P>
+
+          {/* Docker Deployment */}
+          <H2 id="docker-deployment">Docker Deployment</H2>
+          <P>
+            The fastest way to run the full Aperture stack. All services run in Docker containers
+            with automatic health checks and dependency ordering.
+          </P>
+          <Code>{`# 1. Configure environment
+cp .env.example .env
+# Edit .env with your Stripe keys, MPP secret, wallet key
+
+# 2. Start databases
+docker compose up -d postgres-policy postgres-compliance
+
+# 3. Start backend services
+docker compose up -d policy-service compliance-api agent-service
+
+# 4. Start dashboard
+docker compose up -d aperture
+
+# 5. Run database migrations
+npm install && npm run migrate
+
+# 6. Open dashboard
+open http://localhost:3000`}</Code>
+          <H3>Services</H3>
+          <div className="space-y-2 mb-6">
+            {[
+              { name: 'aperture', port: '3000', desc: 'Next.js dashboard' },
+              { name: 'policy-service', port: '3001', desc: 'Policy CRUD + auth API' },
+              { name: 'compliance-api', port: '3002', desc: 'Compliance, x402, MPP endpoints' },
+              { name: 'agent-service', port: '3004', desc: 'Autonomous agent daemon' },
+              { name: 'postgres-policy', port: '5432', desc: 'Policy database' },
+              { name: 'postgres-compliance', port: '5433', desc: 'Compliance database' },
+            ].map(({ name, port, desc }) => (
+              <div key={name} className="flex items-center gap-3 text-xs">
+                <span className="px-2 py-0.5 rounded font-mono font-bold bg-amber-400/10 text-amber-400">{port}</span>
+                <span className="font-mono text-amber-100/70">{name}</span>
+                <span className="text-amber-100/30">{desc}</span>
+              </div>
+            ))}
+          </div>
+          <P>
+            The <Inline>prover-service</Inline> (port 3003) requires RISC Zero toolchain and x86_64.
+            On Apple Silicon, configure <Inline>BONSAI_API_KEY</Inline> for cloud proving.
+          </P>
+
+          {/* Authentication */}
+          <H2 id="authentication">Authentication</H2>
+          <P>
+            Aperture supports three authentication methods via NextAuth. All methods create a JWT session
+            that persists across the dashboard.
+          </P>
+          <div className="space-y-3 mb-6">
+            {[
+              { method: 'Wallet Signing', desc: 'Connect Phantom or Solflare, sign a message. Signature is verified by the policy-service using ed25519.' },
+              { method: 'Email / Password', desc: 'Traditional credentials. User accounts are stored in the policy-service database.' },
+              { method: 'Google OAuth', desc: 'Requires GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env. Redirects to Google for authentication.' },
+            ].map(({ method, desc }) => (
+              <div key={method} className="bg-[rgba(20,14,0,0.8)] border border-amber-400/10 rounded-lg p-4">
+                <span className="text-sm font-semibold text-amber-100">{method}</span>
+                <p className="text-xs text-amber-100/50 mt-1">{desc}</p>
+              </div>
+            ))}
+          </div>
 
           {/* How It Works */}
           <H2 id="how-it-works">How It Works</H2>
@@ -443,7 +511,7 @@ npx tsx src/agent.ts`}</Code>
           <H3>API</H3>
           <div className="space-y-2 mb-6">
             {[
-              { m: 'POST', p: '/start', d: 'Start the agent loop (30s interval)' },
+              { m: 'POST', p: '/start', d: 'Validate policy + prover, start agent loop' },
               { m: 'POST', p: '/stop', d: 'Stop the agent loop' },
               { m: 'GET', p: '/status', d: 'Running state, operator ID, stats' },
               { m: 'GET', p: '/activity', d: 'Live activity feed (last 200 records)' },
@@ -456,6 +524,14 @@ npx tsx src/agent.ts`}</Code>
               </div>
             ))}
           </div>
+          <H3>Pre-Start Validation</H3>
+          <P>
+            The agent validates three conditions before starting:
+            1. At least one active policy exists.
+            2. Policy includes <Inline>x402</Inline> and <Inline>mpp</Inline> in allowed endpoint categories.
+            3. Prover service is reachable.
+            If any check fails, the agent returns a descriptive error and does not start.
+          </P>
           <H3>Dashboard Integration</H3>
           <P>
             The Agent Activity tab in the dashboard provides real-time monitoring with Start/Stop controls,
@@ -486,7 +562,7 @@ npx tsx src/agent.ts`}</Code>
   "name": "Standard Compliance",
   "max_daily_spend": 10000,
   "max_per_transaction": 5000,
-  "allowed_endpoint_categories": ["compute", "storage", "api"],
+  "allowed_endpoint_categories": ["x402", "mpp", "compute", "storage", "api"],
   "blocked_addresses": [],
   "token_whitelist": ["4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"],
   "time_restrictions": [{

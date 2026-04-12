@@ -694,7 +694,7 @@ export function PaymentsTab() {
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 text-black font-mono text-sm font-bold hover:bg-amber-400 disabled:opacity-50 transition-colors"
         >
           {simulating ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-          {simulating ? 'Proving...' : 'Simulate Payment'}
+          {simulating ? 'Proving...' : 'Payment'}
         </button>
       </div>
 
