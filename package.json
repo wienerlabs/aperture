@@ -1,0 +1,40 @@
+{
+  "name": "aperture",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ZK-based compliance and privacy layer for AI agent payments on Solana",
+  "workspaces": [
+    "shared/types",
+    "sdk/x402-adapter",
+    "sdk/mpp-adapter",
+    "sdk/agent",
+    "services/policy-service",
+    "services/compliance-api",
+    "services/agent-service"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "dev:policy": "npm run dev --workspace=services/policy-service",
+    "dev:compliance": "npm run dev --workspace=services/compliance-api",
+    "dev:agent": "npm run dev --workspace=services/agent-service",
+    "dev": "concurrently \"npm run dev:policy\" \"npm run dev:compliance\"",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "migrate:policy": "npm run migrate --workspace=services/policy-service",
+    "migrate:compliance": "npm run migrate --workspace=services/compliance-api",
+    "migrate": "npm run migrate:policy && npm run migrate:compliance",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:build": "docker compose build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@lightprotocol/compressed-token": "^0.23.3",
+    "@lightprotocol/stateless.js": "^0.23.3",
+    "mppx": "^0.5.7",
+    "stripe": "^22.0.0"
+  }
+}

@@ -1,0 +1,11 @@
+[package]
+name = "aperture-batch-aggregator-guest"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+risc0-zkvm = { version = "1.2" }
+aperture-batch-aggregator-core = { path = "../../core" }
+serde = { version = "1.0", features = ["derive"] }

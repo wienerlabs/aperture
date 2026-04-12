@@ -1,0 +1,12 @@
+[package]
+name = "aperture-batch-aggregator-host"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+risc0-zkvm = { workspace = true }
+aperture-batch-aggregator-core = { workspace = true }
+aperture-batch-aggregator-methods = { path = "../methods" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = "1.0"

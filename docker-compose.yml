@@ -1,0 +1,175 @@
+services:
+  postgres-policy:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: aperture
+      POSTGRES_PASSWORD: aperture_dev_password
+      POSTGRES_DB: aperture_policy
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_policy_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aperture -d aperture_policy"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  postgres-compliance:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: aperture
+      POSTGRES_PASSWORD: aperture_dev_password
+      POSTGRES_DB: aperture_compliance
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_compliance_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aperture -d aperture_compliance"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  policy-service:
+    build:
+      context: .
+      dockerfile: services/policy-service/Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      POSTGRES_HOST: postgres-policy
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: aperture
+      POSTGRES_PASSWORD: aperture_dev_password
+      POSTGRES_DB: aperture_policy
+      POLICY_SERVICE_PORT: 3001
+      USDC_MINT_ADDRESS: 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU
+      USDT_MINT_ADDRESS: EJwZgeZrdC8TXTQbQBoL6bfuAnFUQS7QEkCybt4rCxsT
+      SOLANA_RPC_URL: ${SOLANA_RPC_URL:-https://api.devnet.solana.com}
+      POLICY_REGISTRY_PROGRAM: CZxdDpayJuLT1GVQcmhRKahLM6gTdBFpkirHjrvSGKVs
+      LOG_LEVEL: info
+      NODE_ENV: production
+    depends_on:
+      postgres-policy:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  compliance-api:
+    build:
+      context: .
+      dockerfile: services/compliance-api/Dockerfile
+    ports:
+      - "3002:3002"
+    environment:
+      POSTGRES_HOST: postgres-compliance
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: aperture
+      POSTGRES_PASSWORD: aperture_dev_password
+      POSTGRES_DB: aperture_compliance
+      COMPLIANCE_API_PORT: 3002
+      POLICY_SERVICE_URL: http://policy-service:3001
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_API_VERSION: ${STRIPE_API_VERSION:-2026-03-04.preview}
+      MPP_SECRET_KEY: ${MPP_SECRET_KEY}
+      LOG_LEVEL: info
+      NODE_ENV: production
+    depends_on:
+      postgres-compliance:
+        condition: service_healthy
+      policy-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  prover-service:
+    build:
+      context: .
+      dockerfile: services/prover-service/Dockerfile
+    ports:
+      - "3003:3003"
+    environment:
+      PROVER_SERVICE_PORT: 3003
+      RUST_LOG: info
+      # RISC0_DEV_MODE is NOT set - real ZK proofs are generated
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3003/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  agent-service:
+    build:
+      context: .
+      dockerfile: services/agent-service/Dockerfile
+    ports:
+      - "3004:3004"
+    environment:
+      AGENT_SERVICE_PORT: 3004
+      AGENT_WALLET_PRIVATE_KEY: ${AGENT_WALLET_PRIVATE_KEY}
+      SOLANA_RPC_URL: ${SOLANA_RPC_URL:-https://api.devnet.solana.com}
+      POLICY_SERVICE_URL: http://policy-service:3001
+      COMPLIANCE_API_URL: http://compliance-api:3002
+      PROVER_SERVICE_URL: http://prover-service:3003
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      USDC_MINT: ${USDC_MINT:-4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU}
+      AGENT_INTERVAL_MS: ${AGENT_INTERVAL_MS:-30000}
+    depends_on:
+      policy-service:
+        condition: service_healthy
+      compliance-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3004/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  aperture:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
+        NEXT_PUBLIC_LIGHT_RPC_URL: ${NEXT_PUBLIC_LIGHT_RPC_URL}
+    container_name: aperture
+    ports:
+      - "3000:3000"
+    environment:
+      POLICY_SERVICE_URL: http://policy-service:3001
+      COMPLIANCE_API_URL: http://compliance-api:3002
+      NEXT_PUBLIC_POLICY_SERVICE_URL: http://localhost:3001
+      NEXT_PUBLIC_COMPLIANCE_API_URL: http://localhost:3002
+      NEXT_PUBLIC_SOLANA_RPC_URL: https://api.devnet.solana.com
+      NEXT_PUBLIC_SOLANA_NETWORK: devnet
+      NEXT_PUBLIC_POLICY_REGISTRY_PROGRAM: CZxdDpayJuLT1GVQcmhRKahLM6gTdBFpkirHjrvSGKVs
+      NEXT_PUBLIC_VERIFIER_PROGRAM: HrYMqPEiMnYSskmi3iAp57X8Ke6BiP2WsjGvMPEqBtmr
+      NEXT_PUBLIC_TRANSFER_HOOK_PROGRAM: 3GZAsASQHTJTCfHGRKaj26zdAVqcD9VZdpfV9FEwcCQt
+      NEXT_PUBLIC_LIGHT_RPC_URL: ${NEXT_PUBLIC_LIGHT_RPC_URL}
+      NEXT_PUBLIC_COMPRESSED_ATTESTATION_MINT: EraJfY2Lk1BpWHjBZuxA1T8Re36D515JLkW1FFo7Ah1P
+      NEXT_PUBLIC_VUSDC_MINT: E9Ab23WT97qHTmmWxEmHfWCmPsrQb77nJnAFFuDRfhar
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-aperture-dev-secret-change-in-prod}
+      NODE_ENV: production
+    depends_on:
+      policy-service:
+        condition: service_healthy
+      compliance-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  postgres_policy_data:
+  postgres_compliance_data:
