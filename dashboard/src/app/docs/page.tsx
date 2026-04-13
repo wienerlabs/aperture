@@ -326,7 +326,7 @@ open http://localhost:3000`}</Code>
               { name: 'Policy Registry', desc: 'Anchor program on Solana. Stores operator accounts and policy PDAs with merkle roots and data hashes.', id: 'FXD7ycSguBQw7o3DXqq4VUBHtdx5ZQpu9P2zb4KG4ZEU' },
               { name: 'ZK Payment Prover', desc: 'RISC Zero zkVM circuit. Executes 5 compliance checks inside the zkVM and produces a 255KB cryptographic receipt.', id: 'services/prover-service (port 3003)' },
               { name: 'Compliance Aggregator', desc: 'Backend service that aggregates proof records into batch attestations with SHA-256 batch hashes.', id: 'services/compliance-api (port 3002)' },
-              { name: 'On-chain Verifier', desc: 'Anchor program that verifies receipt integrity (SHA-256 check) and creates ProofRecord + ComplianceStatus PDAs.', id: 'HrYMqPEiMnYSskmi3iAp57X8Ke6BiP2WsjGvMPEqBtmr' },
+              { name: 'On-chain Verifier', desc: 'Anchor program that verifies receipt integrity (SHA-256 check) and creates ProofRecord + ComplianceStatus PDAs.', id: 'AzKirEv7h5PstLNYNqLj7fCXU9EFA6nSnuoed3QkmUfU' },
             ].map(({ name, desc, id }) => (
               <div key={name} className="bg-[rgba(20,14,0,0.8)] border border-amber-400/10 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-1">

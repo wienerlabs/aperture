@@ -24,7 +24,7 @@ import * as crypto from 'crypto';
 // -- Config --
 const RPC_URL = 'https://api.devnet.solana.com';
 const POLICY_REGISTRY = new PublicKey('FXD7ycSguBQw7o3DXqq4VUBHtdx5ZQpu9P2zb4KG4ZEU');
-const VERIFIER = new PublicKey('HrYMqPEiMnYSskmi3iAp57X8Ke6BiP2WsjGvMPEqBtmr');
+const VERIFIER = new PublicKey('AzKirEv7h5PstLNYNqLj7fCXU9EFA6nSnuoed3QkmUfU');
 const PROVER_URL = 'http://localhost:3003';
 const VUSDC_MINT = new PublicKey('GWVArRuvRt5t6tcBTMKT27SornozssMfLzc2Eqr3XdvX');
 

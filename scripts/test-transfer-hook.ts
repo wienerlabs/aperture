@@ -22,7 +22,7 @@ import * as crypto from 'crypto';
 
 const RPC_URL = 'https://api.devnet.solana.com';
 const TRANSFER_HOOK_PROGRAM = new PublicKey('3GZAsASQHTJTCfHGRKaj26zdAVqcD9VZdpfV9FEwcCQt');
-const VERIFIER = new PublicKey('HrYMqPEiMnYSskmi3iAp57X8Ke6BiP2WsjGvMPEqBtmr');
+const VERIFIER = new PublicKey('AzKirEv7h5PstLNYNqLj7fCXU9EFA6nSnuoed3QkmUfU');
 const VUSDC_MINT = new PublicKey('GWVArRuvRt5t6tcBTMKT27SornozssMfLzc2Eqr3XdvX');
 const PROVER_URL = 'http://localhost:3003';
 

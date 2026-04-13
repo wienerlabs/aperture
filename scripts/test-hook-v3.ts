@@ -5,7 +5,7 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 
 const RPC = 'https://api.devnet.solana.com';
-const VERIFIER = new PublicKey('HrYMqPEiMnYSskmi3iAp57X8Ke6BiP2WsjGvMPEqBtmr');
+const VERIFIER = new PublicKey('AzKirEv7h5PstLNYNqLj7fCXU9EFA6nSnuoed3QkmUfU');
 const POLICY_REG = new PublicKey('FXD7ycSguBQw7o3DXqq4VUBHtdx5ZQpu9P2zb4KG4ZEU');
 const VUSDC = new PublicKey('E9Ab23WT97qHTmmWxEmHfWCmPsrQb77nJnAFFuDRfhar');
 const RECIPIENT = new PublicKey('2jcWr2gtGVePDPzJPQohibjsQbsfjdKuyHuGAnRyvSWu');

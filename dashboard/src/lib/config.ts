@@ -12,7 +12,7 @@ export const config = {
   },
   programs: {
     policyRegistry: process.env.NEXT_PUBLIC_POLICY_REGISTRY_PROGRAM ?? 'FXD7ycSguBQw7o3DXqq4VUBHtdx5ZQpu9P2zb4KG4ZEU',
-    verifier: process.env.NEXT_PUBLIC_VERIFIER_PROGRAM ?? 'HrYMqPEiMnYSskmi3iAp57X8Ke6BiP2WsjGvMPEqBtmr',
+    verifier: process.env.NEXT_PUBLIC_VERIFIER_PROGRAM ?? 'AzKirEv7h5PstLNYNqLj7fCXU9EFA6nSnuoed3QkmUfU',
     transferHook: process.env.NEXT_PUBLIC_TRANSFER_HOOK_PROGRAM ?? '3GZAsASQHTJTCfHGRKaj26zdAVqcD9VZdpfV9FEwcCQt',
   },
   explorerUrl: (address: string) =>

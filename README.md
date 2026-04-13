@@ -27,8 +27,32 @@ Aperture enables AI agents to prove compliance with operator-defined policies (s
 | Program | Program ID | Explorer |
 |---------|-----------|----------|
 | Policy Registry | `FXD7ycSguBQw7o3DXqq4VUBHtdx5ZQpu9P2zb4KG4ZEU` | [View](https://explorer.solana.com/address/FXD7ycSguBQw7o3DXqq4VUBHtdx5ZQpu9P2zb4KG4ZEU?cluster=devnet) |
-| ZK Verifier | `HrYMqPEiMnYSskmi3iAp57X8Ke6BiP2WsjGvMPEqBtmr` | [View](https://explorer.solana.com/address/HrYMqPEiMnYSskmi3iAp57X8Ke6BiP2WsjGvMPEqBtmr?cluster=devnet) |
+| ZK Verifier | `AzKirEv7h5PstLNYNqLj7fCXU9EFA6nSnuoed3QkmUfU` | [View](https://explorer.solana.com/address/AzKirEv7h5PstLNYNqLj7fCXU9EFA6nSnuoed3QkmUfU?cluster=devnet) |
 | Transfer Hook | `3GZAsASQHTJTCfHGRKaj26zdAVqcD9VZdpfV9FEwcCQt` | [View](https://explorer.solana.com/address/3GZAsASQHTJTCfHGRKaj26zdAVqcD9VZdpfV9FEwcCQt?cluster=devnet) |
+
+## On-chain Verification Evidence
+
+Every proof verification is recorded on-chain with full audit trail. Below are live transactions on Solana Devnet demonstrating the system in production.
+
+**ZK Proof Verification + Compressed Attestation**
+
+| Step | Transaction | Explorer |
+|------|------------|----------|
+| ZK Proof Verified | `4kaV4SpHPSEZw4Qm2U8L...` | [View TX](https://explorer.solana.com/tx/4kaV4SpHPSEZw4Qm2U81LzQS31zPiJK45co4eMsCHfoVu9ZjHDvNTzYrLBQM6BsfxAJvWzSjdr2ogN4nko4oGivo?cluster=devnet) |
+| Compressed Attestation | `66ctwg4lP5wqfRnneY4n...` | [View TX](https://explorer.solana.com/tx/VpZXCze49uMYN8psLPFEMLyyxvuuwHxHFfCyzrRMKMRemP7rLrYJLyuvZp42NnA7XntGwLmM7vvGbdRhw9B7m8y?cluster=devnet) |
+| Squads Multisig Created | `7WQTv8G86HReAaMLKG7T...` | [View Account](https://explorer.solana.com/address/7WQTv8G86HReAaMLKG7T7fTrTzsEbPkZW5ibDKjAqj21?cluster=devnet) |
+
+**Verifier Program Logs (from ZK proof TX)**
+
+```
+Program AzKirEv7h5PstLNYNqLj7fCXU9EFA6nSnuoed3QkmUfU invoke [1]
+Program log: Instruction: VerifyPaymentProof
+Program log: Payment proof verified: operator=CBDj...E25b, compliant=true, total_proofs=1
+Program AzKirEv7h5PstLNYNqLj7fCXU9EFA6nSnuoed3QkmUfU consumed 79728 of 199700 compute units
+Program AzKirEv7h5PstLNYNqLj7fCXU9EFA6nSnuoed3QkmUfU success
+```
+
+The verifier performs journal field parsing, image_id validation, proof_hash cross-referencing, and journal digest recomputation on-chain. 79,728 compute units reflects real verification logic, not a passthrough.
 
 ## Architecture
 

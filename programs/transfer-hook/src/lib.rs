@@ -21,7 +21,7 @@ const DISC_INIT_EXTRA_METAS: [u8; 8] = [0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 const SPL_EXECUTE_DISC: [u8; 8] = [105, 37, 101, 197, 75, 251, 102, 26];
 
 // Verifier program ID (for ComplianceStatus PDA derivation)
-const VERIFIER_PROGRAM: Pubkey = solana_program::pubkey!("HrYMqPEiMnYSskmi3iAp57X8Ke6BiP2WsjGvMPEqBtmr");
+const VERIFIER_PROGRAM: Pubkey = solana_program::pubkey!("AzKirEv7h5PstLNYNqLj7fCXU9EFA6nSnuoed3QkmUfU");
 
 #[derive(BorshSerialize, BorshDeserialize)]
 pub struct HookConfig {

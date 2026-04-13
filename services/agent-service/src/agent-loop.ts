@@ -13,7 +13,7 @@ import {
   TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 
-const VERIFIER_PROGRAM = new PublicKey('HrYMqPEiMnYSskmi3iAp57X8Ke6BiP2WsjGvMPEqBtmr');
+const VERIFIER_PROGRAM = new PublicKey('AzKirEv7h5PstLNYNqLj7fCXU9EFA6nSnuoed3QkmUfU');
 const VERIFY_BATCH_DISCRIMINATOR = Buffer.from([85, 129, 17, 164, 94, 99, 86, 45]);
 
 function sha256(data: Uint8Array | string): Uint8Array {
