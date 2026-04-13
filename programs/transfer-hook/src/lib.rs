@@ -14,7 +14,7 @@ use solana_program::{
 use spl_tlv_account_resolution::{account::ExtraAccountMeta, seeds::Seed, state::ExtraAccountMetaList};
 use spl_transfer_hook_interface::instruction::ExecuteInstruction;
 
-solana_program::declare_id!("3GZAsASQHTJTCfHGRKaj26zdAVqcD9VZdpfV9FEwcCQt");
+solana_program::declare_id!("DjM7B4WY3QmZsVSS3hJcmr3TUwVokZxbmi2HaykTjAW");
 
 const DISC_INIT_CONFIG: [u8; 8] = [0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
 const DISC_INIT_EXTRA_METAS: [u8; 8] = [0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];

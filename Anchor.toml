@@ -6,9 +6,9 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-policy_registry = "CZxdDpayJuLT1GVQcmhRKahLM6gTdBFpkirHjrvSGKVs"
-verifier = "HrYMqPEiMnYSskmi3iAp57X8Ke6BiP2WsjGvMPEqBtmr"
-transfer_hook = "3GZAsASQHTJTCfHGRKaj26zdAVqcD9VZdpfV9FEwcCQt"
+policy_registry = "FXD7ycSguBQw7o3DXqq4VUBHtdx5ZQpu9P2zb4KG4ZEU"
+transfer_hook = "DjM7B4WY3QmZsVSS3hJcmr3TUwVokZxbmi2HaykTjAW"
+verifier = "AzKirEv7h5PstLNYNqLj7fCXU9EFA6nSnuoed3QkmUfU"
 
 [registry]
 url = "https://api.apr.dev"

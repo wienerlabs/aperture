@@ -26,7 +26,7 @@ Aperture enables AI agents to prove compliance with operator-defined policies (s
 
 | Program | Program ID | Explorer |
 |---------|-----------|----------|
-| Policy Registry | `CZxdDpayJuLT1GVQcmhRKahLM6gTdBFpkirHjrvSGKVs` | [View](https://explorer.solana.com/address/CZxdDpayJuLT1GVQcmhRKahLM6gTdBFpkirHjrvSGKVs?cluster=devnet) |
+| Policy Registry | `FXD7ycSguBQw7o3DXqq4VUBHtdx5ZQpu9P2zb4KG4ZEU` | [View](https://explorer.solana.com/address/FXD7ycSguBQw7o3DXqq4VUBHtdx5ZQpu9P2zb4KG4ZEU?cluster=devnet) |
 | ZK Verifier | `HrYMqPEiMnYSskmi3iAp57X8Ke6BiP2WsjGvMPEqBtmr` | [View](https://explorer.solana.com/address/HrYMqPEiMnYSskmi3iAp57X8Ke6BiP2WsjGvMPEqBtmr?cluster=devnet) |
 | Transfer Hook | `3GZAsASQHTJTCfHGRKaj26zdAVqcD9VZdpfV9FEwcCQt` | [View](https://explorer.solana.com/address/3GZAsASQHTJTCfHGRKaj26zdAVqcD9VZdpfV9FEwcCQt?cluster=devnet) |
 

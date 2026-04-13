@@ -68,7 +68,7 @@ async function main() {
     0x2b, 0x9b, 0x9e, 0x67, 0xa5, 0x6c, 0x88, 0x63,
   ]);
 
-  const POLICY_REGISTRY_PROGRAM = new PublicKey('CZxdDpayJuLT1GVQcmhRKahLM6gTdBFpkirHjrvSGKVs');
+  const POLICY_REGISTRY_PROGRAM = new PublicKey('FXD7ycSguBQw7o3DXqq4VUBHtdx5ZQpu9P2zb4KG4ZEU');
 
   const data = Buffer.alloc(8 + 32 + 32);
   initConfigDiscriminator.copy(data, 0);

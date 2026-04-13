@@ -147,11 +147,11 @@ async function main() {
   const policyIdBytes = crypto.createHash('sha256').update('hook-test-policy').digest();
   const [operatorPDA] = PublicKey.findProgramAddressSync(
     [Buffer.from('operator'), wallet.publicKey.toBuffer()],
-    new PublicKey('CZxdDpayJuLT1GVQcmhRKahLM6gTdBFpkirHjrvSGKVs')
+    new PublicKey('FXD7ycSguBQw7o3DXqq4VUBHtdx5ZQpu9P2zb4KG4ZEU')
   );
   const [policyPDA] = PublicKey.findProgramAddressSync(
     [Buffer.from('policy'), operatorPDA.toBuffer(), policyIdBytes],
-    new PublicKey('CZxdDpayJuLT1GVQcmhRKahLM6gTdBFpkirHjrvSGKVs')
+    new PublicKey('FXD7ycSguBQw7o3DXqq4VUBHtdx5ZQpu9P2zb4KG4ZEU')
   );
 
   // Build verify_payment_proof instruction

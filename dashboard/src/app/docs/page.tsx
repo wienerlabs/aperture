@@ -323,7 +323,7 @@ open http://localhost:3000`}</Code>
           <P>Aperture consists of four layers:</P>
           <div className="space-y-3 mb-6">
             {[
-              { name: 'Policy Registry', desc: 'Anchor program on Solana. Stores operator accounts and policy PDAs with merkle roots and data hashes.', id: 'CZxdDpayJuLT1GVQcmhRKahLM6gTdBFpkirHjrvSGKVs' },
+              { name: 'Policy Registry', desc: 'Anchor program on Solana. Stores operator accounts and policy PDAs with merkle roots and data hashes.', id: 'FXD7ycSguBQw7o3DXqq4VUBHtdx5ZQpu9P2zb4KG4ZEU' },
               { name: 'ZK Payment Prover', desc: 'RISC Zero zkVM circuit. Executes 5 compliance checks inside the zkVM and produces a 255KB cryptographic receipt.', id: 'services/prover-service (port 3003)' },
               { name: 'Compliance Aggregator', desc: 'Backend service that aggregates proof records into batch attestations with SHA-256 batch hashes.', id: 'services/compliance-api (port 3002)' },
               { name: 'On-chain Verifier', desc: 'Anchor program that verifies receipt integrity (SHA-256 check) and creates ProofRecord + ComplianceStatus PDAs.', id: 'HrYMqPEiMnYSskmi3iAp57X8Ke6BiP2WsjGvMPEqBtmr' },
