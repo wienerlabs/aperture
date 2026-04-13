@@ -110,6 +110,41 @@ async function submitProofRecord(
   return data.data.id;
 }
 
+async function mintCompressedAttestation(
+  complianceApiUrl: string,
+  proofRecordId: string,
+  recipient: string,
+): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `${complianceApiUrl}/api/v1/compliance/compress-attestation`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          proof_id: proofRecordId,
+          recipient,
+        }),
+      },
+    );
+
+    if (!res.ok) {
+      const body = await res.text();
+      log(`  Compressed attestation skipped: ${body}`);
+      return null;
+    }
+
+    const data = (await res.json()) as {
+      data: { tx_signature: string };
+    };
+    return data.data.tx_signature;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    log(`  Compressed attestation failed: ${msg}`);
+    return null;
+  }
+}
+
 async function createBatchAttestation(
   complianceApiUrl: string,
   operatorId: string,
@@ -223,6 +258,17 @@ async function run(): Promise<void> {
       );
       proofRecordIds.push(recordId);
       log(`  Proof record saved: ${recordId}`);
+
+      // Mint compressed attestation via Light Protocol
+      log('  Minting compressed attestation...');
+      const compressedSig = await mintCompressedAttestation(
+        cfg.complianceApiUrl,
+        recordId,
+        cfg.operatorId,
+      );
+      if (compressedSig) {
+        log(`  Compressed attestation TX: ${compressedSig}`);
+      }
     } else {
       log(`x402 payment failed: ${x402Result.error}`);
     }
@@ -273,6 +319,17 @@ async function run(): Promise<void> {
       );
       proofRecordIds.push(recordId);
       log(`  Proof record saved: ${recordId}`);
+
+      // Mint compressed attestation via Light Protocol
+      log('  Minting compressed attestation...');
+      const compressedSig = await mintCompressedAttestation(
+        cfg.complianceApiUrl,
+        recordId,
+        cfg.operatorId,
+      );
+      if (compressedSig) {
+        log(`  Compressed attestation TX: ${compressedSig}`);
+      }
     } else {
       log(`MPP payment failed: ${mppResult.error}`);
     }

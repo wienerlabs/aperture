@@ -76,7 +76,7 @@ export async function mintCompressedAttestation(
     payer,
     mint,
     recipient,
-    payer.publicKey, // authority
+    payer, // mint authority (Keypair implements Signer)
     amount
   );
 

@@ -86,6 +86,7 @@ export function PaymentsTab() {
   const [simResult, setSimResult] = useState<{
     message: string;
     txSig: string | null;
+    compressedTxSig: string | null;
     proofHash: string | null;
     provingTimeMs: number | null;
     amountRangeMin: number | null;
@@ -643,15 +644,39 @@ export function PaymentsTab() {
       }
 
       // Save tx_signature to backend
+      let proofRecordId = '';
       if (txSig) {
         const proofRes = await complianceApi.getProofByPayment(paymentId);
         if (proofRes.data) {
           await complianceApi.updateProofTxSignature(proofRes.data.id, txSig);
+          proofRecordId = proofRes.data.id;
         }
       }
+
+      // 5. Mint compressed attestation token via Light Protocol
+      let compressedTxSig: string | null = null;
+      if (proofRecordId && publicKey && proofData.is_compliant) {
+        try {
+          setProvingStatus('Minting compressed attestation via Light Protocol...');
+          await new Promise(r => setTimeout(r, 0));
+          const compressRes = await complianceApi.compressAttestation(
+            proofRecordId,
+            publicKey.toBase58()
+          );
+          if (compressRes.data) {
+            compressedTxSig = compressRes.data.tx_signature;
+          }
+        } catch {
+          // Light Protocol not configured or mint failed -- non-blocking
+        }
+      }
+
       setSimResult({
-        message: 'ZK proof verified on-chain',
+        message: compressedTxSig
+          ? 'ZK proof verified on-chain + compressed attestation minted'
+          : 'ZK proof verified on-chain',
         txSig: txSig || null,
+        compressedTxSig,
         proofHash: proofData.proof_hash,
         provingTimeMs: proofData.proving_time_ms,
         amountRangeMin: proofData.amount_range_min,
@@ -660,7 +685,7 @@ export function PaymentsTab() {
         receiptSize: proofData.receipt_bytes?.length ?? null,
       });
 
-      // 5. Refresh proofs list
+      // 6. Refresh proofs list
       await fetchProofs();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Payment proof generation failed');
@@ -769,6 +794,20 @@ export function PaymentsTab() {
                   className="flex items-center gap-1 text-amber-400 hover:text-amber-300 font-mono mt-0.5"
                 >
                   {simResult.txSig.slice(0, 20)}...
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            )}
+            {simResult.compressedTxSig && (
+              <div>
+                <span className="text-amber-100/40">Compressed Attestation</span>
+                <a
+                  href={config.txExplorerUrl(simResult.compressedTxSig)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-green-400 font-mono mt-0.5 hover:underline"
+                >
+                  {simResult.compressedTxSig.slice(0, 20)}...
                   <ExternalLink className="w-3 h-3" />
                 </a>
               </div>

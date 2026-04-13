@@ -540,19 +540,43 @@ export class AgentLoop {
       }),
     });
 
-    if (!createRes.ok || !txSignature) return;
+    if (!createRes.ok) return;
 
-    // Attach tx_signature to the proof record
     const created = (await createRes.json()) as { data: { id: string } };
-    await fetch(
-      `${this.config.complianceApiUrl}/api/v1/proofs/${created.data.id}/tx-signature`,
-      {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tx_signature: txSignature }),
-      },
-    );
-    log(`  Proof record ${created.data.id} updated with TX: ${txSignature.slice(0, 20)}...`);
+    if (txSignature) {
+      await fetch(
+        `${this.config.complianceApiUrl}/api/v1/proofs/${created.data.id}/tx-signature`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tx_signature: txSignature }),
+        },
+      );
+      log(`  Proof record ${created.data.id} updated with TX: ${txSignature.slice(0, 20)}...`);
+    }
+
+    // Mint compressed attestation via Light Protocol
+    if (proof.is_compliant) {
+      try {
+        const compressRes = await fetch(
+          `${this.config.complianceApiUrl}/api/v1/compliance/compress-attestation`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              proof_id: created.data.id,
+              recipient: this.config.operatorId,
+            }),
+          },
+        );
+        if (compressRes.ok) {
+          const compressData = (await compressRes.json()) as { data: { tx_signature: string } };
+          log(`  Compressed attestation TX: ${compressData.data.tx_signature.slice(0, 20)}...`);
+        }
+      } catch {
+        // Light Protocol not configured -- non-blocking
+      }
+    }
   }
 
   private async createAttestation(): Promise<void> {

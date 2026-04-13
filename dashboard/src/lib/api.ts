@@ -100,6 +100,20 @@ export const complianceApi = {
       method: 'PATCH',
       body: JSON.stringify({ tx_signature: txSignature }),
     }),
+  compressAttestation: (proofId: string, recipient: string) =>
+    request<ApiResponse<{ tx_signature: string; proof_id: string; mint: string; recipient: string }>>(
+      config.complianceApiUrl,
+      '/api/v1/compliance/compress-attestation',
+      {
+        method: 'POST',
+        body: JSON.stringify({ proof_id: proofId, recipient }),
+      }
+    ),
+  getLightStatus: () =>
+    request<ApiResponse<{ configured: boolean; rpc_url: string | null; compressed_mint: string | null }>>(
+      config.complianceApiUrl,
+      '/api/v1/compliance/light-status'
+    ),
 };
 
 export interface Policy {
@@ -171,6 +185,7 @@ export interface ProofRecord {
   token_mint: string;
   is_compliant: boolean;
   tx_signature: string | null;
+  compressed_tx_signature: string | null;
   verified_at: string;
   created_at: string;
 }
