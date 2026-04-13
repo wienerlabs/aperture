@@ -54,6 +54,39 @@ Program AzKirEv7h5PstLNYNqLj7fCXU9EFA6nSnuoed3QkmUfU success
 
 The verifier performs journal field parsing, image_id validation, proof_hash cross-referencing, and journal digest recomputation on-chain. 79,728 compute units reflects real verification logic, not a passthrough.
 
+**Merkle Tree Policy Storage**
+
+Policy rules are stored as a binary Merkle tree. Each rule (spending limits, blocked addresses, allowed categories, etc.) becomes a leaf node. The tree root is stored on-chain, enabling selective disclosure: prove a specific rule exists without revealing other rules.
+
+```
+Policy: "frontier" (6 rules)
+
+                          root: 4b92078a...
+                        /                    \
+                 8c0513ff...              726c9737...
+                /          \             /          \
+         44d26a1d...  40aea26a...  a4494d5e...  d8459fcf...
+              |            |            |            |
+        max_daily    max_per_tx   allowed_cat  blocked_addr
+```
+
+Three independent proofs, same root, different rules revealed:
+
+```
+Rule: max_daily_spend    -> leaf: 44d26a1d... -> 3 siblings -> root: 4b92078a... -> verified: true
+Rule: blocked_addresses  -> leaf: d8459fcf... -> 3 siblings -> root: 4b92078a... -> verified: true
+Rule: token_whitelist    -> leaf: a1b5b614... -> 3 siblings -> root: 4b92078a... -> verified: true
+```
+
+An auditor verifying `blocked_addresses` sees only that the rule exists in the policy. The values of `max_daily_spend`, `max_per_transaction`, `allowed_categories`, `token_whitelist`, and `time_restrictions` remain hidden. This is selective disclosure: prove everything, reveal nothing.
+
+API endpoints for Merkle operations:
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/v1/policies/:id/merkle-tree` | Full tree with root, leaves, and labels |
+| `GET /api/v1/policies/:id/merkle-proof/:rule` | Merkle proof for a specific rule with verification |
+
 ## Architecture
 
 ```

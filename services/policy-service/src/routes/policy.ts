@@ -12,6 +12,11 @@ import {
   deletePolicy,
   compileForCircuit,
 } from '../models/policy.js';
+import {
+  buildPolicyMerkleTree,
+  getMerkleProof,
+  verifyMerkleProof,
+} from '../utils/merkle.js';
 
 const router = Router();
 
@@ -305,6 +310,129 @@ router.get('/:id/compile', async (req, res, next) => {
     const response: ApiResponse<typeof serialized> = {
       success: true,
       data: serialized,
+      error: null,
+    };
+    res.json(response);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /api/v1/policies/{id}/merkle-tree:
+ *   get:
+ *     summary: Get the Merkle tree for a policy
+ *     tags: [Policies]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Merkle tree with root, leaves, and labels
+ *       404:
+ *         description: Policy not found
+ */
+router.get('/:id/merkle-tree', async (req, res, next) => {
+  try {
+    const id = paramAsString(req.params.id);
+    const parseResult = UUIDSchema.safeParse(id);
+    if (!parseResult.success) {
+      throw new AppError(400, 'Invalid policy ID format');
+    }
+
+    const policy = await getPolicyById(id);
+    if (!policy) {
+      throw new AppError(404, 'Policy not found');
+    }
+
+    const tree = buildPolicyMerkleTree(policy);
+
+    const response: ApiResponse<{
+      root: string;
+      leaf_count: number;
+      labels: readonly string[];
+      leaves: string[];
+    }> = {
+      success: true,
+      data: {
+        root: tree.root.toString('hex'),
+        leaf_count: tree.leaves.length,
+        labels: tree.labels,
+        leaves: tree.leaves.map(l => l.toString('hex')),
+      },
+      error: null,
+    };
+    res.json(response);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /api/v1/policies/{id}/merkle-proof/{rule}:
+ *   get:
+ *     summary: Get a Merkle proof for a specific policy rule
+ *     description: >
+ *       Enables selective disclosure: prove a specific rule exists
+ *       in the policy without revealing other rules.
+ *     tags: [Policies]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: path
+ *         name: rule
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [max_daily_spend, max_per_transaction, allowed_categories, blocked_addresses, token_whitelist, time_restrictions]
+ *     responses:
+ *       200:
+ *         description: Merkle proof for the specified rule
+ *       400:
+ *         description: Invalid rule name
+ *       404:
+ *         description: Policy not found
+ */
+router.get('/:id/merkle-proof/:rule', async (req, res, next) => {
+  try {
+    const id = paramAsString(req.params.id);
+    const rule = paramAsString(req.params.rule);
+
+    const parseResult = UUIDSchema.safeParse(id);
+    if (!parseResult.success) {
+      throw new AppError(400, 'Invalid policy ID format');
+    }
+
+    const policy = await getPolicyById(id);
+    if (!policy) {
+      throw new AppError(404, 'Policy not found');
+    }
+
+    const tree = buildPolicyMerkleTree(policy);
+    const ruleIndex = tree.labels.indexOf(rule);
+
+    if (ruleIndex === -1) {
+      throw new AppError(400, `Invalid rule name: ${rule}. Valid rules: ${tree.labels.join(', ')}`);
+    }
+
+    const proof = getMerkleProof(tree, ruleIndex);
+
+    // Verify the proof is valid before returning
+    const isValid = verifyMerkleProof(proof.leaf, proof.proof, proof.directions, proof.root);
+
+    const response: ApiResponse<typeof proof & { verified: boolean }> = {
+      success: true,
+      data: { ...proof, verified: isValid },
       error: null,
     };
     res.json(response);

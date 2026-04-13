@@ -6,6 +6,7 @@ import { AppError } from '../middleware/error-handler.js';
 import { getPolicyById, compileForCircuit } from '../models/policy.js';
 import { config } from '../config.js';
 import { logger } from '../utils/logger.js';
+import { computePolicyMerkleRoot } from '../utils/merkle.js';
 
 const router = Router();
 
@@ -47,10 +48,12 @@ router.post('/register', validateBody(RegisterOnChainSchema), async (req, res, n
     }
 
     const compiled = compileForCircuit(policy);
-    const policyJson = JSON.stringify(compiled);
 
     const { createHash } = await import('node:crypto');
-    const merkleRoot = createHash('sha256').update(policyJson).digest();
+
+    // Build real Merkle tree from policy rules (each rule = one leaf)
+    const merkleRoot = computePolicyMerkleRoot(policy);
+
     const policyDataHash = createHash('sha256')
       .update(JSON.stringify({
         max_daily_spend: compiled.max_daily_spend_lamports.toString(),
