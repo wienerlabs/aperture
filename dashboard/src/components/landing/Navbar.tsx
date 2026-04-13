@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
+import { useWallet } from '@solana/wallet-adapter-react';
 import { useApertureWalletModal } from '../shared/WalletModal';
 import { ApertureLogo } from '../shared/ApertureLogo';
 import { ThemeToggle } from '../shared/ThemeToggle';
@@ -28,6 +29,11 @@ export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { setVisible: openWalletModal } = useApertureWalletModal();
+  const { connected, publicKey } = useWallet();
+
+  const handleConnectWallet = useCallback(() => {
+    openWalletModal(true);
+  }, [openWalletModal]);
   useEffect(() => {
     function handleScroll() {
       setScrolled(window.scrollY > 20);
@@ -95,12 +101,21 @@ export function Navbar() {
             >
               Sign In
             </Link>
-            <button
-              onClick={() => openWalletModal(true)}
-              className="text-sm px-4 py-2 bg-black text-[#f8b300] rounded-lg font-semibold hover:bg-black/80 transition-colors duration-200"
-            >
-              Connect Wallet
-            </button>
+            {connected && publicKey ? (
+              <Link
+                href="/dashboard"
+                className="text-sm px-4 py-2 bg-black text-[#f8b300] rounded-lg font-semibold hover:bg-black/80 transition-colors duration-200"
+              >
+                Dashboard
+              </Link>
+            ) : (
+              <button
+                onClick={handleConnectWallet}
+                className="text-sm px-4 py-2 bg-black text-[#f8b300] rounded-lg font-semibold hover:bg-black/80 transition-colors duration-200"
+              >
+                Connect Wallet
+              </button>
+            )}
           </div>
 
           {/* Mobile hamburger */}
@@ -153,12 +168,22 @@ export function Navbar() {
                 >
                   Sign In
                 </Link>
-                <button
-                  onClick={() => { openWalletModal(true); setMobileOpen(false); }}
-                  className="text-sm px-4 py-2 bg-black text-[#f8b300] rounded-lg font-semibold text-center hover:bg-black/80 transition-colors"
-                >
-                  Connect Wallet
-                </button>
+                {connected && publicKey ? (
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setMobileOpen(false)}
+                    className="text-sm px-4 py-2 bg-black text-[#f8b300] rounded-lg font-semibold text-center hover:bg-black/80 transition-colors"
+                  >
+                    Dashboard
+                  </Link>
+                ) : (
+                  <button
+                    onClick={() => { handleConnectWallet(); setMobileOpen(false); }}
+                    className="text-sm px-4 py-2 bg-black text-[#f8b300] rounded-lg font-semibold text-center hover:bg-black/80 transition-colors"
+                  >
+                    Connect Wallet
+                  </button>
+                )}
               </div>
             </div>
           </motion.div>
