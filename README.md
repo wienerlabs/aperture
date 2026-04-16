@@ -1,4 +1,5 @@
-# Aperture
+# Aperture - Prove everything. Reveal nothing.
+
 
 ZK-based compliance and privacy layer for AI agent payments on Solana.
 
