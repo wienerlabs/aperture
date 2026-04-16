@@ -37,7 +37,7 @@ const moreMenuItems: readonly MoreMenuItem[] = [
   { label: 'API Documentation', href: '/api-docs' },
   { label: 'Changelog', href: '/changelog' },
   { label: 'Status', href: '/status' },
-  { label: 'AIP Protocol', href: null, disabled: true, comingSoon: true },
+  { label: 'AIP Protocol', href: '/aip' },
 ];
 
 function smoothScrollTo(href: string) {

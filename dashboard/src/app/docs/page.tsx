@@ -254,7 +254,7 @@ open http://localhost:3000`}</Code>
               <div key={name} className="flex items-center gap-3 text-xs">
                 <span className="px-2 py-0.5 rounded font-mono font-bold bg-amber-400/10 text-amber-400">{port}</span>
                 <span className="font-mono text-amber-100/70">{name}</span>
-                <span className="text-amber-100/30">{desc}</span>
+                <span className="text-amber-100/50">{desc}</span>
               </div>
             ))}
           </div>
@@ -504,7 +504,7 @@ npx tsx src/agent.ts`}</Code>
               <div key={p} className="flex items-center gap-3 text-xs">
                 <span className={`px-2 py-0.5 rounded font-mono font-bold ${m === 'GET' ? 'bg-green-400/10 text-green-400' : 'bg-amber-400/10 text-amber-400'}`}>{m}</span>
                 <span className="font-mono text-amber-100/70">{p}</span>
-                <span className="text-amber-100/30">{d}</span>
+                <span className="text-amber-100/50">{d}</span>
               </div>
             ))}
           </div>
@@ -627,7 +627,7 @@ npx tsx src/agent.ts`}</Code>
               <div key={p} className="flex items-center gap-3 text-xs">
                 <span className={`px-2 py-0.5 rounded font-mono font-bold ${m === 'GET' ? 'bg-green-400/10 text-green-400' : m === 'POST' ? 'bg-amber-400/10 text-amber-400' : m === 'PUT' ? 'bg-blue-400/10 text-blue-400' : 'bg-red-400/10 text-red-400'}`}>{m}</span>
                 <span className="font-mono text-amber-100/70">{p}</span>
-                <span className="text-amber-100/30">{d}</span>
+                <span className="text-amber-100/50">{d}</span>
               </div>
             ))}
           </div>
@@ -649,7 +649,7 @@ npx tsx src/agent.ts`}</Code>
               <div key={p+m} className="flex items-center gap-3 text-xs">
                 <span className={`px-2 py-0.5 rounded font-mono font-bold ${m === 'GET' ? 'bg-green-400/10 text-green-400' : m === 'POST' ? 'bg-amber-400/10 text-amber-400' : 'bg-blue-400/10 text-blue-400'}`}>{m}</span>
                 <span className="font-mono text-amber-100/70">{p}</span>
-                <span className="text-amber-100/30">{d}</span>
+                <span className="text-amber-100/50">{d}</span>
               </div>
             ))}
           </div>
@@ -663,7 +663,7 @@ npx tsx src/agent.ts`}</Code>
               <div key={p} className="flex items-center gap-3 text-xs">
                 <span className={`px-2 py-0.5 rounded font-mono font-bold ${m === 'GET' ? 'bg-green-400/10 text-green-400' : 'bg-amber-400/10 text-amber-400'}`}>{m}</span>
                 <span className="font-mono text-amber-100/70">{p}</span>
-                <span className="text-amber-100/30">{d}</span>
+                <span className="text-amber-100/50">{d}</span>
               </div>
             ))}
           </div>
@@ -679,7 +679,7 @@ npx tsx src/agent.ts`}</Code>
               <div key={p} className="flex items-center gap-3 text-xs">
                 <span className={`px-2 py-0.5 rounded font-mono font-bold ${m === 'GET' ? 'bg-green-400/10 text-green-400' : 'bg-amber-400/10 text-amber-400'}`}>{m}</span>
                 <span className="font-mono text-amber-100/70">{p}</span>
-                <span className="text-amber-100/30">{d}</span>
+                <span className="text-amber-100/50">{d}</span>
               </div>
             ))}
           </div>
