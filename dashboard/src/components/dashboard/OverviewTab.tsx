@@ -268,7 +268,7 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: string) => void 
               ))}
             </div>
           ) : (
-            <p className="text-xs text-amber-100/30">No proofs yet</p>
+            <p className="text-xs text-amber-100/50">No proofs yet</p>
           )}
         </div>
 
@@ -293,7 +293,7 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: string) => void 
                   <span className="text-amber-100/40">Total Saved</span>
                   <span className="text-amber-400 font-mono">{lamportsToSol(regularTotal - compressedTotal)} SOL ({cost.savingsMultiplier}x)</span>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-amber-100/30 pt-1">
+                <div className="flex items-center gap-2 text-xs text-amber-100/50 pt-1">
                   <div className={`w-2 h-2 rounded-full ${isLightProtocolConfigured() ? 'bg-green-400' : 'bg-amber-400/30'}`} />
                   {isLightProtocolConfigured() ? 'Light Protocol active' : 'Light Protocol available'}
                 </div>
@@ -343,7 +343,7 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: string) => void 
               </div>
             </div>
           ) : (
-            <p className="text-xs text-amber-100/30">No attestations yet</p>
+            <p className="text-xs text-amber-100/50">No attestations yet</p>
           )}
         </div>
 
@@ -379,7 +379,7 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: string) => void 
               </button>
             </div>
           ) : (
-            <p className="text-xs text-amber-100/30">No active policies</p>
+            <p className="text-xs text-amber-100/50">No active policies</p>
           )}
         </div>
       </div>

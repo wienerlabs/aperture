@@ -751,7 +751,7 @@ export function PaymentsTab() {
                   ) : (
                     <div className="w-3 h-3 rounded-full border border-amber-400/30" />
                   )}
-                  <span className={`text-xs ${isDone ? 'text-green-400' : isCurrent ? 'text-amber-400' : 'text-amber-100/30'}`}>
+                  <span className={`text-xs ${isDone ? 'text-green-400' : isCurrent ? 'text-amber-400' : 'text-amber-100/50'}`}>
                     {step}
                   </span>
                 </div>
@@ -846,7 +846,7 @@ export function PaymentsTab() {
             <div className="flex items-center gap-3">
               <ShieldCheck className="w-4 h-4 text-amber-400" />
               <span className="text-sm font-semibold text-amber-100">Transfer Hook Test</span>
-              <span className="text-xs text-amber-100/30">vUSDC compliance enforcement</span>
+              <span className="text-xs text-amber-100/50">vUSDC compliance enforcement</span>
             </div>
             <ChevronDown className={`w-4 h-4 text-amber-100/40 transition-transform ${showHookTest ? 'rotate-180' : ''}`} />
           </button>
@@ -996,7 +996,7 @@ export function PaymentsTab() {
                           onClick={() =>
                             copyToClipboard(proof.proof_hash, proof.id)
                           }
-                          className="text-amber-100/20 hover:text-amber-400 transition-colors"
+                          className="text-amber-100/40 hover:text-amber-400 transition-colors"
                           aria-label="Copy proof hash"
                         >
                           {copiedId === proof.id ? (
@@ -1044,7 +1044,7 @@ export function PaymentsTab() {
                           View
                         </a>
                       ) : (
-                        <span className="text-amber-100/20">-</span>
+                        <span className="text-amber-100/40">-</span>
                       )}
                     </td>
                   </tr>
@@ -1081,7 +1081,7 @@ export function PaymentsTab() {
             <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
             <div className="flex-1">
               <p className="text-xs">Generating ZK proof and processing USDC payment...</p>
-              <p className="text-xs text-amber-100/30 mt-0.5">This may take several minutes</p>
+              <p className="text-xs text-amber-100/50 mt-0.5">This may take several minutes</p>
             </div>
             <span className="font-mono text-sm text-amber-400/80">{formatElapsed(elapsedSec)}</span>
           </div>
@@ -1170,7 +1170,7 @@ export function PaymentsTab() {
             <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
             <div className="flex-1">
               <p className="text-xs font-medium">{provingStatus}</p>
-              <p className="text-xs text-amber-100/30 mt-0.5">MPP 402 challenge/credential flow with ZK proof</p>
+              <p className="text-xs text-amber-100/50 mt-0.5">MPP 402 challenge/credential flow with ZK proof</p>
             </div>
             <span className="font-mono text-sm text-purple-400/80">{formatElapsed(elapsedSec)}</span>
           </div>
@@ -1255,7 +1255,7 @@ export function PaymentsTab() {
           >
             <div className="flex items-center gap-3">
               <span className="text-sm font-semibold text-amber-100">ZK Compression Cost Savings</span>
-              <span className="text-xs text-amber-100/30">Light Protocol</span>
+              <span className="text-xs text-amber-100/50">Light Protocol</span>
             </div>
             <ChevronDown className={`w-4 h-4 text-amber-100/40 transition-transform ${showCostSavings ? 'rotate-180' : ''}`} />
           </button>
@@ -1276,7 +1276,7 @@ export function PaymentsTab() {
                     <p className="text-lg font-mono text-red-400 font-bold">
                       {lamportsToSol(regularTotal)} SOL
                     </p>
-                    <p className="text-xs text-amber-100/30 mt-1">
+                    <p className="text-xs text-amber-100/50 mt-1">
                       {lamportsToSol(cost.regularAccountRentLamports)} SOL x {totalProofs} proofs
                     </p>
                   </div>
@@ -1286,7 +1286,7 @@ export function PaymentsTab() {
                     <p className="text-lg font-mono text-green-400 font-bold">
                       {lamportsToSol(compressedTotal)} SOL
                     </p>
-                    <p className="text-xs text-amber-100/30 mt-1">
+                    <p className="text-xs text-amber-100/50 mt-1">
                       {lamportsToSol(cost.compressedTokenCostLamports)} SOL x {totalProofs} proofs
                     </p>
                   </div>
@@ -1296,13 +1296,13 @@ export function PaymentsTab() {
                     <p className="text-lg font-mono text-amber-400 font-bold">
                       {lamportsToSol(savedTotal)} SOL
                     </p>
-                    <p className="text-xs text-amber-100/30 mt-1">
+                    <p className="text-xs text-amber-100/50 mt-1">
                       {cost.savingsMultiplier}x cheaper ({cost.savingsPercent}% savings)
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 text-xs text-amber-100/30">
+                <div className="flex items-center gap-2 text-xs text-amber-100/50">
                   <div className="w-2 h-2 rounded-full bg-green-400" />
                   <span>
                     {isLightProtocolConfigured()

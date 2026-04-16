@@ -11,6 +11,7 @@ import { PaymentsTab } from '@/components/dashboard/PaymentsTab';
 import { ComplianceTab } from '@/components/dashboard/ComplianceTab';
 import { SettingsTab } from '@/components/dashboard/SettingsTab';
 import { AgentActivityTab } from '@/components/dashboard/AgentActivityTab';
+import { AIPAgentsTab } from '@/components/dashboard/AIPAgentsTab';
 
 function renderTab(activeTab: TabId, navigate: (tab: TabId) => void): React.ReactNode {
   switch (activeTab) {
@@ -24,6 +25,8 @@ function renderTab(activeTab: TabId, navigate: (tab: TabId) => void): React.Reac
       return <ComplianceTab />;
     case 'agent':
       return <AgentActivityTab />;
+    case 'aip':
+      return <AIPAgentsTab />;
     case 'settings':
       return <SettingsTab />;
     default:

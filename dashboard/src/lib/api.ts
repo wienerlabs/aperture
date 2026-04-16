@@ -129,6 +129,7 @@ export interface Policy {
   token_whitelist: string[];
   is_active: boolean;
   version: number;
+  aip_agent_did: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -151,6 +152,7 @@ export interface PolicyInput {
   time_restrictions: TimeRestriction[];
   token_whitelist: string[];
   is_active?: boolean;
+  aip_agent_did?: string;
 }
 
 export interface CompiledPolicy {
@@ -231,3 +233,28 @@ export interface BatchAttestationOutput {
   sanctions_intersections: 0;
   proof_hash: string;
 }
+
+export interface AIPAgentCapability {
+  id: string;
+  description: string;
+  pricing: { amount: string; token: string; network: string };
+}
+
+export interface AIPAgent {
+  authority: string;
+  agentId: string;
+  did: string;
+  name: string;
+  endpoint: string;
+  capabilities: AIPAgentCapability[];
+  version: string;
+  publicKey: string;
+}
+
+export const aipApi = {
+  listAgents: () =>
+    request<{ success: boolean; data: AIPAgent[]; total: number }>(
+      '',
+      '/api/aip/agents'
+    ),
+};

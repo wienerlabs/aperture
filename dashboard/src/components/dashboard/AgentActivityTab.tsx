@@ -66,7 +66,7 @@ function typeColor(type: ActivityRecord['type']): string {
     case 'zk_proof': return 'bg-blue-400/10 text-blue-400';
     case 'policy_check': return 'bg-amber-100/5 text-amber-100/50';
     case 'error': return 'bg-red-400/10 text-red-400';
-    default: return 'bg-amber-100/5 text-amber-100/30';
+    default: return 'bg-amber-100/5 text-amber-100/50';
   }
 }
 
@@ -240,7 +240,7 @@ export function AgentActivityTab() {
               <span className="text-xs text-amber-100/40">x402</span>
             </div>
             <p className="text-xl font-bold text-amber-100 font-mono">{stats.totalX402}</p>
-            <p className="text-xs text-amber-100/30 mt-0.5">{stats.totalUsdcSpent.toFixed(2)} USDC</p>
+            <p className="text-xs text-amber-100/50 mt-0.5">{stats.totalUsdcSpent.toFixed(2)} USDC</p>
           </div>
           <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-purple-400/20 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
@@ -248,7 +248,7 @@ export function AgentActivityTab() {
               <span className="text-xs text-amber-100/40">MPP</span>
             </div>
             <p className="text-xl font-bold text-amber-100 font-mono">{stats.totalMpp}</p>
-            <p className="text-xs text-amber-100/30 mt-0.5">${stats.totalMppSpent.toFixed(2)}</p>
+            <p className="text-xs text-amber-100/50 mt-0.5">${stats.totalMppSpent.toFixed(2)}</p>
           </div>
           <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-green-400/20 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
@@ -276,7 +276,7 @@ export function AgentActivityTab() {
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-xs text-amber-100/30">Auto-refresh 5s</span>
+            <span className="text-xs text-amber-100/50">Auto-refresh 5s</span>
           </div>
         </div>
 
@@ -348,7 +348,7 @@ export function AgentActivityTab() {
                         </span>
                       )}
 
-                      <span className="text-xs text-amber-100/30 w-16 text-right">
+                      <span className="text-xs text-amber-100/50 w-16 text-right">
                         {formatTimeAgo(record.timestamp)}
                       </span>
                     </div>

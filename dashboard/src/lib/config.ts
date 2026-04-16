@@ -14,6 +14,8 @@ export const config = {
     policyRegistry: process.env.NEXT_PUBLIC_POLICY_REGISTRY_PROGRAM ?? 'FXD7ycSguBQw7o3DXqq4VUBHtdx5ZQpu9P2zb4KG4ZEU',
     verifier: process.env.NEXT_PUBLIC_VERIFIER_PROGRAM ?? 'AzKirEv7h5PstLNYNqLj7fCXU9EFA6nSnuoed3QkmUfU',
     transferHook: process.env.NEXT_PUBLIC_TRANSFER_HOOK_PROGRAM ?? '3GZAsASQHTJTCfHGRKaj26zdAVqcD9VZdpfV9FEwcCQt',
+    aipRegistry: process.env.NEXT_PUBLIC_AIP_REGISTRY_PROGRAM ?? 'CgchXu2dRV3r9E1YjRhp4kbeLLtv1Xz61yoerJzp1Vbc',
+    aipEscrow: process.env.NEXT_PUBLIC_AIP_ESCROW_PROGRAM ?? '59kc3swV6j6NqvhJoKKXAw1uWqGisY2txtf3LLM9Myhz',
   },
   explorerUrl: (address: string) =>
     `https://explorer.solana.com/address/${address}?cluster=${process.env.NEXT_PUBLIC_SOLANA_NETWORK ?? 'devnet'}`,

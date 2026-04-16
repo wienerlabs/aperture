@@ -16,6 +16,7 @@ interface PolicyRow {
   token_whitelist: string[];
   is_active: boolean;
   version: number;
+  aip_agent_did: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -36,6 +37,7 @@ function rowToPolicy(row: PolicyRow): Policy {
     token_whitelist: row.token_whitelist,
     is_active: row.is_active,
     version: row.version,
+    aip_agent_did: row.aip_agent_did ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -45,8 +47,8 @@ export async function createPolicy(input: PolicyInput): Promise<Policy> {
   const id = uuidv4();
   const result = await query<PolicyRow>(
     `INSERT INTO policies (id, operator_id, name, description, max_daily_spend, max_per_transaction,
-       allowed_endpoint_categories, blocked_addresses, time_restrictions, token_whitelist, is_active)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11)
+       allowed_endpoint_categories, blocked_addresses, time_restrictions, token_whitelist, is_active, aip_agent_did)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12)
      RETURNING *`,
     [
       id,
@@ -60,6 +62,7 @@ export async function createPolicy(input: PolicyInput): Promise<Policy> {
       JSON.stringify(input.time_restrictions),
       input.token_whitelist,
       input.is_active ?? true,
+      input.aip_agent_did ?? null,
     ]
   );
 
@@ -156,6 +159,10 @@ export async function updatePolicy(id: string, updates: PolicyUpdate): Promise<P
     if (updates.is_active !== undefined) {
       fields.push(`is_active = $${paramIndex++}`);
       values.push(updates.is_active);
+    }
+    if (updates.aip_agent_did !== undefined) {
+      fields.push(`aip_agent_did = $${paramIndex++}`);
+      values.push(updates.aip_agent_did);
     }
 
     if (fields.length === 0) {

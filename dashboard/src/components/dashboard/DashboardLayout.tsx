@@ -13,12 +13,13 @@ import {
   X,
   LayoutDashboard,
   Bot,
+  Network,
 } from 'lucide-react';
 import { ApertureLogo } from '../shared/ApertureLogo';
 import { ThemeToggle } from '../shared/ThemeToggle';
 
 
-type TabId = 'overview' | 'policies' | 'payments' | 'compliance' | 'agent' | 'settings';
+type TabId = 'overview' | 'policies' | 'payments' | 'compliance' | 'agent' | 'aip' | 'settings';
 
 interface NavItem {
   readonly id: TabId;
@@ -32,6 +33,7 @@ const NAV_ITEMS: readonly NavItem[] = [
   { id: 'payments', label: 'Payments', icon: FileText },
   { id: 'compliance', label: 'Compliance', icon: BarChart3 },
   { id: 'agent', label: 'Agent Activity', icon: Bot },
+  { id: 'aip', label: 'AIP Agents', icon: Network },
   { id: 'settings', label: 'Settings', icon: Settings },
 ] as const;
 

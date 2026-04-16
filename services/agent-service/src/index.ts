@@ -54,7 +54,7 @@ const port = parseInt(process.env.AGENT_SERVICE_PORT ?? '3004', 10);
 
 app.use(helmet());
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3333'],
+  origin: [/^http:\/\/localhost:\d+$/],
   methods: ['GET', 'POST'],
   credentials: true,
 }));

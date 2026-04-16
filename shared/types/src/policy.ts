@@ -22,6 +22,7 @@ export const PolicySchema = z.object({
   time_restrictions: z.array(TimeRestrictionSchema),
   token_whitelist: z.array(z.string().min(1)).min(1),
   is_active: z.boolean().default(true),
+  aip_agent_did: z.string().max(255).optional(),
 });
 
 export interface Policy {
@@ -37,6 +38,7 @@ export interface Policy {
   readonly token_whitelist: readonly string[];
   readonly is_active: boolean;
   readonly version: number;
+  readonly aip_agent_did: string | null;
   readonly created_at: Date;
   readonly updated_at: Date;
 }

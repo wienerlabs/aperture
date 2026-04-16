@@ -190,7 +190,7 @@ export function SettingsTab() {
                 </span>
                 <button
                   onClick={() => copyToClipboard(walletAddress, 'wallet')}
-                  className="flex-shrink-0 text-amber-100/20 hover:text-amber-400 transition-colors"
+                  className="flex-shrink-0 text-amber-100/40 hover:text-amber-400 transition-colors"
                   aria-label="Copy wallet address"
                 >
                   {copiedField === 'wallet' ? (
@@ -264,7 +264,7 @@ export function SettingsTab() {
                       </span>
                       <button
                         onClick={() => copyToClipboard(multisigInfo.address, 'multisig')}
-                        className="flex-shrink-0 text-amber-100/20 hover:text-amber-400 transition-colors"
+                        className="flex-shrink-0 text-amber-100/40 hover:text-amber-400 transition-colors"
                         aria-label="Copy multisig address"
                       >
                         {copiedField === 'multisig' ? (
@@ -332,7 +332,7 @@ export function SettingsTab() {
                 {creatingMultisig ? 'Creating...' : 'Create Multisig'}
               </button>
 
-              <p className="text-xs text-amber-100/30">
+              <p className="text-xs text-amber-100/50">
                 Creates a Squads V4 multisig on Devnet with 1/1 threshold.
                 Your connected wallet will be the sole member.
                 Policy operations can then be routed through this multisig.
@@ -360,7 +360,7 @@ export function SettingsTab() {
               </code>
               <button
                 onClick={() => copyToClipboard(config.policyServiceUrl, 'policy-url')}
-                className="flex-shrink-0 text-amber-100/20 hover:text-amber-400 transition-colors"
+                className="flex-shrink-0 text-amber-100/40 hover:text-amber-400 transition-colors"
                 aria-label="Copy policy service URL"
               >
                 {copiedField === 'policy-url' ? (
@@ -382,7 +382,7 @@ export function SettingsTab() {
               </code>
               <button
                 onClick={() => copyToClipboard(config.complianceApiUrl, 'compliance-url')}
-                className="flex-shrink-0 text-amber-100/20 hover:text-amber-400 transition-colors"
+                className="flex-shrink-0 text-amber-100/40 hover:text-amber-400 transition-colors"
                 aria-label="Copy compliance API URL"
               >
                 {copiedField === 'compliance-url' ? (
@@ -404,7 +404,7 @@ export function SettingsTab() {
               </code>
               <button
                 onClick={() => copyToClipboard(config.proverServiceUrl, 'prover-url')}
-                className="flex-shrink-0 text-amber-100/20 hover:text-amber-400 transition-colors"
+                className="flex-shrink-0 text-amber-100/40 hover:text-amber-400 transition-colors"
                 aria-label="Copy prover service URL"
               >
                 {copiedField === 'prover-url' ? (
@@ -426,7 +426,7 @@ export function SettingsTab() {
               </code>
               <button
                 onClick={() => copyToClipboard(config.solanaRpcUrl, 'rpc-url')}
-                className="flex-shrink-0 text-amber-100/20 hover:text-amber-400 transition-colors"
+                className="flex-shrink-0 text-amber-100/40 hover:text-amber-400 transition-colors"
                 aria-label="Copy Solana RPC URL"
               >
                 {copiedField === 'rpc-url' ? (
@@ -467,7 +467,7 @@ export function SettingsTab() {
               </code>
               <button
                 onClick={() => copyToClipboard(operatorId, 'operator-id')}
-                className="flex-shrink-0 text-amber-100/20 hover:text-amber-400 transition-colors"
+                className="flex-shrink-0 text-amber-100/40 hover:text-amber-400 transition-colors"
                 aria-label="Copy operator ID"
               >
                 {copiedField === 'operator-id' ? (
@@ -477,7 +477,7 @@ export function SettingsTab() {
                 )}
               </button>
             </div>
-            <p className="text-xs text-amber-100/30 mt-2">
+            <p className="text-xs text-amber-100/50 mt-2">
               This ID is derived from your connected wallet address or session email.
               It is used to identify your operator account across all Aperture services.
             </p>
