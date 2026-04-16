@@ -2,6 +2,7 @@ import { getClient, closePool } from '../utils/database.js';
 import { logger } from '../utils/logger.js';
 import * as migration001 from './001_create_policies.js';
 import * as migration002 from './002_create_users.js';
+import * as migration003 from './003_create_api_keys.js';
 
 interface Migration {
   name: string;
@@ -12,6 +13,7 @@ interface Migration {
 const migrations: Migration[] = [
   { name: '001_create_policies', ...migration001 },
   { name: '002_create_users', ...migration002 },
+  { name: '003_create_api_keys', ...migration003 },
 ];
 
 async function ensureMigrationsTable(client: import('pg').PoolClient): Promise<void> {

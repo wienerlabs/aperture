@@ -1,9 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { ApertureLogo } from '@/components/shared/ApertureLogo';
-import { ThemeToggle } from '@/components/shared/ThemeToggle';
+import { Navbar } from '@/components/landing/Navbar';
 
 const SECTIONS = [
   { id: 'getting-started', label: 'Getting Started' },
@@ -70,25 +68,11 @@ export default function DocsPage() {
 
   return (
     <div className="min-h-screen bg-[#090600] text-amber-100">
-      {/* Navbar */}
-      <header className="sticky top-0 z-50 bg-[rgba(9,6,0,0.95)] backdrop-blur border-b border-amber-400/10">
-        <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-3">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="hover:opacity-80"><ApertureLogo /></Link>
-            <span className="text-amber-100/30 text-sm">/</span>
-            <span className="text-amber-100/80 text-sm font-medium">Documentation</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-xs text-amber-400 hover:text-amber-300 transition-colors">Dashboard</Link>
-            <ThemeToggle />
-            <Link href="/" className="text-xs text-amber-100/40 hover:text-amber-100 transition-colors">Home</Link>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
-      <div className="max-w-7xl mx-auto flex">
+      <div className="max-w-7xl mx-auto flex pt-16">
         {/* Sidebar */}
-        <aside className="hidden lg:block w-56 shrink-0 sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto py-8 pr-6 border-r border-amber-400/10">
+        <aside className="hidden lg:block w-56 shrink-0 sticky top-20 h-[calc(100vh-5rem)] overflow-y-auto py-8 pr-6 border-r border-amber-400/10">
           <nav className="space-y-1">
             {SECTIONS.map((s) => (
               <a

@@ -5,6 +5,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { Keypair } from '@solana/web3.js';
 import { AgentLoop, type AgentConfig } from './agent-loop.js';
+import { openapiSpec } from './openapi.js';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 dotenv.config({ path: path.resolve(process.cwd(), '../../.env') });
@@ -61,6 +62,10 @@ app.use(express.json());
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'healthy', service: 'agent-service', version: '0.1.0' });
+});
+
+app.get('/api-docs.json', (_req, res) => {
+  res.json(openapiSpec);
 });
 
 app.get('/status', (_req, res) => {

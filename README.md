@@ -135,7 +135,7 @@ cp .env.example .env
 
 # 2. Start all services
 docker compose up -d postgres-policy postgres-compliance
-docker compose up -d policy-service compliance-api
+docker compose up -d policy-service compliance-api prover-service
 docker compose up -d agent-service aperture
 
 # 3. Run database migrations
@@ -153,11 +153,10 @@ This starts:
 | `aperture` | 3000 | Next.js dashboard |
 | `policy-service` | 3001 | Policy CRUD API |
 | `compliance-api` | 3002 | Compliance + x402 + MPP endpoints |
+| `prover-service` | 3003 | RISC Zero zkVM HTTP prover |
 | `agent-service` | 3004 | Autonomous agent daemon |
 | `postgres-policy` | 5432 | Policy database |
 | `postgres-compliance` | 5433 | Compliance database |
-
-> **Note:** `prover-service` (port 3003) requires RISC Zero toolchain and an x86_64 environment. On Apple Silicon, use Bonsai cloud proving (see below).
 
 ### Local Development
 
@@ -210,6 +209,22 @@ Three sign-in methods are supported via NextAuth:
 
 Dark and light modes are supported with a toggle in the navbar. Light mode follows WCAG AA contrast standards.
 
+### Public pages
+
+| Path | Description |
+|------|-------------|
+| `/` | Marketing landing with integrations band (Solana, Helius, RISC Zero, Light Protocol, Coinbase, Squads, Stripe) |
+| `/docs` | Architecture, SDK reference, integration guides |
+| `/developers` | API key manager, quick-start curls, code samples sourced from the repo, Devnet program registry |
+| `/integrate` | Six step-by-step integration flows (x402, MPP, Transfer Hook, Light Protocol, Squads, custom RISC Zero circuits) |
+| `/api-docs` | Live OpenAPI 3.0 specs fetched at runtime from each backend service |
+| `/status` | Real-time health (10s polling) for Policy / Compliance / Prover / Agent services + Solana RPC + Helius RPC |
+| `/changelog` | Release notes (placeholder) |
+
+### API keys
+
+Programmatic access is authenticated via an `X-API-Key` header. Keys are scoped to a user account, generated through `/developers`, hashed at rest (`api_keys.key_hash`), and revocable. The plain-text key is shown exactly once at creation.
+
 ## Agent Service
 
 ### Pre-Start Validation
@@ -259,12 +274,11 @@ Subsequent:  ~6 seconds (warm cache)
 Receipt:     255 KB production cryptographic proof
 ```
 
-### Apple Silicon / Cloud Proving
+### Platform Support
 
-The RISC Zero toolchain does not support ARM64 natively. Options:
+RISC Zero 1.2.6+ supports ARM64 (Apple Silicon) natively. Local proving runs directly on macOS M-series CPUs with no emulation required — measured ~5s per proof after warm cache, producing the same 255 KB cryptographic receipt as x86_64.
 
-- **Bonsai cloud proving** -- Set `BONSAI_API_KEY` and `BONSAI_API_URL` environment variables. The `default_prover()` automatically routes to Bonsai when these are set.
-- **Docker x86 emulation** -- Add `platform: linux/amd64` to prover-service in docker-compose.yml (slow build, ~30-60 min).
+For remote/distributed proving, Boundless (`boundless-market`) provides an EVM-settled proof marketplace that returns Groth16 SNARKs verifiable on Solana via the `boundless-xyz/risc0-solana` Verifier Router. Not required for local development.
 
 ## Transfer Hook (SPL Token-2022)
 
@@ -408,8 +422,6 @@ AGENT_WALLET_PRIVATE_KEY=<base58-private-key>
 
 # Prover
 PROVER_SERVICE_URL=http://localhost:3003
-# BONSAI_API_KEY=<your-bonsai-key>        # Optional: cloud proving
-# BONSAI_API_URL=https://api.bonsai.xyz/  # Optional: cloud proving
 
 # Light Protocol (optional)
 NEXT_PUBLIC_LIGHT_RPC_URL=https://devnet.helius-rpc.com/?api-key=<YOUR_KEY>

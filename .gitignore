@@ -5,3 +5,7 @@ target/
 .next/
 *.log
 .DS_Store
+*.tsbuildinfo
+.claude/
+docs/AIP_INTEGRATION.md
+docs/assets/proving-silence.html

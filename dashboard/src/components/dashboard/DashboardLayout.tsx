@@ -49,7 +49,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const walletAddress = publicKey?.toBase58() ?? sessionWallet ?? null;
 
   function handleSignOut(): void {
-    signOut({ callbackUrl: '/auth/signin' });
+    signOut({ callbackUrl: '/' });
   }
 
   return (

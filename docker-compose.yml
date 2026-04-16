@@ -96,6 +96,7 @@ services:
     build:
       context: .
       dockerfile: services/prover-service/Dockerfile
+    platform: linux/amd64
     ports:
       - "3003:3003"
     environment:
@@ -103,7 +104,7 @@ services:
       RUST_LOG: info
       # RISC0_DEV_MODE is NOT set - real ZK proofs are generated
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3003/health"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3003/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -129,6 +130,8 @@ services:
         condition: service_healthy
       compliance-api:
         condition: service_healthy
+      prover-service:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3004/health"]
       interval: 10s
@@ -137,8 +140,8 @@ services:
 
   aperture:
     build:
-      context: ./dashboard
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: dashboard/Dockerfile
       args:
         NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
         NEXT_PUBLIC_LIGHT_RPC_URL: ${NEXT_PUBLIC_LIGHT_RPC_URL}
@@ -148,8 +151,14 @@ services:
     environment:
       POLICY_SERVICE_URL: http://policy-service:3001
       COMPLIANCE_API_URL: http://compliance-api:3002
+      PROVER_SERVICE_URL: http://prover-service:3003
+      AGENT_SERVICE_URL: http://agent-service:3004
+      SOLANA_RPC_URL: ${SOLANA_RPC_URL:-https://api.devnet.solana.com}
+      LIGHT_RPC_URL: ${LIGHT_RPC_URL}
       NEXT_PUBLIC_POLICY_SERVICE_URL: http://localhost:3001
       NEXT_PUBLIC_COMPLIANCE_API_URL: http://localhost:3002
+      NEXT_PUBLIC_PROVER_SERVICE_URL: http://localhost:3003
+      NEXT_PUBLIC_AGENT_SERVICE_URL: http://localhost:3004
       NEXT_PUBLIC_SOLANA_RPC_URL: https://api.devnet.solana.com
       NEXT_PUBLIC_SOLANA_NETWORK: devnet
       NEXT_PUBLIC_POLICY_REGISTRY_PROGRAM: FXD7ycSguBQw7o3DXqq4VUBHtdx5ZQpu9P2zb4KG4ZEU

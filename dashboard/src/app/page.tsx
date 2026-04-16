@@ -1,6 +1,7 @@
 import { MatrixRain } from '@/components/shared/MatrixRain';
 import { Navbar } from '@/components/landing/Navbar';
 import { HeroSection } from '@/components/landing/HeroSection';
+import { BrandsSection } from '@/components/landing/BrandsSection';
 import { ProblemSection } from '@/components/landing/ProblemSection';
 import { HowItWorksSection } from '@/components/landing/HowItWorksSection';
 import { FeaturesSection } from '@/components/landing/FeaturesSection';
@@ -16,6 +17,7 @@ export default function Home() {
       <MatrixRain />
       <Navbar />
       <HeroSection />
+      <BrandsSection />
       <ProblemSection />
       <HowItWorksSection />
       <FeaturesSection />

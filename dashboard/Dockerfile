@@ -3,12 +3,23 @@ WORKDIR /app
 
 FROM base AS deps
 RUN apk add --no-cache python3 make g++ linux-headers eudev-dev libusb-dev
-COPY package.json package-lock.json* ./
+COPY dashboard/package.json dashboard/package-lock.json* ./
 RUN npm install
 
 FROM base AS builder
+WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY dashboard/ ./
+
+# Repo source files read by server components via lib/code-samples.ts
+# (fs.readFileSync at build- and request-time). Paths mirror the repo layout
+# so APERTURE_REPO_ROOT can resolve them.
+COPY sdk /repo/sdk
+COPY scripts /repo/scripts
+COPY services /repo/services
+COPY circuits /repo/circuits
+COPY programs /repo/programs
+ENV APERTURE_REPO_ROOT=/repo
 
 # Next.js collects anonymous telemetry — disable it
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -17,6 +28,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ARG NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 ARG NEXT_PUBLIC_POLICY_SERVICE_URL=http://localhost:3001
 ARG NEXT_PUBLIC_COMPLIANCE_API_URL=http://localhost:3002
+ARG NEXT_PUBLIC_PROVER_SERVICE_URL=http://localhost:3003
+ARG NEXT_PUBLIC_AGENT_SERVICE_URL=http://localhost:3004
 ARG NEXT_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
 ARG NEXT_PUBLIC_SOLANA_NETWORK=devnet
 ARG NEXT_PUBLIC_POLICY_REGISTRY_PROGRAM=FXD7ycSguBQw7o3DXqq4VUBHtdx5ZQpu9P2zb4KG4ZEU
@@ -29,6 +42,8 @@ ARG NEXT_PUBLIC_VUSDC_MINT=E9Ab23WT97qHTmmWxEmHfWCmPsrQb77nJnAFFuDRfhar
 ENV NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=$NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 ENV NEXT_PUBLIC_POLICY_SERVICE_URL=$NEXT_PUBLIC_POLICY_SERVICE_URL
 ENV NEXT_PUBLIC_COMPLIANCE_API_URL=$NEXT_PUBLIC_COMPLIANCE_API_URL
+ENV NEXT_PUBLIC_PROVER_SERVICE_URL=$NEXT_PUBLIC_PROVER_SERVICE_URL
+ENV NEXT_PUBLIC_AGENT_SERVICE_URL=$NEXT_PUBLIC_AGENT_SERVICE_URL
 ENV NEXT_PUBLIC_SOLANA_RPC_URL=$NEXT_PUBLIC_SOLANA_RPC_URL
 ENV NEXT_PUBLIC_SOLANA_NETWORK=$NEXT_PUBLIC_SOLANA_NETWORK
 ENV NEXT_PUBLIC_POLICY_REGISTRY_PROGRAM=$NEXT_PUBLIC_POLICY_REGISTRY_PROGRAM
@@ -43,6 +58,7 @@ RUN npm run build
 FROM base AS runner
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV APERTURE_REPO_ROOT=/repo
 
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
@@ -50,6 +66,10 @@ RUN addgroup --system --gid 1001 nodejs && \
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Keep the repo code samples available at request-time — server components
+# read them via fs.readFileSync when rendering /developers and /integrate.
+COPY --from=builder --chown=nextjs:nodejs /repo /repo
 
 USER nextjs
 EXPOSE 3000

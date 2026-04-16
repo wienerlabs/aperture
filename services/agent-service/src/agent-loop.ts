@@ -207,6 +207,14 @@ export class AgentLoop {
     if (this.activity.length > 200) this.activity.length = 200;
   }
 
+  // Link a prior zk_proof activity row to the payment TX that anchored it on-chain.
+  private attachTxToZkProof(proofHash: string, txSignature: string): void {
+    const idx = this.activity.findIndex((a) => a.type === 'zk_proof' && a.proofHash === proofHash && a.txSignature === null);
+    if (idx === -1) return;
+    const existing = this.activity[idx]!;
+    this.activity[idx] = { ...existing, txSignature };
+  }
+
   private mutStats(fn: (s: AgentStats) => Partial<AgentStats>): void {
     const patch = fn(this.stats);
     Object.assign(this.stats, patch);
@@ -435,6 +443,7 @@ export class AgentLoop {
 
     if (paidRes.ok) {
       this.mutStats(() => ({ totalX402: this.stats.totalX402 + 1, totalUsdcSpent: this.stats.totalUsdcSpent + 1 }));
+      this.attachTxToZkProof(proof.proof_hash, txSig);
       this.pushActivity('x402', `1 USDC paid, verified on Solana`, true, { proofHash: proof.proof_hash, txSignature: txSig });
       log(`x402 TX: https://explorer.solana.com/tx/${txSig}?cluster=devnet`);
 
@@ -603,12 +612,15 @@ export class AgentLoop {
       // Anchor on Solana via verify_batch_attestation
       log('  Anchoring attestation on Solana Devnet...');
       const batchHashBytes = hexToBytes32(att.proof_hash);
-      const compactReceipt = JSON.stringify({
-        attestation_id: att.id,
-        proof_hash: att.proof_hash,
-        total_payments: att.total_payments,
-      });
-      const receiptBytes = new TextEncoder().encode(compactReceipt);
+      const periodStartUnix = BigInt(Math.floor(periodStart.getTime() / 1000));
+      const periodEndUnix = BigInt(Math.floor(periodEnd.getTime() / 1000));
+      // Receipt payload carries batch_hash/total_payments/image_id for on-chain
+      // cross-reference checks; keys must match extract_json_* in verify_batch.rs.
+      // verify_batch.rs requires receipt_data == "batch:{hex}:{total}:{start}:{end}"
+      // so that sha256(receipt_data) == journal_digest == compute_batch_digest(...).
+      const batchHashHex = att.proof_hash.startsWith('0x') ? att.proof_hash.slice(2) : att.proof_hash;
+      const digestInput = `batch:${batchHashHex}:${att.total_payments}:${periodStartUnix}:${periodEndUnix}`;
+      const receiptBytes = new TextEncoder().encode(digestInput);
       const journalDigestBytes = sha256(receiptBytes);
 
       const ix = buildVerifyBatchAttestationIx(
@@ -616,8 +628,8 @@ export class AgentLoop {
         batchHashBytes,
         journalDigestBytes,
         att.total_payments,
-        BigInt(Math.floor(periodStart.getTime() / 1000)),
-        BigInt(Math.floor(periodEnd.getTime() / 1000)),
+        periodStartUnix,
+        periodEndUnix,
         receiptBytes,
       );
 
