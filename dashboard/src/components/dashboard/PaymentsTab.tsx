@@ -22,9 +22,7 @@ import {
 import { complianceApi, policyApi, type ProofRecord } from '@/lib/api';
 import { truncateAddress, formatDate, formatAmount } from '@/lib/utils';
 import {
-  buildVerifyPaymentProofIx,
   buildVerifyPaymentProofV2Ix,
-  hexToBytes32,
   deriveOperatorPDA,
   derivePolicyPDA,
   sha256Bytes,

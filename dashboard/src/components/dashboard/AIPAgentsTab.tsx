@@ -8,9 +8,7 @@ import { Transaction } from '@solana/web3.js';
 import { config } from '@/lib/config';
 import { policyApi, complianceApi } from '@/lib/api';
 import {
-  buildVerifyPaymentProofIx,
   buildVerifyPaymentProofV2Ix,
-  hexToBytes32,
   deriveOperatorPDA,
   derivePolicyPDA,
   sha256Bytes,

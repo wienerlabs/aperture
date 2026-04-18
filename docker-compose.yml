@@ -96,15 +96,13 @@ services:
     build:
       context: .
       dockerfile: services/prover-service/Dockerfile
-    platform: linux/amd64
     ports:
       - "3003:3003"
     environment:
       PROVER_SERVICE_PORT: 3003
-      RUST_LOG: info
-      # RISC0_DEV_MODE is NOT set - real ZK proofs are generated
+      NODE_ENV: production
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3003/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3003/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
