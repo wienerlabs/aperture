@@ -52,9 +52,14 @@ const agent = new AgentLoop(agentConfig);
 const app = express();
 const port = parseInt(process.env.AGENT_SERVICE_PORT ?? '3004', 10);
 
+const extraOrigins = (process.env.CORS_ORIGINS ?? '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
 app.use(helmet());
 app.use(cors({
-  origin: [/^http:\/\/localhost:\d+$/],
+  origin: [/^http:\/\/localhost:\d+$/, ...extraOrigins],
   methods: ['GET', 'POST'],
   credentials: true,
 }));
