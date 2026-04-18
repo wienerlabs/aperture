@@ -92,7 +92,7 @@ export function ArchitectureSection() {
                   boxShadow: '0 0 40px rgba(245,158,11,0.12)',
                   borderColor: 'rgba(251,191,36,0.4)',
                 }}
-                className="w-full bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-5 sm:p-6 transition-all duration-300"
+                className="w-full bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-5 sm:p-6 transition-all duration-300"
               >
                 <div className="flex items-center gap-4">
                   <div className="flex-shrink-0">

@@ -108,7 +108,7 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: string) => void 
     return new Promise(async (resolve) => {
       if (!cardRef.current) { resolve(''); return; }
       const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(cardRef.current, { backgroundColor: '#090600', scale: 2 });
+      const canvas = await html2canvas(cardRef.current, { backgroundColor: '#000000', scale: 2 });
       resolve(canvas.toDataURL('image/png'));
     });
   }
@@ -231,7 +231,7 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: string) => void 
           { label: 'Policy Violations', value: '0', icon: Shield },
           { label: 'Total Attestations', value: String(data?.totalAttestations ?? 0), icon: BarChart3 },
         ].map(({ label, value, icon: Icon }) => (
-          <div key={label} className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-5">
+          <div key={label} className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-5">
             <div className="flex items-center gap-2 mb-2">
               <Icon className="w-4 h-4 text-amber-400/60" />
               <span className="text-xs text-amber-100/40">{label}</span>
@@ -243,7 +243,7 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: string) => void 
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 2. Recent Transactions */}
-        <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-5">
+        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-5">
           <h3 className="text-sm font-semibold text-amber-100 mb-4">Recent Proofs</h3>
           {data && data.proofs.length > 0 ? (
             <div className="space-y-3">
@@ -273,7 +273,7 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: string) => void 
         </div>
 
         {/* 3. ZK Compression Cost Savings */}
-        <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-5">
+        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-5">
           <h3 className="text-sm font-semibold text-amber-100 mb-4">ZK Compression Savings</h3>
           {(() => {
             const total = data?.totalProofs ?? 0;
@@ -303,7 +303,7 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: string) => void 
         </div>
 
         {/* 4. Latest Attestation */}
-        <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-5">
+        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-5">
           <h3 className="text-sm font-semibold text-amber-100 mb-4">Latest Attestation</h3>
           {latestAttestation ? (
             <div className="space-y-3">
@@ -348,7 +348,7 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: string) => void 
         </div>
 
         {/* 5. Active Policy */}
-        <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-5">
+        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-5">
           <h3 className="text-sm font-semibold text-amber-100 mb-4">Active Policy</h3>
           {activePolicy ? (
             <div className="space-y-3">
@@ -398,7 +398,7 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: string) => void 
           {/* LEFT PANEL -- Branding */}
           <div style={{
             flex: 1.1,
-            background: '#090600',
+            background: '#000000',
             borderRadius: 12,
             position: 'relative',
             overflow: 'hidden',
@@ -447,7 +447,7 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: string) => void 
             <div style={{
               width: 160, height: 160,
               borderRadius: 12,
-              border: '4px solid #090600',
+              border: '4px solid #000000',
               overflow: 'hidden',
               background: '#ddd',
             }}>

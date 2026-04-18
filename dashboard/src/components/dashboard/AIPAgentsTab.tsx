@@ -497,28 +497,28 @@ export function AIPAgentsTab() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-4">
+        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-2">
             <Bot className="w-4 h-4 text-amber-400" />
             <span className="text-xs text-amber-100/60">Registered Agents</span>
           </div>
           <p className="text-xl font-bold text-amber-100 font-mono">{agents.length}</p>
         </div>
-        <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-green-400/20 rounded-xl p-4">
+        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-green-400/20 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-2">
             <Globe className="w-4 h-4 text-green-400" />
             <span className="text-xs text-amber-100/60">Live Agents</span>
           </div>
           <p className="text-xl font-bold text-amber-100 font-mono">{liveCount}</p>
         </div>
-        <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-blue-400/20 rounded-xl p-4">
+        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-blue-400/20 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-2">
             <Zap className="w-4 h-4 text-blue-400" />
             <span className="text-xs text-amber-100/60">Total Capabilities</span>
           </div>
           <p className="text-xl font-bold text-amber-100 font-mono">{totalCapabilities}</p>
         </div>
-        <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-4">
+        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-2">
             <Monitor className="w-4 h-4 text-amber-400" />
             <span className="text-xs text-amber-100/60">Network</span>
@@ -535,7 +535,7 @@ export function AIPAgentsTab() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search agents by name, DID, or capability..."
-          className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-[rgba(20,14,0,0.8)] border border-amber-400/20
+          className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-[rgba(10,10,10,0.8)] border border-amber-400/20
             text-amber-100 text-sm placeholder:text-amber-100/60
             focus:outline-none focus:border-amber-400/40 transition-colors"
         />
@@ -596,7 +596,7 @@ export function AIPAgentsTab() {
         <div className={`rounded-xl p-5 border ${
           taskResult.blocked
             ? 'bg-red-400/5 border-red-400/20'
-            : 'bg-[rgba(20,14,0,0.8)] border-green-400/20'
+            : 'bg-[rgba(10,10,10,0.8)] border-green-400/20'
         }`}>
           <div className="flex items-center gap-2 mb-4">
             {taskResult.blocked ? (
@@ -733,7 +733,7 @@ export function AIPAgentsTab() {
             return (
               <div
                 key={agent.did}
-                className={`bg-[rgba(20,14,0,0.8)] backdrop-blur-md border rounded-xl transition-all ${
+                className={`bg-[rgba(10,10,10,0.8)] backdrop-blur-md border rounded-xl transition-all ${
                   isSelected ? 'border-amber-400/40 ring-1 ring-amber-400/20' : 'border-amber-400/20'
                 }`}
               >
@@ -874,7 +874,7 @@ export function AIPAgentsTab() {
                           onChange={(e) => setTaskInput(e.target.value)}
                           placeholder="Enter your task input..."
                           rows={3}
-                          className="w-full px-3 py-2 rounded-lg bg-[rgba(10,8,0,0.8)] border border-amber-400/20
+                          className="w-full px-3 py-2 rounded-lg bg-[rgba(0,0,0,0.8)] border border-amber-400/20
                             text-amber-100 text-sm placeholder:text-amber-100/60
                             focus:outline-none focus:border-amber-400/40 resize-none transition-colors"
                         />
@@ -911,7 +911,7 @@ export function AIPAgentsTab() {
 
       {/* AIP Task History */}
       {aipProofs.length > 0 && (
-        <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl overflow-hidden">
+        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl overflow-hidden">
           <div className="flex items-center justify-between p-4 border-b border-amber-400/10">
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-amber-400" />

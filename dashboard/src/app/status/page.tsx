@@ -170,7 +170,7 @@ export default function StatusPage() {
   }, [data]);
 
   return (
-    <main className="relative min-h-screen bg-[#090600] flex flex-col">
+    <main className="relative min-h-screen bg-[#000000] flex flex-col">
       <Navbar />
 
       <section className="relative z-10 flex-1 pt-28 pb-20 px-4 sm:px-6 lg:px-8">

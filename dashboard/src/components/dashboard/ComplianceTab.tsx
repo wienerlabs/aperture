@@ -205,7 +205,7 @@ export function ComplianceTab() {
 
       {/* Create Form */}
       {showForm && (
-        <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6">
+        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-semibold text-amber-100">
               Create Batch Attestation
@@ -332,7 +332,7 @@ export function ComplianceTab() {
           {attestations.map((attestation) => (
             <div
               key={attestation.id}
-              className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6"
+              className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6"
             >
               <div className="flex items-start justify-between mb-4">
                 <div>

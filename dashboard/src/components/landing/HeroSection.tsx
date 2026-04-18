@@ -39,7 +39,7 @@ export function HeroSection() {
         >
           <Link
             href="/auth/signup"
-            className="font-mono text-sm px-8 py-3 bg-amber-400 text-[#090600] rounded-lg font-semibold hover:bg-amber-300 transition-colors duration-200 shadow-[0_0_30px_rgba(245,158,11,0.15)]"
+            className="font-mono text-sm px-8 py-3 bg-amber-400 text-[#000000] rounded-lg font-semibold hover:bg-amber-300 transition-colors duration-200 shadow-[0_0_30px_rgba(245,158,11,0.15)]"
           >
             Get Started
           </Link>

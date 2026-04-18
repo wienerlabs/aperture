@@ -29,7 +29,7 @@ export function CodeTabs({ tabs }: CodeTabsProps) {
 
   return (
     <div className="rounded-lg border border-amber-400/10 overflow-hidden">
-      <div className="flex items-center justify-between border-b border-amber-400/10 bg-[#0d0a00]">
+      <div className="flex items-center justify-between border-b border-amber-400/10 bg-[#0a0a0a]">
         <div className="flex">
           {tabs.map((tab) => (
             <button
@@ -55,11 +55,11 @@ export function CodeTabs({ tabs }: CodeTabsProps) {
           {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
-      <pre className="bg-[#0d0a00] text-xs font-mono text-amber-200 leading-relaxed p-4 overflow-x-auto whitespace-pre max-h-[32rem]">
+      <pre className="bg-[#0a0a0a] text-xs font-mono text-amber-200 leading-relaxed p-4 overflow-x-auto whitespace-pre max-h-[32rem]">
         {active.source}
       </pre>
       {active.sourcePath && (
-        <div className="bg-[#0d0a00] border-t border-amber-400/5 px-4 py-2 font-mono text-[10px] text-amber-400/60">
+        <div className="bg-[#0a0a0a] border-t border-amber-400/5 px-4 py-2 font-mono text-[10px] text-amber-400/60">
           Source: {active.sourcePath}
         </div>
       )}

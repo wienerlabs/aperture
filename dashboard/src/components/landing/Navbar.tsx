@@ -183,7 +183,7 @@ export function Navbar() {
                     exit={{ opacity: 0, y: -6 }}
                     transition={{ duration: 0.15, ease: 'easeOut' }}
                     role="menu"
-                    className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-56 rounded-lg bg-[#090600] border border-amber-400/20 shadow-xl py-2"
+                    className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-56 rounded-lg bg-[#000000] border border-amber-400/20 shadow-xl py-2"
                   >
                     {moreMenuItems.map((item) => {
                       if (item.disabled || item.href === null) {

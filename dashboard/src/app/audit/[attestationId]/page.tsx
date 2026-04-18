@@ -73,7 +73,7 @@ export default function AuditPage() {
   }, [fetchData]);
 
   return (
-    <div className="relative min-h-screen bg-[#090600] text-amber-100">
+    <div className="relative min-h-screen bg-[#000000] text-amber-100">
       <MatrixRain />
 
       <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 py-12">
@@ -94,7 +94,7 @@ export default function AuditPage() {
         {/* Error */}
         {!loading && error && (
           <div className="w-full max-w-lg">
-            <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-red-400/20 rounded-xl p-8 text-center">
+            <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-red-400/20 rounded-xl p-8 text-center">
               <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
               <h2 className="text-xl font-bold text-red-400 mb-2">Record Not Found</h2>
               <p className="text-amber-100/50 text-sm">
@@ -146,7 +146,7 @@ function ProofAuditView({ proof }: { readonly proof: ProofRecord }) {
       </div>
 
       {/* Card */}
-      <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl overflow-hidden">
+      <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl overflow-hidden">
         {/* Header */}
         <div className="px-8 pt-8 pb-4 border-b border-amber-400/10">
           <div className="flex items-center justify-center gap-2 mb-2">
@@ -270,7 +270,7 @@ function AttestationAuditView({ attestation }: { readonly attestation: Attestati
       </div>
 
       {/* Card */}
-      <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl overflow-hidden">
+      <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl overflow-hidden">
         {/* Header */}
         <div className="px-8 pt-8 pb-4 border-b border-amber-400/10">
           <div className="flex items-center justify-center gap-2 mb-2">

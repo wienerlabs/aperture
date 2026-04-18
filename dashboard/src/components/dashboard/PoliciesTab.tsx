@@ -321,7 +321,7 @@ export function PoliciesTab() {
 
       {/* Create/Edit Form */}
       {showForm && (
-        <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6">
+        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-semibold text-amber-100">
               {editingId ? 'Edit Policy' : 'Create New Policy'}
@@ -573,7 +573,7 @@ export function PoliciesTab() {
           {policies.map((policy) => (
             <div
               key={policy.id}
-              className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6"
+              className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6"
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1 min-w-0">

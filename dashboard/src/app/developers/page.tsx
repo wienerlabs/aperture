@@ -102,7 +102,7 @@ export default function DevelopersPage() {
   const gh = githubUrl();
 
   return (
-    <main className="relative min-h-screen bg-[#090600] flex flex-col">
+    <main className="relative min-h-screen bg-[#000000] flex flex-col">
       <Navbar />
 
       <section className="relative z-10 pt-28 pb-12 px-4 sm:px-6 lg:px-8">
@@ -293,7 +293,7 @@ function QuickStartCard({ number, title, description, command }: { number: strin
       <p className="font-mono text-[11px] text-amber-400/60 mb-2">{number}</p>
       <h3 className="font-mono text-sm font-semibold text-amber-100 mb-2">{title}</h3>
       <p className="text-xs text-amber-400/75 mb-4 flex-1">{description}</p>
-      <pre className="bg-[#0d0a00] border border-amber-400/10 rounded p-3 text-[11px] font-mono text-amber-200 overflow-x-auto whitespace-pre leading-relaxed max-h-48">
+      <pre className="bg-[#0a0a0a] border border-amber-400/10 rounded p-3 text-[11px] font-mono text-amber-200 overflow-x-auto whitespace-pre leading-relaxed max-h-48">
         {command}
       </pre>
     </div>

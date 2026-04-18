@@ -13,7 +13,7 @@ import { Footer } from '@/components/landing/Footer';
 
 export default function Home() {
   return (
-    <main className="relative min-h-screen bg-[#090600]">
+    <main className="relative min-h-screen bg-[#000000]">
       <MatrixRain />
       <Navbar />
       <HeroSection />

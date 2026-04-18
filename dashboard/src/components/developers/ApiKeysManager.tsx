@@ -156,7 +156,7 @@ export function ApiKeysManager() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 bg-[#0d0a00] border border-amber-400/10 rounded px-3 py-2 font-mono text-xs text-amber-200 break-all">
+          <div className="flex items-center gap-2 bg-[#0a0a0a] border border-amber-400/10 rounded px-3 py-2 font-mono text-xs text-amber-200 break-all">
             <span className="flex-1 select-all">{justCreated.full_key}</span>
             <CopyInline text={justCreated.full_key} />
           </div>
@@ -181,7 +181,7 @@ export function ApiKeysManager() {
             onChange={(e) => setName(e.target.value)}
             maxLength={120}
             placeholder="e.g. local-dev-laptop"
-            className="flex-1 bg-[#0d0a00] border border-amber-400/20 rounded px-3 py-2 text-sm font-mono text-amber-100 placeholder:text-amber-400/50 focus:outline-none focus:border-amber-400/60"
+            className="flex-1 bg-[#0a0a0a] border border-amber-400/20 rounded px-3 py-2 text-sm font-mono text-amber-100 placeholder:text-amber-400/50 focus:outline-none focus:border-amber-400/60"
           />
           <button
             type="submit"

@@ -55,7 +55,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
-    <div className="flex h-screen bg-[#090600] text-amber-100">
+    <div className="flex h-screen bg-[#000000] text-amber-100">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
@@ -75,7 +75,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Sidebar */}
       <aside
         className={`
-          fixed inset-y-0 left-0 z-50 w-64 bg-[rgba(10,8,0,0.9)] border-r border-amber-400/10
+          fixed inset-y-0 left-0 z-50 w-64 bg-[rgba(0,0,0,0.9)] border-r border-amber-400/10
           transform transition-transform duration-200 ease-in-out
           lg:relative lg:translate-x-0
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -124,7 +124,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Main content */}
       <div className="flex flex-col flex-1 min-w-0">
         {/* Top navbar */}
-        <header className="flex items-center justify-between px-6 py-4 border-b border-amber-400/10 bg-[rgba(10,8,0,0.9)]">
+        <header className="flex items-center justify-between px-6 py-4 border-b border-amber-400/10 bg-[rgba(0,0,0,0.9)]">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setSidebarOpen(true)}

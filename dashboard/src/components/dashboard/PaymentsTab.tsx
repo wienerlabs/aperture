@@ -762,7 +762,7 @@ export function PaymentsTab() {
       )}
 
       {simResult && !provingStatus && (
-        <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-green-400/20 rounded-xl p-5">
+        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-green-400/20 rounded-xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <CheckCircle className="w-5 h-5 text-green-400" />
             <span className="text-sm font-semibold text-green-400">{simResult.message}</span>
@@ -838,7 +838,7 @@ export function PaymentsTab() {
 
       {/* Transfer Hook Test (collapsible) */}
       {config.tokens.vUSDC && (
-        <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl">
+        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl">
           <button
             onClick={() => setShowHookTest(!showHookTest)}
             className="flex items-center justify-between w-full p-4 text-left"
@@ -934,7 +934,7 @@ export function PaymentsTab() {
 
       {/* Table */}
       {!loading && proofs.length > 0 && (
-        <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl overflow-hidden">
+        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -1056,7 +1056,7 @@ export function PaymentsTab() {
       )}
 
       {/* x402 Protected Report */}
-      <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6">
+      <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-lg font-semibold text-amber-100">x402 Protected Report</h3>
@@ -1145,7 +1145,7 @@ export function PaymentsTab() {
       </div>
 
       {/* MPP Protected Report */}
-      <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-purple-400/20 rounded-xl p-6">
+      <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-purple-400/20 rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-lg font-semibold text-amber-100">MPP Protected Report</h3>
@@ -1248,7 +1248,7 @@ export function PaymentsTab() {
 
       {/* ZK Compression Cost Savings (collapsible) */}
       {proofs.length > 0 && (
-        <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl">
+        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl">
           <button
             onClick={() => setShowCostSavings(!showCostSavings)}
             className="flex items-center justify-between w-full p-4 text-left"

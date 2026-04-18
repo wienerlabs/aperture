@@ -92,7 +92,7 @@ function ApertureWalletModal({ onClose }: { onClose: () => void }) {
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
       <div
         className="relative z-10 w-full max-w-sm rounded-xl border border-amber-400/20 p-6"
-        style={{ backgroundColor: 'rgba(20, 14, 0, 0.95)' }}
+        style={{ backgroundColor: 'rgba(10, 10, 10, 0.95)' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-6">

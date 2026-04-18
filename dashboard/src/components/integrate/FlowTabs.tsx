@@ -57,11 +57,11 @@ function CopyButton({ text }: { text: string }) {
 function CodeBlock({ source, sourcePath }: { source: string; sourcePath: string | null }) {
   return (
     <div className="rounded-lg border border-amber-400/10 overflow-hidden">
-      <div className="flex items-center justify-between bg-[#0d0a00] px-3 py-2 border-b border-amber-400/10">
+      <div className="flex items-center justify-between bg-[#0a0a0a] px-3 py-2 border-b border-amber-400/10">
         <span className="font-mono text-[10px] text-amber-400/60 truncate">{sourcePath ?? 'inline'}</span>
         <CopyButton text={source} />
       </div>
-      <pre className="bg-[#0d0a00] text-xs font-mono text-amber-200 leading-relaxed p-4 overflow-x-auto whitespace-pre max-h-[28rem]">
+      <pre className="bg-[#0a0a0a] text-xs font-mono text-amber-200 leading-relaxed p-4 overflow-x-auto whitespace-pre max-h-[28rem]">
         {source}
       </pre>
     </div>

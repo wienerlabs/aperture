@@ -234,7 +234,7 @@ function Endpoint({ method, path, op, spec, baseUrl }: { method: Method; path: s
           {bodySchema && (
             <div>
               <h4 className="font-mono text-[11px] uppercase tracking-wider text-amber-400/70 mb-2">Request body</h4>
-              <pre className="bg-[#0d0a00] border border-amber-400/10 rounded p-3 text-[11px] font-mono text-amber-200 overflow-x-auto whitespace-pre-wrap leading-relaxed">
+              <pre className="bg-[#0a0a0a] border border-amber-400/10 rounded p-3 text-[11px] font-mono text-amber-200 overflow-x-auto whitespace-pre-wrap leading-relaxed">
                 {renderSchema(spec, bodySchema)}
               </pre>
             </div>
@@ -253,7 +253,7 @@ function Endpoint({ method, path, op, spec, baseUrl }: { method: Method; path: s
                         {code} — <span className="text-amber-400/70">{resp.description ?? ''}</span>
                       </div>
                       {schema && (
-                        <pre className="bg-[#0d0a00] border border-amber-400/10 rounded p-3 text-[11px] font-mono text-amber-200 overflow-x-auto whitespace-pre-wrap leading-relaxed">
+                        <pre className="bg-[#0a0a0a] border border-amber-400/10 rounded p-3 text-[11px] font-mono text-amber-200 overflow-x-auto whitespace-pre-wrap leading-relaxed">
                           {renderSchema(spec, schema)}
                         </pre>
                       )}
@@ -269,7 +269,7 @@ function Endpoint({ method, path, op, spec, baseUrl }: { method: Method; path: s
               <h4 className="font-mono text-[11px] uppercase tracking-wider text-amber-400/70">Example</h4>
               <CopyButton text={curl} />
             </div>
-            <pre className="bg-[#0d0a00] border border-amber-400/10 rounded p-3 text-[11px] font-mono text-amber-200 overflow-x-auto whitespace-pre leading-relaxed">
+            <pre className="bg-[#0a0a0a] border border-amber-400/10 rounded p-3 text-[11px] font-mono text-amber-200 overflow-x-auto whitespace-pre leading-relaxed">
               {curl}
             </pre>
           </div>
@@ -316,7 +316,7 @@ export default function ApiDocsPage() {
   const pathEntries = Object.entries(spec?.paths ?? {}) as [string, Record<string, OpenApiOperation>][];
 
   return (
-    <main className="relative min-h-screen bg-[#090600] flex flex-col">
+    <main className="relative min-h-screen bg-[#000000] flex flex-col">
       <Navbar />
 
       <section className="relative z-10 flex-1 pt-28 pb-20 px-4 sm:px-6 lg:px-8">

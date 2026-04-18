@@ -34,7 +34,7 @@ export function MatrixRain() {
     function draw() {
       if (!ctx || !canvas) return;
 
-      ctx.fillStyle = 'rgba(9, 6, 0, 0.06)';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.06)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       ctx.font = '14px monospace';
@@ -76,7 +76,7 @@ export function MatrixRain() {
     <canvas
       ref={canvasRef}
       className="fixed inset-0 z-0 pointer-events-none"
-      style={{ background: '#090600' }}
+      style={{ background: '#000000' }}
     />
   );
 }

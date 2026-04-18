@@ -373,7 +373,7 @@ await fetch(endpoint, {
 export default function IntegratePage() {
   const flows = buildFlows();
   return (
-    <main className="relative min-h-screen bg-[#090600] flex flex-col">
+    <main className="relative min-h-screen bg-[#000000] flex flex-col">
       <Navbar />
       <section className="relative z-10 pt-28 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto">

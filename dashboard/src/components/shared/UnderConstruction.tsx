@@ -12,7 +12,7 @@ interface UnderConstructionProps {
 
 export function UnderConstruction({ title, description }: UnderConstructionProps) {
   return (
-    <main className="relative min-h-screen bg-[#090600] flex flex-col">
+    <main className="relative min-h-screen bg-[#000000] flex flex-col">
       <Navbar />
       <section className="relative z-10 flex-1 flex items-center justify-center px-4 py-32">
         <div className="max-w-xl w-full text-center">

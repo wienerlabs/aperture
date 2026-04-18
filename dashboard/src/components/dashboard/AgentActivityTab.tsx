@@ -227,14 +227,14 @@ export function AgentActivityTab() {
       {/* Agent Stats */}
       {stats && (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-4">
+          <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <Activity className="w-4 h-4 text-amber-400" />
               <span className="text-xs text-amber-100/40">Sessions</span>
             </div>
             <p className="text-xl font-bold text-amber-100 font-mono">{stats.totalSessions}</p>
           </div>
-          <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-4">
+          <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <Zap className="w-4 h-4 text-amber-400" />
               <span className="text-xs text-amber-100/40">x402</span>
@@ -242,7 +242,7 @@ export function AgentActivityTab() {
             <p className="text-xl font-bold text-amber-100 font-mono">{stats.totalX402}</p>
             <p className="text-xs text-amber-100/50 mt-0.5">{stats.totalUsdcSpent.toFixed(2)} USDC</p>
           </div>
-          <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-purple-400/20 rounded-xl p-4">
+          <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-purple-400/20 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <Zap className="w-4 h-4 text-purple-400" />
               <span className="text-xs text-amber-100/40">MPP</span>
@@ -250,14 +250,14 @@ export function AgentActivityTab() {
             <p className="text-xl font-bold text-amber-100 font-mono">{stats.totalMpp}</p>
             <p className="text-xs text-amber-100/50 mt-0.5">${stats.totalMppSpent.toFixed(2)}</p>
           </div>
-          <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-green-400/20 rounded-xl p-4">
+          <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-green-400/20 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <ShieldCheck className="w-4 h-4 text-green-400" />
               <span className="text-xs text-amber-100/40">ZK Proofs</span>
             </div>
             <p className="text-xl font-bold text-amber-100 font-mono">{stats.totalProofs}</p>
           </div>
-          <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-red-400/20 rounded-xl p-4">
+          <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-red-400/20 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <XCircle className="w-4 h-4 text-red-400" />
               <span className="text-xs text-amber-100/40">Violations</span>
@@ -268,7 +268,7 @@ export function AgentActivityTab() {
       )}
 
       {/* Live Activity Feed */}
-      <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl">
+      <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl">
         <div className="flex items-center justify-between p-4 border-b border-amber-400/10">
           <div className="flex items-center gap-2">
             <FileText className="w-4 h-4 text-amber-400" />

@@ -86,7 +86,7 @@ export function HowItWorksSection() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: i * 0.15, ease: 'easeOut' }}
-                className="relative bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6 w-60 flex flex-col items-center text-center hover:border-amber-400/40 hover:shadow-[0_0_30px_rgba(245,158,11,0.1)] transition-all duration-300"
+                className="relative bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6 w-60 flex flex-col items-center text-center hover:border-amber-400/40 hover:shadow-[0_0_30px_rgba(245,158,11,0.1)] transition-all duration-300"
               >
                 <span className="font-mono text-xs text-amber-400/30 mb-3">
                   {step.number}
@@ -113,7 +113,7 @@ export function HowItWorksSection() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: i * 0.1, ease: 'easeOut' }}
-                className="relative bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6 w-full max-w-sm flex flex-col items-center text-center"
+                className="relative bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6 w-full max-w-sm flex flex-col items-center text-center"
               >
                 <span className="font-mono text-xs text-amber-400/30 mb-3">
                   {step.number}

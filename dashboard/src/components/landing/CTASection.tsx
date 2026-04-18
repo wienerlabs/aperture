@@ -12,7 +12,7 @@ export function CTASection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="relative bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-2xl p-12 sm:p-16 text-center overflow-hidden"
+          className="relative bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-2xl p-12 sm:p-16 text-center overflow-hidden"
         >
           {/* Background glow */}
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.06)_0%,transparent_70%)]" />
@@ -26,7 +26,7 @@ export function CTASection() {
             </p>
             <Link
               href="/auth/signup"
-              className="inline-block font-mono text-sm px-8 py-3 bg-amber-400 text-[#090600] rounded-lg font-semibold hover:bg-amber-300 transition-colors duration-200 shadow-[0_0_30px_rgba(245,158,11,0.2)]"
+              className="inline-block font-mono text-sm px-8 py-3 bg-amber-400 text-[#000000] rounded-lg font-semibold hover:bg-amber-300 transition-colors duration-200 shadow-[0_0_30px_rgba(245,158,11,0.2)]"
             >
               Get Started
             </Link>

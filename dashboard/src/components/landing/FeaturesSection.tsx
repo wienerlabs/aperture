@@ -95,7 +95,7 @@ export function FeaturesSection() {
                 boxShadow: '0 0 40px rgba(245,158,11,0.15)',
                 borderColor: 'rgba(251,191,36,0.4)',
               }}
-              className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6 sm:p-8 transition-all duration-300"
+              className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6 sm:p-8 transition-all duration-300"
             >
               <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-amber-400/10 text-amber-400 mb-4">
                 {feature.icon}

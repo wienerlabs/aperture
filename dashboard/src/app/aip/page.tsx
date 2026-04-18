@@ -17,7 +17,7 @@ function P({ children }: { children: React.ReactNode }) {
 
 function Code({ children }: { children: string }) {
   return (
-    <pre className="bg-[#0d0a00] border border-amber-400/10 rounded-lg p-4 overflow-x-auto text-xs font-mono text-amber-200 leading-relaxed mb-4">
+    <pre className="bg-[#0a0a0a] border border-amber-400/10 rounded-lg p-4 overflow-x-auto text-xs font-mono text-amber-200 leading-relaxed mb-4">
       {children.trim()}
     </pre>
   );
@@ -29,7 +29,7 @@ function Inline({ children }: { children: string }) {
 
 export default function AIPPage() {
   return (
-    <div className="min-h-screen bg-[#090600] text-amber-100">
+    <div className="min-h-screen bg-[#000000] text-amber-100">
       <Navbar />
 
       <div className="max-w-4xl mx-auto px-6 py-24">
@@ -51,7 +51,7 @@ export default function AIPPage() {
 
         {/* What We Solved */}
         <H2 id="problem">The Problem We Solve</H2>
-        <div className="bg-[rgba(20,14,0,0.8)] border border-red-400/20 rounded-xl p-6 mb-6">
+        <div className="bg-[rgba(10,10,10,0.8)] border border-red-400/20 rounded-xl p-6 mb-6">
           <P>
             When an enterprise deploys AI agents that make financial transactions, the legal
             department asks:
@@ -67,7 +67,7 @@ export default function AIPPage() {
           </P>
         </div>
 
-        <div className="bg-[rgba(20,14,0,0.8)] border border-green-400/20 rounded-xl p-6 mb-6">
+        <div className="bg-[rgba(10,10,10,0.8)] border border-green-400/20 rounded-xl p-6 mb-6">
           <div className="flex items-center gap-2 mb-3">
             <Shield className="w-5 h-5 text-green-400" />
             <span className="text-sm font-semibold text-green-400">Aperture&apos;s Solution</span>
@@ -109,7 +109,7 @@ export default function AIPPage() {
               Icon: CheckCircle,
             },
           ].map((item) => (
-            <div key={item.title} className="bg-[rgba(20,14,0,0.8)] border border-amber-400/20 rounded-xl p-5">
+            <div key={item.title} className="bg-[rgba(10,10,10,0.8)] border border-amber-400/20 rounded-xl p-5">
               <item.Icon className="w-5 h-5 text-amber-400 mb-2" />
               <h4 className="text-sm font-semibold text-amber-100 mb-1">{item.title}</h4>
               <p className="text-xs text-amber-100/70">{item.desc}</p>
@@ -144,7 +144,7 @@ export default function AIPPage() {
         {/* What the Auditor Sees */}
         <H2 id="privacy">What an Auditor Sees vs. What&apos;s Hidden</H2>
         <div className="grid md:grid-cols-2 gap-4 mb-8">
-          <div className="bg-[rgba(20,14,0,0.8)] border border-green-400/20 rounded-xl p-5">
+          <div className="bg-[rgba(10,10,10,0.8)] border border-green-400/20 rounded-xl p-5">
             <div className="flex items-center gap-2 mb-3">
               <CheckCircle className="w-4 h-4 text-green-400" />
               <span className="text-sm font-semibold text-green-400">Auditor Can See</span>
@@ -159,7 +159,7 @@ export default function AIPPage() {
               <li>• Sanctions intersection count: 0</li>
             </ul>
           </div>
-          <div className="bg-[rgba(20,14,0,0.8)] border border-red-400/20 rounded-xl p-5">
+          <div className="bg-[rgba(10,10,10,0.8)] border border-red-400/20 rounded-xl p-5">
             <div className="flex items-center gap-2 mb-3">
               <Lock className="w-4 h-4 text-red-400" />
               <span className="text-sm font-semibold text-red-400">Hidden by ZK Proofs</span>
@@ -356,7 +356,7 @@ ProverOutput {
         </div>
 
         {/* CTA */}
-        <div className="bg-[rgba(20,14,0,0.8)] border border-amber-400/20 rounded-xl p-8 text-center mt-12">
+        <div className="bg-[rgba(10,10,10,0.8)] border border-amber-400/20 rounded-xl p-8 text-center mt-12">
           <h3 className="text-xl font-bold text-amber-100 mb-2">Try It Now</h3>
           <p className="text-sm text-amber-100/70 mb-6">
             Connect your wallet, create a policy, and verify your first AIP agent payment with zero-knowledge proofs.

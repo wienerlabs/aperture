@@ -23,7 +23,7 @@ const SECTIONS = [
 
 function Code({ children }: { children: string }) {
   return (
-    <pre className="bg-[#0d0a00] border border-amber-400/10 rounded-lg p-4 overflow-x-auto text-xs font-mono text-amber-200 leading-relaxed">
+    <pre className="bg-[#0a0a0a] border border-amber-400/10 rounded-lg p-4 overflow-x-auto text-xs font-mono text-amber-200 leading-relaxed">
       {children.trim()}
     </pre>
   );
@@ -67,7 +67,7 @@ export default function DocsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#090600] text-amber-100">
+    <div className="min-h-screen bg-[#000000] text-amber-100">
       <Navbar />
 
       <div className="max-w-7xl mx-auto flex pt-16">
@@ -186,7 +186,7 @@ export default function DocsPage() {
                 ],
               },
             ].map(({ step, title, items }) => (
-              <div key={step} className="bg-[rgba(20,14,0,0.8)] border border-amber-400/10 rounded-lg p-5">
+              <div key={step} className="bg-[rgba(10,10,10,0.8)] border border-amber-400/10 rounded-lg p-5">
                 <div className="flex items-center gap-3 mb-3">
                   <span className="w-6 h-6 rounded-full bg-amber-400/10 text-amber-400 text-xs font-bold flex items-center justify-center">{step}</span>
                   <span className="text-sm font-semibold text-amber-100">{title}</span>
@@ -275,7 +275,7 @@ open http://localhost:3000`}</Code>
               { method: 'Email / Password', desc: 'Traditional credentials. User accounts are stored in the policy-service database.' },
               { method: 'Google OAuth', desc: 'Requires GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env. Redirects to Google for authentication.' },
             ].map(({ method, desc }) => (
-              <div key={method} className="bg-[rgba(20,14,0,0.8)] border border-amber-400/10 rounded-lg p-4">
+              <div key={method} className="bg-[rgba(10,10,10,0.8)] border border-amber-400/10 rounded-lg p-4">
                 <span className="text-sm font-semibold text-amber-100">{method}</span>
                 <p className="text-xs text-amber-100/50 mt-1">{desc}</p>
               </div>
@@ -292,7 +292,7 @@ open http://localhost:3000`}</Code>
               { step: '3', title: 'Pay', desc: 'The payment is executed via x402 or MPP protocol. The ZK proof is attached to the payment header, enabling the recipient to verify compliance.' },
               { step: '4', title: 'Verify', desc: 'The proof is verified on-chain via the Verifier program. A ComplianceStatus PDA is created, enabling the SPL Token-2022 transfer hook to enforce compliance.' },
             ].map(({ step, title, desc }) => (
-              <div key={step} className="bg-[rgba(20,14,0,0.8)] border border-amber-400/10 rounded-lg p-4">
+              <div key={step} className="bg-[rgba(10,10,10,0.8)] border border-amber-400/10 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="w-6 h-6 rounded-full bg-amber-400/10 text-amber-400 text-xs font-bold flex items-center justify-center">{step}</span>
                   <span className="text-sm font-semibold text-amber-100">{title}</span>
@@ -312,7 +312,7 @@ open http://localhost:3000`}</Code>
               { name: 'Compliance Aggregator', desc: 'Backend service that aggregates proof records into batch attestations with SHA-256 batch hashes.', id: 'services/compliance-api (port 3002)' },
               { name: 'On-chain Verifier', desc: 'Anchor program that verifies ZK proof receipts with journal field parsing, image_id validation, proof_hash cross-referencing, and journal digest recomputation. Creates ProofRecord + ComplianceStatus PDAs.', id: 'AzKirEv7h5PstLNYNqLj7fCXU9EFA6nSnuoed3QkmUfU' },
             ].map(({ name, desc, id }) => (
-              <div key={name} className="bg-[rgba(20,14,0,0.8)] border border-amber-400/10 rounded-lg p-4">
+              <div key={name} className="bg-[rgba(10,10,10,0.8)] border border-amber-400/10 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-semibold text-amber-100">{name}</span>
                   <span className="text-xs font-mono text-amber-400/40">{id.length > 20 ? id.slice(0, 8) + '...' : id}</span>

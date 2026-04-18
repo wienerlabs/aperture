@@ -46,7 +46,7 @@ export default function DashboardPage() {
 
   if (status === 'loading') {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#090600]">
+      <div className="flex items-center justify-center h-screen bg-[#000000]">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
           <p className="text-amber-100/40 text-sm">Loading dashboard...</p>

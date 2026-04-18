@@ -167,11 +167,11 @@ export default function SignUpPage() {
   const isAnyLoading = isSignUpLoading || isGoogleLoading || isWalletLoading;
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center px-4 bg-[#090600]">
+    <div className="relative flex min-h-screen items-center justify-center px-4 bg-[#000000]">
       <MatrixRain />
 
       <div
-        className="relative z-10 w-full max-w-md rounded-xl border border-amber-400/20 p-8 bg-[rgba(20,14,0,0.8)] backdrop-blur-xl"
+        className="relative z-10 w-full max-w-md rounded-xl border border-amber-400/20 p-8 bg-[rgba(10,10,10,0.8)] backdrop-blur-xl"
       >
         <Link
           href="/"

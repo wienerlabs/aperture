@@ -101,7 +101,7 @@ export function PricingSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-30px' }}
               transition={{ duration: 0.5, delay: i * 0.15, ease: 'easeOut' }}
-              className={`relative bg-[rgba(20,14,0,0.8)] backdrop-blur-md rounded-xl p-6 sm:p-8 transition-all duration-300 flex flex-col ${
+              className={`relative bg-[rgba(10,10,10,0.8)] backdrop-blur-md rounded-xl p-6 sm:p-8 transition-all duration-300 flex flex-col ${
                 tier.highlighted
                   ? 'border-2 border-amber-400 shadow-[0_0_40px_rgba(245,158,11,0.15)] md:scale-105 md:-my-2'
                   : 'border border-amber-400/20 hover:border-amber-400/40'
@@ -109,7 +109,7 @@ export function PricingSection() {
             >
               {tier.highlighted && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="font-mono text-xs px-3 py-1 bg-amber-400 text-[#090600] rounded-full font-semibold">
+                  <span className="font-mono text-xs px-3 py-1 bg-amber-400 text-[#000000] rounded-full font-semibold">
                     Most Popular
                   </span>
                 </div>
@@ -153,7 +153,7 @@ export function PricingSection() {
                 href={tier.ctaHref}
                 className={`font-mono text-sm px-6 py-3 rounded-lg font-semibold text-center transition-colors duration-200 block ${
                   tier.highlighted
-                    ? 'bg-amber-400 text-[#090600] hover:bg-amber-300'
+                    ? 'bg-amber-400 text-[#000000] hover:bg-amber-300'
                     : 'border border-amber-400/20 text-amber-400 hover:border-amber-400/40 hover:bg-amber-400/5'
                 }`}
               >

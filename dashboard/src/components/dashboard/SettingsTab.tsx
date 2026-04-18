@@ -172,7 +172,7 @@ export function SettingsTab() {
       </div>
 
       {/* Wallet Connection */}
-      <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6">
+      <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6">
         <div className="flex items-center gap-3 mb-4">
           <Wallet className="w-5 h-5 text-amber-400" />
           <h3 className="text-lg font-semibold text-amber-100">Wallet Connection</h3>
@@ -227,7 +227,7 @@ export function SettingsTab() {
       </div>
 
       {/* Squads Multisig */}
-      <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6">
+      <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6">
         <div className="flex items-center gap-3 mb-4">
           <Users className="w-5 h-5 text-amber-400" />
           <h3 className="text-lg font-semibold text-amber-100">Squads Multisig</h3>
@@ -343,7 +343,7 @@ export function SettingsTab() {
       </div>
 
       {/* API Configuration */}
-      <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6">
+      <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6">
         <div className="flex items-center gap-3 mb-4">
           <Server className="w-5 h-5 text-amber-400" />
           <h3 className="text-lg font-semibold text-amber-100">API Configuration</h3>
@@ -450,7 +450,7 @@ export function SettingsTab() {
       </div>
 
       {/* Operator ID */}
-      <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6">
+      <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6">
         <div className="flex items-center gap-3 mb-4">
           <Settings className="w-5 h-5 text-amber-400" />
           <h3 className="text-lg font-semibold text-amber-100">Operator Identity</h3>
@@ -490,7 +490,7 @@ export function SettingsTab() {
       </div>
 
       {/* On-chain Programs */}
-      <div className="bg-[rgba(20,14,0,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6">
+      <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6">
         <div className="flex items-center gap-3 mb-4">
           <Server className="w-5 h-5 text-amber-400" />
           <h3 className="text-lg font-semibold text-amber-100">On-chain Programs</h3>
