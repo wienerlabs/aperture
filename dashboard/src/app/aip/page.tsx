@@ -23,10 +23,6 @@ function Code({ children }: { children: string }) {
   );
 }
 
-function Inline({ children }: { children: string }) {
-  return <code className="px-1.5 py-0.5 bg-amber-400/10 text-amber-400 text-xs rounded font-mono">{children}</code>;
-}
-
 export default function AIPPage() {
   return (
     <div className="min-h-screen bg-[#000000] text-amber-100">
