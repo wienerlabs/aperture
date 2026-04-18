@@ -19,6 +19,7 @@ const DISCRIMINATORS = {
   registerPolicy: Buffer.from([62, 66, 167, 36, 252, 227, 38, 132]),
   updatePolicy: Buffer.from([212, 245, 246, 7, 163, 151, 18, 57]),
   verifyPaymentProof: Buffer.from([247, 147, 241, 26, 26, 113, 39, 66]),
+  verifyPaymentProofV2: Buffer.from([15, 218, 30, 217, 205, 0, 219, 86]),
   verifyBatchAttestation: Buffer.from([85, 129, 17, 164, 94, 99, 86, 45]),
 } as const;
 
@@ -230,6 +231,70 @@ export function buildVerifyPaymentProofIx(
   offset += 32;
 
   receiptVec.copy(data, offset);
+
+  return new TransactionInstruction({
+    programId: VERIFIER_PROGRAM,
+    keys: [
+      { pubkey: proofRecordPDA, isSigner: false, isWritable: true },
+      { pubkey: complianceStatusPDA, isSigner: false, isWritable: true },
+      { pubkey: policyAccountKey, isSigner: false, isWritable: false },
+      { pubkey: operator, isSigner: true, isWritable: false },
+      { pubkey: payer, isSigner: true, isWritable: true },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+    data,
+  });
+}
+
+// v2: Circom Groth16 verification. Pairs with the prover-service endpoint
+// POST /prove — that response's `groth16` block (proof_a, proof_b, proof_c,
+// public_inputs as base64) is decoded on the caller side and fed here.
+//
+// The proof_record PDA is seeded by the journal_digest (public_inputs[1])
+// instead of a separate proof_hash — they are equivalent commitments in the
+// Circom world and avoid redundant serialization.
+export function buildVerifyPaymentProofV2Ix(
+  operator: PublicKey,
+  payer: PublicKey,
+  policyAccountKey: PublicKey,
+  proofA: Uint8Array,
+  proofB: Uint8Array,
+  proofC: Uint8Array,
+  publicInputs: Uint8Array[]
+): TransactionInstruction {
+  if (proofA.length !== 64) throw new Error('proof_a must be 64 bytes');
+  if (proofB.length !== 128) throw new Error('proof_b must be 128 bytes');
+  if (proofC.length !== 64) throw new Error('proof_c must be 64 bytes');
+  if (publicInputs.length !== 2) {
+    throw new Error('public_inputs must have exactly 2 entries');
+  }
+  for (let i = 0; i < publicInputs.length; i++) {
+    if (publicInputs[i].length !== 32) {
+      throw new Error(`public_inputs[${i}] must be 32 bytes`);
+    }
+  }
+
+  const journalDigest = publicInputs[1];
+  const [proofRecordPDA] = deriveProofRecordPDA(operator, journalDigest);
+  const [complianceStatusPDA] = deriveComplianceStatusPDA(operator);
+
+  // Layout: disc[8] + proof_a[64] + proof_b[128] + proof_c[64]
+  //       + public_inputs[2 x 32 = 64]
+  const data = Buffer.alloc(8 + 64 + 128 + 64 + 64);
+  let offset = 0;
+
+  DISCRIMINATORS.verifyPaymentProofV2.copy(data, offset);
+  offset += 8;
+  Buffer.from(proofA).copy(data, offset);
+  offset += 64;
+  Buffer.from(proofB).copy(data, offset);
+  offset += 128;
+  Buffer.from(proofC).copy(data, offset);
+  offset += 64;
+  for (const input of publicInputs) {
+    Buffer.from(input).copy(data, offset);
+    offset += 32;
+  }
 
   return new TransactionInstruction({
     programId: VERIFIER_PROGRAM,
