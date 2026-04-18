@@ -43,11 +43,12 @@ function formatElapsed(sec: number): string {
 }
 
 function formatProvingTime(ms: number): string {
-  const totalSec = Math.round(ms / 1000);
+  if (ms < 1000) return `${ms} ms`;
+  const totalSec = ms / 1000;
   const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;
-  if (m > 0) return `${m}m ${s}s`;
-  return `${s}s`;
+  if (m > 0) return `${m}m ${Math.round(s)}s`;
+  return `${s.toFixed(2)}s`;
 }
 
 function formatBytes(bytes: number): string {

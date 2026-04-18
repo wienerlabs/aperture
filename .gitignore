@@ -1,7 +1,13 @@
 node_modules/
 dist/
 target/
+docker-target/
+circuits/payment-prover/build/
+*.ptau
+*.zkey
+*.wtns
 .env
+.env.local
 .next/
 *.log
 .DS_Store
