@@ -9,6 +9,7 @@ import { config } from '@/lib/config';
 import { policyApi, complianceApi } from '@/lib/api';
 import {
   buildVerifyPaymentProofIx,
+  buildVerifyPaymentProofV2Ix,
   hexToBytes32,
   deriveOperatorPDA,
   derivePolicyPDA,
@@ -336,29 +337,25 @@ export function AIPAgentsTab() {
       setProvingStatus('Verifying proof on Solana...');
       let txSig = '';
 
-      const proofHashBytes = hexToBytes32(proofData.proof_hash);
-      const compactReceipt = JSON.stringify({
-        proof_hash: proofData.proof_hash,
-        is_compliant: proofData.is_compliant,
-        amount_range_min: proofData.amount_range_min,
-        amount_range_max: proofData.amount_range_max,
-        image_id: proofData.image_id,
-      });
-      const receiptBytes = new TextEncoder().encode(compactReceipt);
-      const journalDigestBytes = await sha256Bytes(receiptBytes);
+      const proofA = Uint8Array.from(Buffer.from(proofData.groth16.proof_a, 'base64'));
+      const proofB = Uint8Array.from(Buffer.from(proofData.groth16.proof_b, 'base64'));
+      const proofC = Uint8Array.from(Buffer.from(proofData.groth16.proof_c, 'base64'));
+      const publicInputs = proofData.groth16.public_inputs.map(
+        (b64: string) => Uint8Array.from(Buffer.from(b64, 'base64'))
+      );
 
       const [operatorPDA] = deriveOperatorPDA(publicKey);
       const policyIdBytes = await sha256Bytes(policy.id);
       const [policyPDA] = derivePolicyPDA(operatorPDA, policyIdBytes);
 
-      const verifyIx = buildVerifyPaymentProofIx(
+      const verifyIx = buildVerifyPaymentProofV2Ix(
         publicKey,
         publicKey,
         policyPDA,
-        proofHashBytes,
-        proofData.image_id,
-        journalDigestBytes,
-        receiptBytes,
+        proofA,
+        proofB,
+        proofC,
+        publicInputs,
       );
 
       const tx = new Transaction().add(verifyIx);

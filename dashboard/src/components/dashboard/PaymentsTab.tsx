@@ -23,6 +23,7 @@ import { complianceApi, policyApi, type ProofRecord } from '@/lib/api';
 import { truncateAddress, formatDate, formatAmount } from '@/lib/utils';
 import {
   buildVerifyPaymentProofIx,
+  buildVerifyPaymentProofV2Ix,
   hexToBytes32,
   deriveOperatorPDA,
   derivePolicyPDA,
@@ -242,24 +243,26 @@ export function PaymentsTab() {
 
         const proofData = await proveRes.json();
 
-        // Step 2: Write proof on-chain via real Verifier program
-        const proofHashBytes = hexToBytes32(proofData.proof_hash);
-        const receiptBytes = new Uint8Array(proofData.receipt_bytes);
-        // On-chain verifier checks SHA-256(receipt_data) == journal_digest
-        const journalDigestBytes = await sha256Bytes(receiptBytes);
+        // Step 2: Write proof on-chain via the Circom+groth16-solana verifier
+        const proofA = Uint8Array.from(Buffer.from(proofData.groth16.proof_a, 'base64'));
+        const proofB = Uint8Array.from(Buffer.from(proofData.groth16.proof_b, 'base64'));
+        const proofC = Uint8Array.from(Buffer.from(proofData.groth16.proof_c, 'base64'));
+        const publicInputs = proofData.groth16.public_inputs.map(
+          (b64: string) => Uint8Array.from(Buffer.from(b64, 'base64'))
+        );
 
         const [operatorPDA] = deriveOperatorPDA(publicKey);
         const hookPolicyIdBytes = await sha256Bytes(policies[0].id);
         const [hookPolicyPDA] = derivePolicyPDA(operatorPDA, hookPolicyIdBytes);
 
-        const verifyIx = buildVerifyPaymentProofIx(
+        const verifyIx = buildVerifyPaymentProofV2Ix(
           publicKey,
           publicKey,
           hookPolicyPDA,
-          proofHashBytes,
-          proofData.image_id,
-          journalDigestBytes,
-          receiptBytes
+          proofA,
+          proofB,
+          proofC,
+          publicInputs
         );
 
         const proofTx = new Transaction().add(verifyIx);
@@ -440,16 +443,12 @@ export function PaymentsTab() {
               await new Promise(r => setTimeout(r, 0));
               let solanaTxSig = '';
 
-              const proofHashBytes = hexToBytes32(proofData.proof_hash);
-              const compactReceipt = JSON.stringify({
-                proof_hash: proofData.proof_hash,
-                is_compliant: proofData.is_compliant,
-                amount_range_min: proofData.amount_range_min,
-                amount_range_max: proofData.amount_range_max,
-                image_id: proofData.image_id,
-              });
-              const receiptBytes = new TextEncoder().encode(compactReceipt);
-              const journalDigestBytes = await sha256Bytes(receiptBytes);
+              const proofA = Uint8Array.from(Buffer.from(proofData.groth16.proof_a, 'base64'));
+              const proofB = Uint8Array.from(Buffer.from(proofData.groth16.proof_b, 'base64'));
+              const proofC = Uint8Array.from(Buffer.from(proofData.groth16.proof_c, 'base64'));
+              const publicInputs = proofData.groth16.public_inputs.map(
+                (b64: string) => Uint8Array.from(Buffer.from(b64, 'base64'))
+              );
 
               await new Promise(r => setTimeout(r, 0));
 
@@ -457,14 +456,14 @@ export function PaymentsTab() {
               const policyIdBytes = await sha256Bytes(policies[0].id);
               const [policyPDA] = derivePolicyPDA(operatorPDA, policyIdBytes);
 
-              const verifyIx = buildVerifyPaymentProofIx(
+              const verifyIx = buildVerifyPaymentProofV2Ix(
                 publicKey,
                 publicKey,
                 policyPDA,
-                proofHashBytes,
-                proofData.image_id,
-                journalDigestBytes,
-                receiptBytes,
+                proofA,
+                proofB,
+                proofC,
+                publicInputs,
               );
 
               const tx = new Transaction().add(verifyIx);
@@ -602,20 +601,12 @@ export function PaymentsTab() {
       await new Promise(r => setTimeout(r, 0));
       let txSig = '';
       if (publicKey && sendTransaction) {
-        const proofHashBytes = hexToBytes32(proofData.proof_hash);
-
-        // Build compact receipt data for on-chain verification
-        // Full receipt (255KB) doesn't fit in a Solana tx (1232 byte limit)
-        // Send a compact attestation: JSON of proof output fields
-        const compactReceipt = JSON.stringify({
-          proof_hash: proofData.proof_hash,
-          is_compliant: proofData.is_compliant,
-          amount_range_min: proofData.amount_range_min,
-          amount_range_max: proofData.amount_range_max,
-          image_id: proofData.image_id,
-        });
-        const receiptBytes = new TextEncoder().encode(compactReceipt);
-        const journalDigestBytes = await sha256Bytes(receiptBytes);
+        const proofA = Uint8Array.from(Buffer.from(proofData.groth16.proof_a, 'base64'));
+        const proofB = Uint8Array.from(Buffer.from(proofData.groth16.proof_b, 'base64'));
+        const proofC = Uint8Array.from(Buffer.from(proofData.groth16.proof_c, 'base64'));
+        const publicInputs = proofData.groth16.public_inputs.map(
+          (b64: string) => Uint8Array.from(Buffer.from(b64, 'base64'))
+        );
 
         await new Promise(r => setTimeout(r, 0));
 
@@ -623,14 +614,14 @@ export function PaymentsTab() {
         const policyIdBytes = await sha256Bytes(policy.id);
         const [policyPDA] = derivePolicyPDA(operatorPDA, policyIdBytes);
 
-        const verifyIx = buildVerifyPaymentProofIx(
+        const verifyIx = buildVerifyPaymentProofV2Ix(
           publicKey,
           publicKey,
           policyPDA,
-          proofHashBytes,
-          proofData.image_id,
-          journalDigestBytes,
-          receiptBytes
+          proofA,
+          proofB,
+          proofC,
+          publicInputs
         );
 
         const tx = new Transaction().add(verifyIx);
