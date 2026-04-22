@@ -89,7 +89,7 @@ const paid = await fetch(endpoint, {
         },
         {
           issue: 'Prover returns HTTP 500',
-          fix: 'Check prover-service logs for `RISC Zero zkVM` errors. On Apple Silicon under amd64 emulation proving takes ~45s — ensure your client timeout is >90s.',
+          fix: 'Check prover-service logs for Circom/snarkjs errors. Proving should land in under 2 seconds; if you see timeouts, confirm the service has access to the compiled `payment.wasm` and `payment.zkey` artifacts.',
         },
         {
           issue: 'Insufficient USDC balance',
@@ -319,13 +319,13 @@ await fetch(endpoint, {
     },
 
     {
-      id: 'risc0',
-      label: 'RISC Zero Custom Circuit',
-      tagline: 'Write your own guest program that consumes a policy + event, runs inside the zkVM and commits a journal. Aperture’s prover-service wraps this in a reusable HTTP contract.',
+      id: 'circom',
+      label: 'Circom Custom Circuit',
+      tagline: 'Write your own Circom circuit that enforces policy + event rules, compile to R1CS, and plug it into Aperture’s snarkjs-based prover-service and the on-chain groth16-solana verifier.',
       prerequisites: [
-        'rzup installed (rust toolchain + r0vm ≥ 1.2.6)',
-        'cargo-risczero installed',
-        'Familiarity with RISC Zero guest/host layout (see circuits/payment-prover/)',
+        'circom ≥ 2.2 compiler installed',
+        'snarkjs ≥ 0.7 on Node 20+',
+        'Familiarity with circomlib (comparators, Poseidon) — see circuits/payment-prover/payment.circom',
       ],
       steps: [
         {

@@ -11,9 +11,9 @@ interface LayerData {
 
 const layers: LayerData[] = [
   {
-    name: 'RISC Zero',
+    name: 'Circom + Groth16',
     label: 'ZK Proof Engine',
-    description: 'Guest program generates compliance proofs inside the zkVM',
+    description: 'Circom circuit proves compliance, snarkjs generates a 256-byte Groth16 proof in ~500 ms',
   },
   {
     name: 'Solana',

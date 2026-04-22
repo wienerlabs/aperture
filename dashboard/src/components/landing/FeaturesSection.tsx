@@ -23,7 +23,7 @@ const features: FeatureCardData[] = [
     icon: <Shield size={24} />,
     title: 'ZK Proof Generation',
     description:
-      'RISC Zero zkVM generates cryptographic proofs that verify compliance without revealing transaction details',
+      'Circom + Groth16 proofs verify compliance in ~500 ms without revealing transaction details, settled on-chain via groth16-solana',
   },
   {
     icon: <Zap size={24} />,

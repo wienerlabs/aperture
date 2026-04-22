@@ -143,7 +143,7 @@ const SERVICES: readonly ServiceEntry[] = [
     label: 'Prover Service',
     publicUrl: PROVER_URL,
     port: extractPort(PROVER_URL),
-    tagline: 'RISC Zero zkVM prover',
+    tagline: 'Circom + Groth16 prover',
     accent: 'blue',
   },
   {

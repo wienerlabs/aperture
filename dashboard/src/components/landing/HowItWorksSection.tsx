@@ -24,7 +24,7 @@ const steps: StepData[] = [
     number: '02',
     title: 'Generate Proof',
     description:
-      'RISC Zero zkVM produces a cryptographic proof of policy compliance',
+      'Circom + Groth16 produces a ~256-byte cryptographic proof of policy compliance in ~500 ms',
   },
   {
     icon: <Send size={24} />,

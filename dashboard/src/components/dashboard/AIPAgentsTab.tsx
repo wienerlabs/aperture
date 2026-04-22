@@ -238,7 +238,7 @@ export function AIPAgentsTab() {
       const priceUsdc = parseFloat(capability?.pricing.amount ?? '0');
       const amountLamports = Math.round(priceUsdc * 1_000_000);
 
-      // 2. Generate ZK proof via RISC Zero prover
+      // 2. Generate Groth16 ZK proof via Circom prover-service
       setProvingStatus('Generating ZK proof... this may take several minutes');
 
       const controller = new AbortController();

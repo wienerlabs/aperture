@@ -389,7 +389,7 @@ export function PaymentsTab() {
         if (policies.length > 0) {
           const compiled = await policyApi.compile(policies[0].id);
           if (compiled.data) {
-            // 2. Generate ZK proof via RISC Zero prover
+            // 2. Generate Groth16 ZK proof via Circom prover-service
             setProvingStatus('Generating ZK proof... this may take several minutes');
             const amountLamports = Math.round(parseFloat(result.payment.amount) * 1_000_000);
 
@@ -541,7 +541,7 @@ export function PaymentsTab() {
       const paymentId = `pay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const paymentAmount = 1_000_000 + Math.floor(Math.random() * 4_000_000); // 1-5 USDC in lamports
 
-      // 2. Send to real RISC Zero prover service (may take 5+ minutes)
+      // 2. Send to real Circom prover-service (proof lands in ~500 ms)
       setProvingStatus('Generating ZK proof... this may take several minutes on CPU');
 
       // Use AbortController with 10 minute timeout

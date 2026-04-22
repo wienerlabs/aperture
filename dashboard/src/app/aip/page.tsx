@@ -96,7 +96,7 @@ export default function AIPPage() {
             },
             {
               title: 'ZK Proof Generation',
-              desc: 'RISC Zero generates a zero-knowledge proof that the payment complies with all policies. No details revealed.',
+              desc: 'A Circom circuit generates a Groth16 zero-knowledge proof that the payment complies with all policies. No details revealed.',
               Icon: Lock,
             },
             {
@@ -120,7 +120,7 @@ export default function AIPPage() {
             { step: 1, title: 'Operator Sets Policy', desc: 'Daily limit, per-transaction limit, blocked addresses, allowed categories, token whitelist.' },
             { step: 2, title: 'User Selects AIP Agent', desc: 'Browse agents from the AIP registry in the Aperture dashboard. See capabilities, pricing, and live status.' },
             { step: 3, title: 'Compliance Check', desc: 'Before payment, Aperture checks: Does this payment comply with the operator\'s policy? Amount within limits? Address not sanctioned?' },
-            { step: 4, title: 'ZK Proof Generated', desc: 'RISC Zero produces a zero-knowledge proof: "This payment is compliant" — without revealing amount, recipient, or details.' },
+            { step: 4, title: 'ZK Proof Generated', desc: 'Circom + Groth16 produces a zero-knowledge proof in ~500 ms: "This payment is compliant" — without revealing amount, recipient, or details.' },
             { step: 5, title: 'On-Chain Verification', desc: 'Proof is submitted to Aperture\'s Solana Verifier program. ComplianceStatus PDA is updated on-chain.' },
             { step: 6, title: 'Payment Executes', desc: 'Only after proof verification, the payment is sent to the AIP agent via JSON-RPC. Non-compliant payments are blocked.' },
             { step: 7, title: 'Audit Link Created', desc: 'A shareable audit page is generated. Anyone can verify compliance without seeing transaction details.' },
@@ -227,9 +227,9 @@ export default function AIPPage() {
 
         <H3>ZK Proof Stack</H3>
         <P>
-          Proofs are generated using <strong className="text-amber-400">RISC Zero zkVM</strong>, a general-purpose
-          zero-knowledge virtual machine. The prover runs a Rust guest program inside the zkVM that checks
-          all policy rules and outputs a cryptographic receipt.
+          Proofs are generated using <strong className="text-amber-400">Circom circuits + snarkjs (Groth16)</strong>,
+          the same stack Light Protocol uses in production. The circuit enforces all policy rules as BN254
+          constraints and emits a ~256-byte Groth16 proof in ~500 ms, verified on-chain via groth16-solana.
         </P>
         <Code>{`
 // Simplified proof flow
@@ -238,7 +238,7 @@ ProverInput {
   payment: { amount, recipient, token, category },
   daily_spent_so_far
 }
-    ↓ RISC Zero zkVM
+    ↓ Circom + Groth16
 ProverOutput {
   is_compliant: true,
   proof_hash: "d7d2a028f689...",
@@ -307,7 +307,7 @@ ProverOutput {
   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
   │   Policy    │ │   Prover    │ │ Compliance  │
   │   Service   │ │   Service   │ │    API      │
-  │  (Express)  │ │ (RISC Zero) │ │  (Express)  │
+  │  (Express)  │ │   (snarkjs) │ │  (Express)  │
   └──────┬──────┘ └──────┬──────┘ └──────┬──────┘
          │               │               │
          ▼               ▼               ▼
@@ -329,7 +329,7 @@ ProverOutput {
           {[
             { label: 'Agent discovery from AIP registry', done: true },
             { label: 'Policy-based compliance check before payment', done: true },
-            { label: 'RISC Zero ZK proof generation', done: true },
+            { label: 'Groth16 ZK proof generation (Circom + snarkjs)', done: true },
             { label: 'On-chain proof verification (Solana)', done: true },
             { label: 'Audit page with shareable link', done: true },
             { label: 'AIP task history with proof records', done: true },

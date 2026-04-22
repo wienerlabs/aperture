@@ -122,7 +122,7 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: string) => void 
       `Sanctions: Clean\n` +
       `Compliance Rate: 100%\n\n` +
       `Powered by Aperture -- ZK compliance for AI agents\n` +
-      `x402 + MPP + RISC Zero + Light Protocol`
+      `x402 + MPP + Circom/Groth16 + Light Protocol`
     );
     // Generate card image and copy to clipboard for easy paste
     try {
@@ -424,7 +424,7 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: string) => void 
             {/* Bottom -- Powered by */}
             <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                <span style={{ fontSize: 10, color: 'rgba(251,191,36,0.5)', fontWeight: 'bold' }}>RISC ZERO</span>
+                <span style={{ fontSize: 10, color: 'rgba(251,191,36,0.5)', fontWeight: 'bold' }}>GROTH16</span>
                 <span style={{ fontSize: 10, color: 'rgba(251,191,36,0.3)' }}>|</span>
                 <span style={{ fontSize: 10, color: 'rgba(251,191,36,0.5)', fontWeight: 'bold' }}>SOLANA</span>
               </div>

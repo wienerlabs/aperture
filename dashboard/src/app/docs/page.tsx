@@ -125,7 +125,7 @@ export default function DocsPage() {
                 items: [
                   <>Go to the <strong className="text-amber-400">Payments</strong> tab</>,
                   <>Click <strong className="text-amber-400">Payment</strong></>,
-                  <>A real <strong className="text-amber-400">RISC Zero ZK proof</strong> is generated (may take a few seconds on warm cache)</>,
+                  <>A real <strong className="text-amber-400">Groth16 ZK proof</strong> (Circom + snarkjs) is generated in ~500 ms</>,
                   <>Sign the transaction -- proof is verified on Solana with an explorer link</>,
                 ],
               },
@@ -259,8 +259,9 @@ open http://localhost:3000`}</Code>
             ))}
           </div>
           <P>
-            The <Inline>prover-service</Inline> (port 3003) requires RISC Zero toolchain and x86_64.
-            On Apple Silicon, configure <Inline>BONSAI_API_KEY</Inline> for cloud proving.
+            The <Inline>prover-service</Inline> (port 3003) is a Node.js wrapper around snarkjs that
+            consumes the Circom payment-compliance circuit. Runs on any x86/ARM host with Node 20+,
+            no Docker-in-Docker or GPU required.
           </P>
 
           {/* Authentication */}
@@ -288,7 +289,7 @@ open http://localhost:3000`}</Code>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             {[
               { step: '1', title: 'Policy', desc: 'Operator defines compliance rules: spending limits, token whitelist, blocked addresses, time restrictions. Policy is registered on-chain via the Policy Registry program.' },
-              { step: '2', title: 'Proof', desc: 'When a payment occurs, the RISC Zero zkVM generates a cryptographic proof that the payment complies with the policy -- without revealing payment details.' },
+              { step: '2', title: 'Proof', desc: 'When a payment occurs, a Circom + Groth16 circuit generates a cryptographic proof that the payment complies with the policy -- without revealing payment details. Proof lands in ~500 ms.' },
               { step: '3', title: 'Pay', desc: 'The payment is executed via x402 or MPP protocol. The ZK proof is attached to the payment header, enabling the recipient to verify compliance.' },
               { step: '4', title: 'Verify', desc: 'The proof is verified on-chain via the Verifier program. A ComplianceStatus PDA is created, enabling the SPL Token-2022 transfer hook to enforce compliance.' },
             ].map(({ step, title, desc }) => (
@@ -308,9 +309,9 @@ open http://localhost:3000`}</Code>
           <div className="space-y-3 mb-6">
             {[
               { name: 'Policy Registry', desc: 'Anchor program on Solana. Stores operator accounts and policy PDAs with Merkle tree roots for selective disclosure. Supports Squads V4 multisig governance via vault PDA verification.', id: 'FXD7ycSguBQw7o3DXqq4VUBHtdx5ZQpu9P2zb4KG4ZEU' },
-              { name: 'ZK Payment Prover', desc: 'RISC Zero zkVM circuit. Executes 5 compliance checks inside the zkVM and produces a 255KB cryptographic receipt.', id: 'services/prover-service (port 3003)' },
+              { name: 'ZK Payment Prover', desc: 'Circom circuit + snarkjs. Executes 5 compliance checks (per-tx limit, daily limit, token whitelist, blocked addresses, endpoint category) and produces a ~256-byte Groth16 proof on BN254.', id: 'services/prover-service (port 3003)' },
               { name: 'Compliance Aggregator', desc: 'Backend service that aggregates proof records into batch attestations with SHA-256 batch hashes.', id: 'services/compliance-api (port 3002)' },
-              { name: 'On-chain Verifier', desc: 'Anchor program that verifies ZK proof receipts with journal field parsing, image_id validation, proof_hash cross-referencing, and journal digest recomputation. Creates ProofRecord + ComplianceStatus PDAs.', id: 'AzKirEv7h5PstLNYNqLj7fCXU9EFA6nSnuoed3QkmUfU' },
+              { name: 'On-chain Verifier', desc: 'Anchor program that verifies Groth16 proofs via Solana alt_bn128 pairings (groth16-solana, ~100K CU). Creates ProofRecord + ComplianceStatus PDAs keyed by the Poseidon journal digest.', id: 'AzKirEv7h5PstLNYNqLj7fCXU9EFA6nSnuoed3QkmUfU' },
             ].map(({ name, desc, id }) => (
               <div key={name} className="bg-[rgba(10,10,10,0.8)] border border-amber-400/10 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-1">
@@ -322,7 +323,7 @@ open http://localhost:3000`}</Code>
             ))}
           </div>
           <H3>Tech Stack</H3>
-          <P>RISC Zero zkVM, Solana (Anchor + pure SDK), SPL Token-2022 Transfer Hook, Light Protocol ZK Compression, Squads V4 Multisig, x402 (Coinbase), MPP (Stripe/Tempo).</P>
+          <P>Circom + snarkjs (Groth16, BN254), groth16-solana on-chain verifier, Solana (Anchor + pure SDK), SPL Token-2022 Transfer Hook, Light Protocol ZK Compression, Squads V4 Multisig, x402 (Coinbase), MPP (Stripe/Tempo).</P>
 
           {/* SDK Reference */}
           <H2 id="sdk-reference">SDK Reference</H2>
@@ -378,7 +379,7 @@ const checker = new PolicyChecker('http://localhost:3001');
 await checker.loadPolicy(operatorId);
 const result = checker.checkPayment({ amountLamports, tokenMint, recipient, endpointCategory });
 
-// 2. ProverClient: generates RISC Zero ZK proof
+// 2. ProverClient: generates Circom + Groth16 ZK proof
 const prover = new ProverClient('http://localhost:3003');
 const proof = await prover.generateProof(compiled, amount, mint, recipient, category, dailySpent);
 
@@ -462,7 +463,7 @@ const ix = buildVerifyPaymentProofIx(
           <P>
             1. Load active policy from the Policy Service and compile for ZK circuit.
             2. For each payment: check policy rules (limits, categories, blocked addresses, token whitelist).
-            3. Generate RISC Zero ZK proof of compliance.
+            3. Generate a Groth16 ZK proof of compliance via Circom + snarkjs (~500 ms).
             4. Execute payment via x402 (USDC on Solana) or MPP (Stripe PaymentIntent).
             5. Submit proof record to Compliance API.
             6. Create batch attestation and anchor on Solana via <Inline>verify_batch_attestation</Inline>.
@@ -525,7 +526,7 @@ npx tsx src/agent.ts`}</Code>
 
           {/* Policy Engine */}
           <H2 id="policy-engine">Policy Engine</H2>
-          <P>The RISC Zero guest program performs 5 compliance checks inside the zkVM:</P>
+          <P>The Circom circuit encodes 5 compliance checks as BN254 constraints:</P>
           <div className="space-y-2 mb-4">
             {[
               'Per-transaction limit: payment amount <= max_per_transaction',
@@ -579,25 +580,26 @@ npx tsx src/agent.ts`}</Code>
 
           {/* ZK Proofs */}
           <H2 id="zk-proofs">ZK Proofs</H2>
-          <H3>RISC Zero zkVM</H3>
+          <H3>Circom + Groth16</H3>
           <P>
-            Aperture uses the RISC Zero zkVM to generate zero-knowledge proofs. The guest program
-            (<Inline>circuits/payment-prover/</Inline>) runs inside the zkVM and produces a
-            cryptographic receipt proving the computation was executed correctly.
+            Aperture uses a Circom circuit (<Inline>circuits/payment-prover/payment.circom</Inline>) compiled
+            to R1CS and proven with snarkjs on BN254. Each proof is verified on Solana via the
+            audited <Inline>groth16-solana</Inline> crate. Same pipeline Light Protocol runs in production.
           </P>
-          <H3>Production vs Dev Mode</H3>
+          <H3>Proof Properties</H3>
           <div className="overflow-x-auto mb-4">
             <table className="w-full text-xs">
               <thead><tr className="border-b border-amber-400/10">
                 <th className="text-left py-2 text-amber-100/40">Metric</th>
-                <th className="text-left py-2 text-amber-100/40">Dev Mode</th>
-                <th className="text-left py-2 text-amber-100/40">Production</th>
+                <th className="text-left py-2 text-amber-100/40">Value</th>
               </tr></thead>
               <tbody className="text-amber-100/60">
-                <tr className="border-b border-amber-400/5"><td className="py-2">Proving time</td><td>~130ms</td><td>~5 min (CPU), ~6s cached</td></tr>
-                <tr className="border-b border-amber-400/5"><td className="py-2">Receipt size</td><td>569 bytes</td><td>255 KB</td></tr>
-                <tr className="border-b border-amber-400/5"><td className="py-2">Cryptographic validity</td><td>Not valid</td><td>Fully valid</td></tr>
-                <tr><td className="py-2">Use case</td><td>Development/testing</td><td>Production deployment</td></tr>
+                <tr className="border-b border-amber-400/5"><td className="py-2">Proving time</td><td>~500 ms (Node, snarkjs)</td></tr>
+                <tr className="border-b border-amber-400/5"><td className="py-2">Proof size</td><td>256 bytes (A+B+C)</td></tr>
+                <tr className="border-b border-amber-400/5"><td className="py-2">On-chain verify cost</td><td>~100 K compute units</td></tr>
+                <tr className="border-b border-amber-400/5"><td className="py-2">Circuit constraints</td><td>~2 300 (BN254)</td></tr>
+                <tr className="border-b border-amber-400/5"><td className="py-2">Trusted setup</td><td>Polygon Hermez ptau (54-party)</td></tr>
+                <tr><td className="py-2">Cryptographic validity</td><td>Fully valid, on-chain verified</td></tr>
               </tbody>
             </table>
           </div>
@@ -658,7 +660,7 @@ npx tsx src/agent.ts`}</Code>
           <div className="space-y-2 mb-6">
             {[
               { m: 'GET', p: '/health', d: 'Health check' },
-              { m: 'POST', p: '/prove', d: 'Generate ZK proof (RISC Zero zkVM)' },
+              { m: 'POST', p: '/prove', d: 'Generate Groth16 ZK proof (Circom + snarkjs)' },
             ].map(({ m, p, d }) => (
               <div key={p} className="flex items-center gap-3 text-xs">
                 <span className={`px-2 py-0.5 rounded font-mono font-bold ${m === 'GET' ? 'bg-green-400/10 text-green-400' : 'bg-amber-400/10 text-amber-400'}`}>{m}</span>
@@ -704,24 +706,28 @@ npx tsx src/agent.ts`}</Code>
 // Response
 {
   "is_compliant": true,
-  "proof_hash": "37b708db1af0...",
-  "proving_time_ms": 5930,
-  "receipt_bytes": [/* 255KB */],
-  "image_id": [191609676, ...]
+  "journal_digest": "15266963924290...",
+  "proving_time_ms": 521,
+  "groth16": {
+    "proof_a": "...64 bytes base64",
+    "proof_b": "...128 bytes base64",
+    "proof_c": "...64 bytes base64",
+    "public_inputs": ["...32 bytes base64", "...32 bytes base64"]
+  }
 }`}</Code>
 
           {/* FAQ */}
           <H2 id="faq">FAQ</H2>
           <div className="space-y-6 mb-12">
             {[
-              { q: 'Is this production ready?', a: 'Aperture is deployed on Solana Devnet with real RISC Zero production proofs (255KB receipts). The architecture is production-grade but the deployment is on Devnet for testing purposes.' },
+              { q: 'Is this production ready?', a: 'Aperture is deployed on Solana Devnet with real Circom + Groth16 proofs verified on-chain (~100K CU via groth16-solana). Trusted setup uses the Polygon Hermez public ceremony (54 contributors). The architecture is production-grade; the deployment is on Devnet for testing.' },
               { q: 'Which wallets are supported?', a: 'Phantom and Solflare are the supported wallets. The dashboard uses the Solana Wallet Adapter standard with sendTransaction for on-chain interactions.' },
-              { q: 'How long does proof generation take?', a: 'First proof: ~5 minutes on CPU (ELF compilation + proving). Subsequent proofs: ~6 seconds (warm cache). With GPU acceleration (CUDA/Metal), proving drops to 10-30 seconds.' },
+              { q: 'How long does proof generation take?', a: 'Around 500 ms on a modern CPU. Circom circuits are purpose-built (~2300 BN254 constraints) so there is no VM overhead, and snarkjs runs comfortably in Node.js without GPUs or Docker-in-Docker.' },
               { q: 'What tokens are supported?', a: 'USDC and USDT on Devnet. vUSDC (SPL Token-2022 with transfer hook) for compliance-enforced transfers. Any SPL token can be added to the whitelist.' },
               { q: 'How does the transfer hook work?', a: 'vUSDC has an on-chain transfer hook that checks the ComplianceStatus PDA of the sender. If no verified compliance record exists, the transfer is rejected by the Token-2022 program.' },
               { q: 'What is Light Protocol ZK Compression?', a: 'Light Protocol stores proof records as compressed tokens instead of regular Solana accounts, reducing storage costs by 146x (~0.00001 SOL vs ~0.00146 SOL per proof).' },
               { q: 'How does Squads multisig work?', a: 'Operators can link a Squads V4 multisig to their account via the Settings tab. The on-chain program verifies the multisig account is owned by the Squads V4 program (SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf) and derives the vault PDA. Policy registration and updates via multisig require the Squads vault signature, ensuring multi-party approval for compliance rule changes.' },
-              { q: 'How does the autonomous agent work?', a: 'The Aperture agent runs headless with a server-side Keypair. It loads policies from the Policy Service, generates ZK proofs via RISC Zero, pays via x402 (USDC on Solana) and MPP (Stripe), submits proof records, mints compressed attestations via Light Protocol, and anchors batch attestations on Solana. The Agent Service (port 3004) provides HTTP Start/Stop control with a 30-second cycle interval.' },
+              { q: 'How does the autonomous agent work?', a: 'The Aperture agent runs headless with a server-side Keypair. It loads policies from the Policy Service, generates Groth16 ZK proofs via the Circom + snarkjs prover, pays via x402 (USDC on Solana) and MPP (Stripe), submits proof records, mints compressed attestations via Light Protocol, and anchors batch attestations on Solana. The Agent Service (port 3004) provides HTTP Start/Stop control with a 30-second cycle interval.' },
             ].map(({ q, a }) => (
               <div key={q}>
                 <h4 className="text-sm font-semibold text-amber-100 mb-1">{q}</h4>

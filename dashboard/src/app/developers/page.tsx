@@ -27,7 +27,7 @@ function programs(): readonly ProgramEntry[] {
       label: 'ZK Verifier',
       envKey: 'NEXT_PUBLIC_VERIFIER_PROGRAM',
       id: process.env.NEXT_PUBLIC_VERIFIER_PROGRAM ?? null,
-      description: 'Verifies RISC Zero journals, records ComplianceStatus PDAs and batch attestations.',
+      description: 'Verifies Circom Groth16 proofs on-chain via groth16-solana, records ComplianceStatus PDAs and batch attestations.',
     },
     {
       label: 'Transfer Hook',
@@ -109,7 +109,7 @@ export default function DevelopersPage() {
         <div className="max-w-5xl mx-auto text-center">
           <h1 className="font-mono text-4xl sm:text-5xl font-bold text-amber-400 mb-4">Build with Aperture</h1>
           <p className="text-amber-400/75 text-base max-w-2xl mx-auto leading-relaxed">
-            ZK-proof compliance for AI agent payments on Solana. Generate real RISC Zero proofs, enforce policies on-chain, settle via x402 or MPP.
+            ZK-proof compliance for AI agent payments on Solana. Generate real Circom + Groth16 proofs, enforce policies on-chain, settle via x402 or MPP.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link
@@ -148,7 +148,7 @@ export default function DevelopersPage() {
             <QuickStartCard
               number="01"
               title="Generate your first ZK proof"
-              description="POST a policy + payment context to the prover-service to produce a ~255 KB RISC Zero STARK receipt."
+              description="POST a policy + payment context to the prover-service to produce a ~256-byte Circom Groth16 proof in ~500 ms."
               command={proveCurl}
             />
             <QuickStartCard
@@ -184,7 +184,7 @@ export default function DevelopersPage() {
               },
               {
                 id: 'rust-prover',
-                label: 'Rust · zkVM prover',
+                label: 'Node · Circom prover',
                 language: 'rust',
                 source: rustSample.source,
                 sourcePath: rustSample.path,

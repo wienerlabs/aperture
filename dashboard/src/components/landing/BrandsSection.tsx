@@ -12,7 +12,6 @@ interface Brand {
 const brands: Brand[] = [
   { name: 'Solana', src: '/brands/solana.svg', alt: 'Solana' },
   { name: 'Helius', src: '/brands/helius.svg', alt: 'Helius' },
-  { name: 'RISC Zero', src: '/brands/riscZero.svg', alt: 'RISC Zero' },
   { name: 'Light Protocol', src: '/brands/lighticon.svg', alt: 'Light Protocol' },
   { name: 'Coinbase', src: '/brands/Coinbase.svg', alt: 'Coinbase' },
   { name: 'Squads', src: '/brands/Squads.svg', alt: 'Squads' },
