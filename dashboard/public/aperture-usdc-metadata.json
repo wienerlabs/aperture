@@ -1,0 +1,14 @@
+{
+  "name": "Aperture USDC",
+  "symbol": "aUSDC",
+  "description": "Compliance enforced USDC for autonomous AI agent payments on Solana. Every transfer carries a zero knowledge proof of policy adherence; the on-chain transfer hook rejects any movement that does not match a verified ZK proof and atomically advances the operator's daily spend counter.",
+  "image": "https://raw.githubusercontent.com/wienerlabs/aperture/main/dashboard/public/aperture.jpg",
+  "external_url": "https://github.com/wienerlabs/aperture",
+  "attributes": [
+    { "trait_type": "Token Standard", "value": "SPL Token-2022" },
+    { "trait_type": "Decimals", "value": "6" },
+    { "trait_type": "Transfer Hook", "value": "3GZAsASQHTJTCfHGRKaj26zdAVqcD9VZdpfV9FEwcCQt" },
+    { "trait_type": "Network", "value": "Solana Devnet" },
+    { "trait_type": "Compliance", "value": "ZK Groth16 + on-chain verifier" }
+  ]
+}
