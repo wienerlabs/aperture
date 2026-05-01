@@ -1,3 +1,24 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+//
+// =============================================================================
+//  DEPRECATED — sdk/agent/* is a v1 reference and is NOT production-correct.
+//
+//  The production autonomous agent lives in services/agent-service. It uses:
+//    * vUSDC + Token-2022 transfer-hook (this SDK still uses plain SPL USDC,
+//      which silently bypasses on-chain compliance enforcement)
+//    * On-chain OperatorState for daily_spent (this SDK uses an in-memory
+//      counter that resets on every process restart)
+//    * Real x402 challenge recipient (this SDK passes operator_id as the
+//      recipient — a self-payment that defeats blocked-list checks)
+//    * Stripe webhook trust anchor + ed25519 sig + verify_mpp_payment_proof
+//      (this SDK uses pm_card_visa hardcoded and never verifies the webhook)
+//
+//  Do NOT deploy this file as-is. It exists only so docs/integrate code
+//  samples keep resolving while the new SDK v2 is built around the
+//  agent-service flow. Run `docker compose up agent-service` for the real
+//  thing.
+// =============================================================================
+
 import dotenv from 'dotenv';
 import path from 'node:path';
 import { Keypair } from '@solana/web3.js';
@@ -174,8 +195,14 @@ async function createBatchAttestation(
 
 async function run(): Promise<void> {
   log('========================================');
-  log('Aperture Autonomous Agent starting...');
+  log('Aperture Autonomous Agent (v1 REFERENCE — NOT production)');
+  log('Production agent lives in services/agent-service.');
   log('========================================');
+  if (process.env.APERTURE_ALLOW_V1_SDK !== '1') {
+    log('Refusing to run: set APERTURE_ALLOW_V1_SDK=1 to bypass this guard.');
+    log('Use services/agent-service container instead.');
+    process.exit(2);
+  }
 
   const cfg = loadConfig();
   log(`Operator wallet: ${cfg.operatorId}`);

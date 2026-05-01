@@ -43,7 +43,40 @@ const agentConfig: AgentConfig = {
   complianceApiUrl: process.env.COMPLIANCE_API_URL ?? 'http://localhost:3002',
   proverServiceUrl: process.env.PROVER_SERVICE_URL ?? 'http://localhost:3003',
   stripeSecretKey: requireEnv('STRIPE_SECRET_KEY'),
-  usdcMint: process.env.USDC_MINT ?? '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
+  // The transfer-hook only fires for vUSDC, so the agent must be pinned to
+  // the vUSDC mint explicitly via env. Refuse to start with an unset value
+  // because falling back to plain USDC would silently bypass compliance.
+  // The transfer-hook only fires for aUSDC (Aperture's Token-2022 mint with
+  // the compliance hook attached); the agent must be pinned to it explicitly.
+  // Refuse to start with an unset value because falling back to plain USDC
+  // would silently bypass on-chain compliance enforcement. Accepts either
+  // the new AUSDC_MINT[_ADDRESS] env or the legacy VUSDC_MINT[_ADDRESS] for
+  // backwards compatibility with .env files that pre-date the rebrand.
+  ausdcMint: (() => {
+    const v =
+      process.env.AUSDC_MINT ??
+      process.env.AUSDC_MINT_ADDRESS ??
+      process.env.VUSDC_MINT ??
+      process.env.VUSDC_MINT_ADDRESS;
+    if (!v) {
+      throw new Error(
+        'Set AUSDC_MINT_ADDRESS in .env (or VUSDC_MINT_ADDRESS as a legacy fallback). The agent refuses to start without an explicit aUSDC mint pin.',
+      );
+    }
+    return v;
+  })(),
+  // Optional Stripe off-session credentials. When either is unset the agent
+  // skips its MPP cycle instead of failing — provisioning the customer +
+  // payment method is a manual one-time SCA flow the operator does outside
+  // the agent. Both must be set together; setting only one is treated as
+  // unset.
+  stripeCustomerId: process.env.STRIPE_CUSTOMER_ID ?? null,
+  stripePaymentMethodId: process.env.STRIPE_PAYMENT_METHOD_ID ?? null,
+  // Devnet ALT created by scripts/setup-x402-alt.ts (hosts the x402 program
+  // IDs so the verify+transfer V0 tx fits the 1232-byte limit). Override via
+  // X402_LOOKUP_TABLE for mainnet deployments.
+  x402LookupTable:
+    process.env.X402_LOOKUP_TABLE ?? 'Fi9WdrUvNFwqV339v3MBrueASEWhn867gHwGT1vFHVcf',
   intervalMs: parseInt(process.env.AGENT_INTERVAL_MS ?? '30000', 10),
 };
 
@@ -76,7 +109,7 @@ app.get('/api-docs.json', (_req, res) => {
 app.get('/status', (_req, res) => {
   res.json({
     running: agent.isRunning(),
-    operatorId: agentConfig.operatorId,
+    operatorId: agent.getActiveOperatorId(),
     lastActivity: agent.getLastActivity(),
     stats: agent.getStats(),
   });
@@ -88,16 +121,24 @@ app.get('/activity', (req, res) => {
   res.json({ success: true, data: records });
 });
 
-app.post('/start', async (_req, res) => {
+app.post('/start', async (req, res) => {
   if (agent.isRunning()) {
     res.json({ success: true, message: 'Agent is already running' });
     return;
   }
 
+  // The dashboard passes its connected wallet's operator_id so the agent
+  // tags DB records (proof_records, attestations) under that id. Falls back
+  // to the env-configured wallet if no body provided.
+  const requestedOperatorId =
+    typeof req.body?.operator_id === 'string' && req.body.operator_id.length > 0
+      ? req.body.operator_id
+      : agentConfig.operatorId;
+
   // Validate policy has required categories before starting
   try {
     const listRes = await fetch(
-      `${agentConfig.policyServiceUrl}/api/v1/policies/operator/${agentConfig.operatorId}?page=1&limit=1`,
+      `${agentConfig.policyServiceUrl}/api/v1/policies/operator/${requestedOperatorId}?page=1&limit=1`,
     );
 
     if (!listRes.ok) {
@@ -154,8 +195,8 @@ app.post('/start', async (_req, res) => {
     return;
   }
 
-  agent.start();
-  res.json({ success: true, message: 'Agent started' });
+  agent.start(requestedOperatorId);
+  res.json({ success: true, message: 'Agent started', operatorId: requestedOperatorId });
 });
 
 app.post('/stop', (_req, res) => {
