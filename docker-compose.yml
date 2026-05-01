@@ -74,7 +74,21 @@ services:
       COMPLIANCE_API_PORT: 3002
       POLICY_SERVICE_URL: http://policy-service:3001
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      # Surfaced to the dashboard via /api/v1/compliance/mpp/public-config
+      # so the browser can mount Stripe Elements without bundling the key.
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}}
       STRIPE_API_VERSION: ${STRIPE_API_VERSION:-2026-03-04.preview}
+      # Stripe webhook signing secret. Without it the webhook endpoint
+      # returns 503 and the B-flow can never persist verified receipts.
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      # 64-byte Solana keypair (JSON array or base58) used to sign the
+      # canonical Poseidon receipt. The verifier program expects the
+      # matching public key as MPP_AUTHORITY_PUBKEY.
+      MPP_AUTHORITY_KEYPAIR_BASE58: ${MPP_AUTHORITY_KEYPAIR_BASE58:-}
+      # Treasury wallet that receives x402 aUSDC payments. Must differ
+      # from the paying operator wallet to avoid self-transfers.
+      # Default keypair: scripts/deploy/aperture-treasury.json
+      PUBLISHER_WALLET: ${PUBLISHER_WALLET:-GRyQkYHeqEYT9KmANxAA9mtw6iJoqCtxVNCNRQD8PrMq}
       MPP_SECRET_KEY: ${MPP_SECRET_KEY}
       LIGHT_RPC_URL: ${LIGHT_RPC_URL}
       COMPRESSED_ATTESTATION_MINT: ${COMPRESSED_ATTESTATION_MINT}
@@ -121,7 +135,15 @@ services:
       COMPLIANCE_API_URL: http://compliance-api:3002
       PROVER_SERVICE_URL: http://prover-service:3003
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
-      USDC_MINT: ${USDC_MINT:-4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU}
+      # aUSDC mint pin. The agent reads AUSDC_MINT_ADDRESS first; the
+      # legacy VUSDC_MINT_ADDRESS is forwarded so .env files that pre-date
+      # the rebrand still resolve without the operator editing them.
+      AUSDC_MINT_ADDRESS: ${AUSDC_MINT_ADDRESS:-E9Ab23WT97qHTmmWxEmHfWCmPsrQb77nJnAFFuDRfhar}
+      VUSDC_MINT_ADDRESS: ${VUSDC_MINT_ADDRESS:-E9Ab23WT97qHTmmWxEmHfWCmPsrQb77nJnAFFuDRfhar}
+      # Optional Stripe off-session credentials for the agent's MPP cycle.
+      # Empty string == cycle skipped (see services/agent-service/src/index.ts).
+      STRIPE_CUSTOMER_ID: ${STRIPE_CUSTOMER_ID:-}
+      STRIPE_PAYMENT_METHOD_ID: ${STRIPE_PAYMENT_METHOD_ID:-}
       AGENT_INTERVAL_MS: ${AGENT_INTERVAL_MS:-30000}
     depends_on:
       policy-service:

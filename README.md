@@ -1,9 +1,9 @@
 # Aperture - Prove everything. Reveal nothing.
 
 
-ZK-based compliance and privacy layer for AI agent payments on Solana.
+Compliance enforced USDC for autonomous AI agent payments on Solana. Every transfer carries a zero knowledge proof of policy adherence; the on-chain transfer hook rejects any movement that does not match a verified ZK proof and atomically advances the operator's daily spend counter.
 
-Aperture enables AI agents to prove compliance with operator-defined policies (spending limits, sanctions checks, allowed categories, time-based rules) without revealing payment details. Uses RISC Zero zkVM for real zero-knowledge proof generation and Solana for on-chain verification.
+Aperture lets AI agents prove compliance with operator defined policies (spending limits, blocked addresses, allowed categories, time restrictions) without revealing payment details. Uses Circom + snarkjs Groth16 proofs and Solana for on-chain verification, plus a Stripe trusted oracle path for fiat rails.
 
 <p align="center">
   <img src="docs/assets/banner.jpeg" alt="Aperture" width="100%" />
@@ -11,11 +11,11 @@ Aperture enables AI agents to prove compliance with operator-defined policies (s
 
 ## Key Features
 
-- **Real RISC Zero ZK Proofs** -- Production zkVM proving with 255KB cryptographic receipts (not dev mode stubs)
-- **On-chain Verification** -- Anchor programs for policy registration, proof verification, and batch attestations
-- **SPL Token-2022 Transfer Hook** -- vUSDC token with compliance-enforcing transfer hook (rejects non-compliant transfers)
-- **x402 Payment Protocol** -- HTTP 402 paywall for compliance reports with ZK proof + USDC payment
-- **MPP (Machine Payments Protocol)** -- Stripe-backed HTTP 402 payment flow with ZK proof verification on Solana Devnet
+- **Production ZK proofs** -- Circom + snarkjs Groth16 proofs verified on-chain via the Solana alt_bn128 syscalls. Ten public inputs bind every proof to its policy hash, recipient, amount, mint, daily-spent and Solana clock timestamp.
+- **On-chain verification** -- Anchor programs for policy registration, proof verification, transfer-hook gated payments, and batch attestations.
+- **SPL Token-2022 Transfer Hook** -- aUSDC token with compliance enforcing transfer hook (rejects any movement that does not match a verified, unconsumed ZK proof and CPIs `record_payment` to advance daily spend atomically).
+- **x402 Payment Protocol** -- HTTP 402 paywall for compliance protected resources with ZK proof + aUSDC payment in a single transaction.
+- **MPP (Machine Payments Protocol)** -- Stripe-backed HTTP 402 flow. Webhook signature verification anchors a Poseidon receipt commitment; the on-chain verifier checks an ed25519 signature from the compliance authority via Solana's native precompile.
 - **Light Protocol ZK Compression** -- Compressed attestation tokens for 146x cheaper proof storage
 - **Squads V4 Multisig** -- Multi-signature policy management on Devnet
 - **Autonomous Agent** -- Headless AI agent with policy enforcement, ZK proving, dual-protocol payments (x402 + MPP), and on-chain attestations
@@ -283,7 +283,7 @@ For remote/distributed proving, Boundless (`boundless-market`) provides an EVM-s
 
 ## Transfer Hook (SPL Token-2022)
 
-vUSDC is an SPL Token-2022 token with an on-chain transfer hook:
+aUSDC is an SPL Token-2022 token with an on-chain transfer hook:
 
 - Transfers require a verified `ComplianceStatus` PDA for the sender
 - Non-compliant wallets are rejected with `Hook REJECTED: no compliance status`
@@ -364,7 +364,7 @@ Shared TypeScript type definitions used across all services:
 
 | Script | Description |
 |--------|-------------|
-| `create-vusdc.sh` | Create vUSDC SPL Token-2022 with transfer hook |
+| `create-vusdc.sh` | Create the aUSDC SPL Token-2022 mint with transfer hook (legacy filename, output is now aUSDC) |
 | `create-compressed-mint.ts` | Create Light Protocol compressed attestation mint |
 | `init-hook-v3.ts` | Initialize transfer hook ExtraAccountMetaList |
 | `init-extra-account-metas.ts` | Initialize extra account metas for hook |
@@ -390,7 +390,7 @@ Shared TypeScript type definitions used across all services:
 |-------|------|------|
 | USDC | `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU` | SPL Token |
 | USDT | `EJwZgeZrdC8TXTQbQBoL6bfuAnFUQS7QEkCybt4rCxsT` | SPL Token |
-| vUSDC | `E9Ab23WT97qHTmmWxEmHfWCmPsrQb77nJnAFFuDRfhar` | SPL Token-2022 + Transfer Hook |
+| aUSDC | `E9Ab23WT97qHTmmWxEmHfWCmPsrQb77nJnAFFuDRfhar` | SPL Token-2022 + Transfer Hook |
 
 ## Payment Protocols
 

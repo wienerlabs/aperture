@@ -15,3 +15,7 @@ circuits/payment-prover/build/
 .claude/
 docs/AIP_INTEGRATION.md
 docs/assets/proving-silence.html
+# Pre-generated MPP authority + any other deploy keypairs land in
+# scripts/deploy/. Never commit secret material.
+scripts/deploy/*.json
+!scripts/deploy/.gitkeep

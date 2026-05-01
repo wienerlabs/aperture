@@ -25,6 +25,9 @@ export const PolicySchema = z.object({
   aip_agent_did: z.string().max(255).optional(),
 });
 
+export const ONCHAIN_STATUSES = ['pending', 'registered', 'failed'] as const;
+export type OnChainStatus = (typeof ONCHAIN_STATUSES)[number];
+
 export interface Policy {
   readonly id: string;
   readonly operator_id: string;
@@ -41,6 +44,19 @@ export interface Policy {
   readonly aip_agent_did: string | null;
   readonly created_at: Date;
   readonly updated_at: Date;
+  // On-chain commitment fields. The verifier downstream only accepts policies
+  // whose onchain_status === 'registered' and whose merkle_root_hex matches
+  // the PolicyAccount.merkle_root on Solana. merkle_root_hex / policy_data_hash_hex
+  // are computed deterministically by the policy-service and must never be
+  // recomputed by the frontend — the frontend signs whatever the server pins.
+  readonly merkle_root_hex: string | null;
+  readonly policy_data_hash_hex: string | null;
+  readonly onchain_pda: string | null;
+  readonly onchain_tx_signature: string | null;
+  readonly onchain_status: OnChainStatus;
+  readonly onchain_registered_at: Date | null;
+  readonly onchain_last_error: string | null;
+  readonly onchain_version: number | null;
 }
 
 export type PolicyInput = z.infer<typeof PolicySchema>;
