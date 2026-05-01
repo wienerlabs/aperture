@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { PolicySchema } from '@aperture/types';
 import type { ApiResponse, PaginatedResponse, Policy } from '@aperture/types';
@@ -11,12 +12,15 @@ import {
   updatePolicy,
   deletePolicy,
   compileForCircuit,
+  applyOnchainConfirmation,
+  applyOnchainFailure,
 } from '../models/policy.js';
 import {
   buildPolicyMerkleTree,
   getMerkleProof,
   verifyMerkleProof,
 } from '../utils/merkle.js';
+import { syncPolicyOnchainState } from '../utils/onchain-sync.js';
 
 const router = Router();
 
@@ -440,5 +444,171 @@ router.get('/:id/merkle-proof/:rule', async (req, res, next) => {
     next(error);
   }
 });
+
+/**
+ * Returns the canonical on-chain payload the wallet client must sign to
+ * register or update a policy in the policy-registry program. The dashboard
+ * MUST source merkle_root_hex / policy_data_hash_hex from this endpoint and
+ * never recompute them locally — the policy-service is the single source of
+ * truth for the commitment.
+ *
+ * - operation: 'register' if no PolicyAccount exists yet for this policy,
+ *              'update' if the policy is already registered but the DB
+ *              commitment has drifted (status='pending' after edits).
+ * - policy_id_bytes_hex: the 32-byte seed used to derive the PolicyAccount PDA;
+ *                        deterministic SHA-256 over the policy UUID string.
+ */
+const ONCHAIN_PAYLOAD_RULES = ['register', 'update', 'noop'] as const;
+type OnchainOperation = (typeof ONCHAIN_PAYLOAD_RULES)[number];
+
+interface OnchainPayloadResponse {
+  readonly policy_id: string;
+  readonly policy_id_bytes_hex: string;
+  readonly merkle_root_hex: string;
+  readonly policy_data_hash_hex: string;
+  readonly version: number;
+  readonly operator_id: string;
+  readonly onchain_status: Policy['onchain_status'];
+  readonly onchain_pda: string | null;
+  readonly onchain_version: number | null;
+  readonly operation: OnchainOperation;
+}
+
+router.get('/:id/onchain-payload', async (req, res, next) => {
+  try {
+    const id = paramAsString(req.params.id);
+    const parseResult = UUIDSchema.safeParse(id);
+    if (!parseResult.success) {
+      throw new AppError(400, 'Invalid policy ID format');
+    }
+
+    // Reconcile DB with the on-chain PolicyAccount before deciding which
+    // operation to advertise. Without this step a dashboard session that
+    // signed register_policy successfully but failed the follow-up
+    // confirmation PATCH (e.g. CORS, browser closed) would keep getting
+    // operation='register' and fail with "account already in use".
+    const sync = await syncPolicyOnchainState(id);
+    const policy = sync.policy;
+    if (!policy) {
+      throw new AppError(404, 'Policy not found');
+    }
+    if (!policy.merkle_root_hex || !policy.policy_data_hash_hex) {
+      // This should not happen for any policy created after migration 005,
+      // but legacy rows backfilled before the model rebuild may land here.
+      // Surface it explicitly so the caller can trigger a backfill instead
+      // of silently signing nothing.
+      throw new AppError(
+        500,
+        'Policy is missing on-chain commitments — needs backfill (run policy update)'
+      );
+    }
+
+    const policyIdBytes = createHash('sha256').update(policy.id).digest('hex');
+
+    const operation: OnchainOperation =
+      policy.onchain_pda === null
+        ? 'register'
+        : policy.onchain_status === 'pending'
+          ? 'update'
+          : 'noop';
+
+    const payload: OnchainPayloadResponse = {
+      policy_id: policy.id,
+      policy_id_bytes_hex: policyIdBytes,
+      merkle_root_hex: policy.merkle_root_hex,
+      policy_data_hash_hex: policy.policy_data_hash_hex,
+      version: policy.version,
+      operator_id: policy.operator_id,
+      onchain_status: policy.onchain_status,
+      onchain_pda: policy.onchain_pda,
+      onchain_version: policy.onchain_version,
+      operation,
+    };
+
+    const response: ApiResponse<OnchainPayloadResponse> = {
+      success: true,
+      data: payload,
+      error: null,
+    };
+    res.json(response);
+  } catch (error) {
+    next(error);
+  }
+});
+
+const Base58String = z
+  .string()
+  .min(32)
+  .max(128)
+  .regex(/^[1-9A-HJ-NP-Za-km-z]+$/, 'Must be base58');
+
+const Hex64String = z.string().length(64).regex(/^[0-9a-f]+$/i, 'Must be 64 hex chars');
+
+const OnchainConfirmationSchema = z.discriminatedUnion('status', [
+  z.object({
+    status: z.literal('registered'),
+    tx_signature: Base58String,
+    onchain_pda: Base58String,
+    onchain_version: z.number().int().positive(),
+    merkle_root_hex: Hex64String,
+    policy_data_hash_hex: Hex64String,
+  }),
+  z.object({
+    status: z.literal('failed'),
+    error_message: z.string().min(1).max(1000),
+  }),
+]);
+
+router.patch(
+  '/:id/onchain-confirmation',
+  validateBody(OnchainConfirmationSchema),
+  async (req, res, next) => {
+    try {
+      const id = paramAsString(req.params.id);
+      const parseResult = UUIDSchema.safeParse(id);
+      if (!parseResult.success) {
+        throw new AppError(400, 'Invalid policy ID format');
+      }
+
+      const body = req.body as z.infer<typeof OnchainConfirmationSchema>;
+
+      let updated: Policy | null;
+      if (body.status === 'registered') {
+        try {
+          updated = await applyOnchainConfirmation(id, {
+            tx_signature: body.tx_signature,
+            onchain_pda: body.onchain_pda,
+            onchain_version: body.onchain_version,
+            merkle_root_hex: body.merkle_root_hex,
+            policy_data_hash_hex: body.policy_data_hash_hex,
+          });
+        } catch (err) {
+          if (err instanceof Error && err.message.startsWith('OnchainCommitmentMismatch')) {
+            throw new AppError(
+              409,
+              'Policy commitment changed since /onchain-payload was fetched. Refetch and re-sign.'
+            );
+          }
+          throw err;
+        }
+      } else {
+        updated = await applyOnchainFailure(id, body.error_message);
+      }
+
+      if (!updated) {
+        throw new AppError(404, 'Policy not found');
+      }
+
+      const response: ApiResponse<Policy> = {
+        success: true,
+        data: updated,
+        error: null,
+      };
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 export default router;

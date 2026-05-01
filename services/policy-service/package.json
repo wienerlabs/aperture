@@ -14,17 +14,18 @@
     "migrate:rollback": "tsx src/migrations/rollback.ts"
   },
   "dependencies": {
-    "@solana/web3.js": "^1.98.0",
     "@aperture/types": "*",
+    "@solana/web3.js": "^1.98.0",
     "bs58": "^6.0.0",
+    "circomlibjs": "^0.1.7",
     "cors": "^2.8.5",
-    "tweetnacl": "^1.0.3",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "helmet": "^8.0.0",
     "pg": "^8.13.1",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
+    "tweetnacl": "^1.0.3",
     "uuid": "^11.0.5",
     "zod": "^3.24.2"
   },

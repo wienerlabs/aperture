@@ -1,7 +1,14 @@
 import { v4 as uuidv4 } from 'uuid';
 import { query, transaction } from '../utils/database.js';
 import { logger } from '../utils/logger.js';
-import type { Policy, PolicyInput, PolicyUpdate, CircuitPolicyInput } from '@aperture/types';
+import type {
+  Policy,
+  PolicyInput,
+  PolicyUpdate,
+  CircuitPolicyInput,
+  OnChainStatus,
+} from '@aperture/types';
+import { computePolicyCommitments } from '../utils/merkle.js';
 
 interface PolicyRow {
   id: string;
@@ -19,6 +26,14 @@ interface PolicyRow {
   aip_agent_did: string | null;
   created_at: Date;
   updated_at: Date;
+  merkle_root_hex: string | null;
+  policy_data_hash_hex: string | null;
+  onchain_pda: string | null;
+  onchain_tx_signature: string | null;
+  onchain_status: OnChainStatus;
+  onchain_registered_at: Date | null;
+  onchain_last_error: string | null;
+  onchain_version: number | null;
 }
 
 function rowToPolicy(row: PolicyRow): Policy {
@@ -40,15 +55,57 @@ function rowToPolicy(row: PolicyRow): Policy {
     aip_agent_did: row.aip_agent_did ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
+    merkle_root_hex: row.merkle_root_hex,
+    policy_data_hash_hex: row.policy_data_hash_hex,
+    onchain_pda: row.onchain_pda,
+    onchain_tx_signature: row.onchain_tx_signature,
+    onchain_status: row.onchain_status,
+    onchain_registered_at: row.onchain_registered_at,
+    onchain_last_error: row.onchain_last_error,
+    onchain_version: row.onchain_version,
   };
 }
 
 export async function createPolicy(input: PolicyInput): Promise<Policy> {
   const id = uuidv4();
+  const now = new Date();
+
+  // Build the Policy snapshot the commitment helpers expect. created_at and
+  // updated_at do not feed into the canonical commitment, but Policy is the
+  // shared type so we satisfy the shape.
+  const draft: Policy = {
+    id,
+    operator_id: input.operator_id,
+    name: input.name,
+    description: input.description ?? null,
+    max_daily_spend: input.max_daily_spend,
+    max_per_transaction: input.max_per_transaction,
+    allowed_endpoint_categories: input.allowed_endpoint_categories,
+    blocked_addresses: input.blocked_addresses,
+    time_restrictions: input.time_restrictions,
+    token_whitelist: input.token_whitelist,
+    is_active: input.is_active ?? true,
+    version: 1,
+    aip_agent_did: input.aip_agent_did ?? null,
+    created_at: now,
+    updated_at: now,
+    merkle_root_hex: null,
+    policy_data_hash_hex: null,
+    onchain_pda: null,
+    onchain_tx_signature: null,
+    onchain_status: 'pending',
+    onchain_registered_at: null,
+    onchain_last_error: null,
+    onchain_version: null,
+  };
+
+  const { merkleRootHex, policyDataHashHex } = await computePolicyCommitments(draft);
+
   const result = await query<PolicyRow>(
     `INSERT INTO policies (id, operator_id, name, description, max_daily_spend, max_per_transaction,
-       allowed_endpoint_categories, blocked_addresses, time_restrictions, token_whitelist, is_active, aip_agent_did)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12)
+       allowed_endpoint_categories, blocked_addresses, time_restrictions, token_whitelist, is_active, aip_agent_did,
+       merkle_root_hex, policy_data_hash_hex, onchain_status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, 'pending')
      RETURNING *`,
     [
       id,
@@ -63,10 +120,16 @@ export async function createPolicy(input: PolicyInput): Promise<Policy> {
       input.token_whitelist,
       input.is_active ?? true,
       input.aip_agent_did ?? null,
+      merkleRootHex,
+      policyDataHashHex,
     ]
   );
 
-  logger.info('Policy created', { policy_id: id, operator_id: input.operator_id });
+  logger.info('Policy created', {
+    policy_id: id,
+    operator_id: input.operator_id,
+    merkle_root_hex: merkleRootHex,
+  });
   return rowToPolicy(result.rows[0]);
 }
 
@@ -169,6 +232,46 @@ export async function updatePolicy(id: string, updates: PolicyUpdate): Promise<P
       return rowToPolicy(current);
     }
 
+    // Build the post-update Policy snapshot to recompute commitments. We merge
+    // the incoming updates onto the current row so the new merkle_root and
+    // policy_data_hash reflect the rule set the caller is about to commit.
+    const merged = rowToPolicy(current);
+    const projected: Policy = {
+      ...merged,
+      name: updates.name ?? merged.name,
+      description: updates.description !== undefined ? updates.description ?? null : merged.description,
+      max_daily_spend: updates.max_daily_spend ?? merged.max_daily_spend,
+      max_per_transaction: updates.max_per_transaction ?? merged.max_per_transaction,
+      allowed_endpoint_categories: updates.allowed_endpoint_categories ?? merged.allowed_endpoint_categories,
+      blocked_addresses: updates.blocked_addresses ?? merged.blocked_addresses,
+      time_restrictions: updates.time_restrictions ?? merged.time_restrictions,
+      token_whitelist: updates.token_whitelist ?? merged.token_whitelist,
+      is_active: updates.is_active ?? merged.is_active,
+      aip_agent_did: updates.aip_agent_did !== undefined ? updates.aip_agent_did ?? null : merged.aip_agent_did,
+      version: newVersion,
+    };
+
+    const { merkleRootHex: newMerkleRootHex, policyDataHashHex: newDataHashHex } =
+      await computePolicyCommitments(projected);
+
+    const commitmentChanged =
+      newMerkleRootHex !== current.merkle_root_hex ||
+      newDataHashHex !== current.policy_data_hash_hex;
+
+    fields.push(`merkle_root_hex = $${paramIndex++}`);
+    values.push(newMerkleRootHex);
+    fields.push(`policy_data_hash_hex = $${paramIndex++}`);
+    values.push(newDataHashHex);
+
+    // If the on-chain commitment changed, the policy diverged from whatever is
+    // stored in the policy-registry program: force the dashboard to re-anchor
+    // before the verifier accepts new proofs against this policy.
+    if (commitmentChanged) {
+      fields.push(`onchain_status = $${paramIndex++}`);
+      values.push('pending');
+      fields.push(`onchain_last_error = NULL`);
+    }
+
     fields.push(`version = $${paramIndex++}`);
     values.push(newVersion);
     fields.push(`updated_at = NOW()`);
@@ -196,17 +299,121 @@ export async function deletePolicy(id: string): Promise<boolean> {
   return false;
 }
 
+export interface OnChainConfirmationInput {
+  readonly tx_signature: string;
+  readonly onchain_pda: string;
+  readonly onchain_version: number;
+  readonly merkle_root_hex: string;
+  readonly policy_data_hash_hex: string;
+}
+
+/**
+ * Marks a policy as registered on-chain. Called by the dashboard once the
+ * wallet has signed and the Solana network has confirmed the register_policy
+ * (or update_policy) transaction.
+ *
+ * Concurrency safety: the merkle_root_hex / policy_data_hash_hex on the
+ * confirmation must still match what is currently in the DB. If the row was
+ * mutated between the GET /onchain-payload and this PATCH, the values will
+ * differ and we refuse the confirmation — the caller has to fetch a fresh
+ * payload, sign again, and try once more. This keeps DB and chain in sync
+ * without risking a stale on-chain commitment being marked 'registered'.
+ *
+ * Returns null if the policy does not exist; throws when the commitment
+ * mismatches (caller should propagate that as a 409 Conflict).
+ */
+export async function applyOnchainConfirmation(
+  id: string,
+  input: OnChainConfirmationInput,
+): Promise<Policy | null> {
+  return transaction(async (client) => {
+    const existing = await client.query<PolicyRow>(
+      'SELECT * FROM policies WHERE id = $1 FOR UPDATE',
+      [id]
+    );
+    if (existing.rows.length === 0) {
+      return null;
+    }
+    const current = existing.rows[0];
+
+    if (
+      current.merkle_root_hex !== input.merkle_root_hex ||
+      current.policy_data_hash_hex !== input.policy_data_hash_hex
+    ) {
+      throw new Error(
+        `OnchainCommitmentMismatch: DB commitment differs from confirmation; refetch /onchain-payload`
+      );
+    }
+
+    const result = await client.query<PolicyRow>(
+      `UPDATE policies SET
+         onchain_status = 'registered',
+         onchain_pda = $1,
+         onchain_tx_signature = $2,
+         onchain_version = $3,
+         onchain_registered_at = NOW(),
+         onchain_last_error = NULL
+       WHERE id = $4
+       RETURNING *`,
+      [input.onchain_pda, input.tx_signature, input.onchain_version, id]
+    );
+
+    logger.info('Policy onchain confirmation applied', {
+      policy_id: id,
+      onchain_pda: input.onchain_pda,
+      onchain_version: input.onchain_version,
+      tx_signature: input.tx_signature,
+    });
+    return rowToPolicy(result.rows[0]);
+  });
+}
+
+/**
+ * Records an on-chain registration attempt as failed. The dashboard calls this
+ * after the wallet rejects the tx, the network drops it, or simulation fails.
+ * The policy stays usable off-chain (DB row is intact) but onchain_status
+ * stays 'failed' until the operator retries successfully.
+ */
+export async function applyOnchainFailure(
+  id: string,
+  errorMessage: string,
+): Promise<Policy | null> {
+  const result = await query<PolicyRow>(
+    `UPDATE policies SET
+       onchain_status = 'failed',
+       onchain_last_error = $1
+     WHERE id = $2
+     RETURNING *`,
+    [errorMessage.slice(0, 1000), id]
+  );
+  if (result.rows.length === 0) {
+    return null;
+  }
+  logger.warn('Policy onchain registration failed', {
+    policy_id: id,
+    error: errorMessage,
+  });
+  return rowToPolicy(result.rows[0]);
+}
+
 export function compileForCircuit(policy: Policy): CircuitPolicyInput {
   const LAMPORTS_PER_UNIT = 1_000_000n;
+  // List ordering MUST match the canonical order used by
+  // services/policy-service/src/utils/merkle.ts::computePolicyDataHash.
+  // The backend hashes sorted lists into Poseidon(items_padded_to_N); the
+  // prover-service consumes this compiled output unchanged and feeds the
+  // circuit, which Poseidon-hashes the same slots. Drift here means the
+  // ZK proof's policy_data_hash will not match the value stored on-chain
+  // by the policy-registry program, and the verifier will reject.
   return {
     policy_id: policy.id,
     operator_id: policy.operator_id,
     max_daily_spend_lamports: BigInt(Math.round(policy.max_daily_spend * Number(LAMPORTS_PER_UNIT))),
     max_per_transaction_lamports: BigInt(Math.round(policy.max_per_transaction * Number(LAMPORTS_PER_UNIT))),
-    allowed_endpoint_categories: policy.allowed_endpoint_categories,
-    blocked_addresses: policy.blocked_addresses,
+    allowed_endpoint_categories: [...policy.allowed_endpoint_categories].sort(),
+    blocked_addresses: [...policy.blocked_addresses].sort(),
     time_restrictions: policy.time_restrictions,
-    token_whitelist: policy.token_whitelist,
+    token_whitelist: [...policy.token_whitelist].sort(),
     version: policy.version,
     compiled_at: new Date().toISOString(),
   };

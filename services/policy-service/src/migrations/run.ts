@@ -4,6 +4,9 @@ import * as migration001 from './001_create_policies.js';
 import * as migration002 from './002_create_users.js';
 import * as migration003 from './003_create_api_keys.js';
 import * as migration004 from './004_add_aip_did.js';
+import * as migration005 from './005_add_onchain_fields.js';
+import * as migration006 from './006_backfill_onchain_commitments.js';
+import * as migration007 from './007_recompute_policy_data_hash_poseidon.js';
 
 interface Migration {
   name: string;
@@ -16,6 +19,9 @@ const migrations: Migration[] = [
   { name: '002_create_users', ...migration002 },
   { name: '003_create_api_keys', ...migration003 },
   { name: '004_add_aip_did', ...migration004 },
+  { name: '005_add_onchain_fields', ...migration005 },
+  { name: '006_backfill_onchain_commitments', ...migration006 },
+  { name: '007_recompute_policy_data_hash_poseidon', ...migration007 },
 ];
 
 async function ensureMigrationsTable(client: import('pg').PoolClient): Promise<void> {

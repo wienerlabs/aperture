@@ -8,7 +8,6 @@ import { errorHandler } from './middleware/error-handler.js';
 import policyRouter from './routes/policy.js';
 import healthRouter from './routes/health.js';
 import squadsRouter from './routes/squads.js';
-import onchainRouter from './routes/onchain.js';
 import authRouter from './routes/auth.js';
 import apiKeysRouter from './routes/api-keys.js';
 import { swaggerSpec } from './swagger.js';
@@ -23,7 +22,7 @@ const extraOrigins = (process.env.CORS_ORIGINS ?? '')
 app.use(helmet());
 app.use(cors({
   origin: [/^http:\/\/localhost:\d+$/, ...extraOrigins],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
 }));
@@ -37,7 +36,6 @@ app.get('/api-docs.json', (_req, res) => {
 app.use('/health', healthRouter);
 app.use('/api/v1/policies', policyRouter);
 app.use('/api/v1/squads', squadsRouter);
-app.use('/api/v1/onchain', onchainRouter);
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/keys', apiKeysRouter);
 
