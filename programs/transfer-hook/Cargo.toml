@@ -9,6 +9,10 @@ crate-type = ["cdylib", "lib"]
 [features]
 no-entrypoint = []
 default = []
+# Stub feature: this crate is native Solana (no anchor-lang dep) and emits no
+# IDL. The flag exists only so `anchor build` does not abort the workspace
+# pipeline when it iterates over every crate under programs/.
+idl-build = []
 
 [dependencies]
 solana-program = "2.2"

@@ -7,7 +7,9 @@ skip-lint = false
 
 [programs.devnet]
 policy_registry = "FXD7ycSguBQw7o3DXqq4VUBHtdx5ZQpu9P2zb4KG4ZEU"
-transfer_hook = "3GZAsASQHTJTCfHGRKaj26zdAVqcD9VZdpfV9FEwcCQt"
+# transfer-hook is a native Solana program (no Anchor dependency); build it
+# separately via `cd programs/transfer-hook && cargo build-sbf` and deploy
+# with `solana program deploy --upgrade ...`.
 verifier = "AzKirEv7h5PstLNYNqLj7fCXU9EFA6nSnuoed3QkmUfU"
 
 [registry]
