@@ -225,8 +225,6 @@ export async function completeMppFlow<T>(
 
   // ---- 2. resolve an active, on-chain-anchored policy for the operator -----
   onStatus?.('Loading anchored policy…');
-  const ausdcMint = config.tokens.aUSDC;
-  if (!ausdcMint) return fail('aUSDC mint not configured');
 
   let policyId: string;
   let policyPda: string;
@@ -308,11 +306,17 @@ export async function completeMppFlow<T>(
         token_whitelist: compiled.token_whitelist,
         time_restrictions: compiled.time_restrictions,
         // The MPP flow has no Solana destination; commit the operator's own
-        // pubkey as recipient + the aUSDC mint as a sentinel. Both fields
-        // land in the proof's public outputs but the verifier path does not
-        // cross-check them against any Solana transfer.
+        // pubkey as recipient + a stablecoin sentinel for the mint. Both
+        // fields land in the proof's public outputs but the verifier path
+        // does not cross-check them against any Solana transfer. Pick the
+        // first whitelisted token from the active policy so the ZK
+        // is_compliant check can find a match (USDC by default; aUSDC kept
+        // as a fallback for legacy policies).
         payment_amount_lamports: amountLamports,
-        payment_token_mint: ausdcMint,
+        payment_token_mint:
+          compiled.token_whitelist.find((m) => m === config.tokens.usdc) ??
+          compiled.token_whitelist[0] ??
+          config.tokens.aUSDC,
         payment_recipient: publicKey.toBase58(),
         payment_endpoint_category: 'mpp',
         daily_spent_before_lamports: dailySpentBefore,
