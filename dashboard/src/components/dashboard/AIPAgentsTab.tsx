@@ -245,12 +245,19 @@ export function AIPAgentsTab() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 600_000);
 
-      // The AIP task call is itself an x402-style payment from this wallet to
-      // the agent's authority. Mint MUST be aUSDC so the transfer-hook fires
-      // — anything else silently bypasses the on-chain compliance gate.
-      const ausdcMint = config.tokens.aUSDC;
-      if (!ausdcMint) {
-        throw new Error('NEXT_PUBLIC_AUSDC_MINT not configured');
+      // The AIP task call is an x402-style payment from this wallet to the
+      // agent's authority. Compliance is enforced inside the verifier
+      // program (verify_payment_proof_v2_with_transfer) so any token the
+      // active policy whitelists works — pick the first whitelisted entry,
+      // preferring USDC, falling back to aUSDC for legacy policies.
+      const sentinelMint =
+        compiled.data.token_whitelist.find((m: string) => m === config.tokens.usdc) ??
+        compiled.data.token_whitelist[0] ??
+        config.tokens.aUSDC;
+      if (!sentinelMint) {
+        throw new Error(
+          'Active policy has no whitelisted tokens — edit the policy to enable USDC/USDT/aUSDC.',
+        );
       }
       const dailySpentBeforeLamports = (
         await readEffectiveDailySpentLamports(connection, publicKey)
@@ -269,7 +276,7 @@ export function AIPAgentsTab() {
           token_whitelist: compiled.data.token_whitelist,
           time_restrictions: compiled.data.time_restrictions ?? [],
           payment_amount_lamports: amountLamports,
-          payment_token_mint: ausdcMint,
+          payment_token_mint: sentinelMint,
           payment_recipient: selectedAgent.authority,
           payment_endpoint_category: compiled.data.allowed_endpoint_categories[0] ?? 'aip',
           daily_spent_before_lamports: dailySpentBeforeLamports,
