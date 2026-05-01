@@ -54,11 +54,24 @@ export const policyApi = {
     }),
   compile: (id: string) =>
     request<ApiResponse<CompiledPolicy>>(config.policyServiceUrl, `/api/v1/policies/${id}/compile`),
-  registerOnChain: (policyId: string, operatorKeypairBase58: string) =>
-    request<ApiResponse<OnChainResult>>(config.policyServiceUrl, '/api/v1/onchain/register', {
-      method: 'POST',
-      body: JSON.stringify({ policy_id: policyId, operator_keypair_base58: operatorKeypairBase58 }),
-    }),
+  // The dashboard fetches the canonical on-chain payload from the
+  // policy-service and signs it with the connected wallet. The legacy
+  // POST /api/v1/onchain/register endpoint, which accepted a base58 keypair
+  // in the body, is gone — there is no path that ever takes a private key.
+  getOnchainPayload: (policyId: string) =>
+    request<ApiResponse<OnchainPayload>>(
+      config.policyServiceUrl,
+      `/api/v1/policies/${policyId}/onchain-payload`
+    ),
+  confirmOnchain: (policyId: string, body: OnchainConfirmationBody) =>
+    request<ApiResponse<Policy>>(
+      config.policyServiceUrl,
+      `/api/v1/policies/${policyId}/onchain-confirmation`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }
+    ),
 };
 
 export const complianceApi = {
@@ -116,6 +129,8 @@ export const complianceApi = {
     ),
 };
 
+export type OnChainStatus = 'pending' | 'registered' | 'failed';
+
 export interface Policy {
   id: string;
   operator_id: string;
@@ -132,7 +147,42 @@ export interface Policy {
   aip_agent_did: string | null;
   created_at: string;
   updated_at: string;
+  merkle_root_hex: string | null;
+  policy_data_hash_hex: string | null;
+  onchain_pda: string | null;
+  onchain_tx_signature: string | null;
+  onchain_status: OnChainStatus;
+  onchain_registered_at: string | null;
+  onchain_last_error: string | null;
+  onchain_version: number | null;
 }
+
+export interface OnchainPayload {
+  policy_id: string;
+  policy_id_bytes_hex: string;
+  merkle_root_hex: string;
+  policy_data_hash_hex: string;
+  version: number;
+  operator_id: string;
+  onchain_status: OnChainStatus;
+  onchain_pda: string | null;
+  onchain_version: number | null;
+  operation: 'register' | 'update' | 'noop';
+}
+
+export type OnchainConfirmationBody =
+  | {
+      status: 'registered';
+      tx_signature: string;
+      onchain_pda: string;
+      onchain_version: number;
+      merkle_root_hex: string;
+      policy_data_hash_hex: string;
+    }
+  | {
+      status: 'failed';
+      error_message: string;
+    };
 
 export interface TimeRestriction {
   allowed_days: string[];
@@ -166,14 +216,6 @@ export interface CompiledPolicy {
   token_whitelist: string[];
   version: number;
   compiled_at: string;
-}
-
-export interface OnChainResult {
-  policy_pda: string;
-  operator_pda: string;
-  merkle_root: string;
-  policy_data_hash: string;
-  policy_version: number;
 }
 
 export interface ProofRecord {
