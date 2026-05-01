@@ -328,7 +328,46 @@ export async function fetchWithX402<T>(
     return fail<T>(`Solana tx failed: ${message}`);
   }
 
-  // ---- 7. Replay endpoint with payment header ------------------------------
+  // ---- 7. Persist proof_record so Payments tab can list this transfer -----
+  // Without this POST the Payments tab table is empty even though the on-chain
+  // tx succeeded — the agent does the equivalent submitProofRecord call but
+  // the dashboard-driven manual flow needs to do it itself.
+  const proofPayloadAmount = amountLamports / 10 ** config.tokenDecimals;
+  try {
+    const persistRes = await fetch(`${config.complianceApiUrl}/api/v1/proofs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        operator_id: operatorId,
+        policy_id: policy.id,
+        payment_id: `dashboard-x402-${Date.now()}-${txSignature.slice(0, 8)}`,
+        proof_hash:
+          proofData.policy_data_hash_hex ?? proofData.proof_hash ?? '0'.repeat(64),
+        amount_range_min: proofPayloadAmount,
+        amount_range_max: proofPayloadAmount,
+        token_mint: paymentMint,
+        is_compliant: true,
+        verified_at: proofData.verification_timestamp ?? new Date().toISOString(),
+      }),
+    });
+    if (persistRes.ok) {
+      const created = (await persistRes.json()) as { data?: { id?: string } };
+      if (created.data?.id) {
+        await fetch(
+          `${config.complianceApiUrl}/api/v1/proofs/${created.data.id}/tx-signature`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tx_signature: txSignature }),
+          },
+        );
+      }
+    }
+  } catch (err) {
+    console.warn('[x402] proof_records persist failed (non-blocking)', err);
+  }
+
+  // ---- 8. Replay endpoint with payment header ------------------------------
   const proofHeader = Buffer.from(
     JSON.stringify({
       txSignature,
@@ -340,10 +379,22 @@ export async function fetchWithX402<T>(
     headers: { 'Content-Type': 'application/json', 'x-402-payment': proofHeader },
   });
 
+  // Token symbol for the activity feed: derived from the payment mint so
+  // USDC / USDT / aUSDC cycles each show their real ticker instead of a
+  // hard-coded label.
+  const tokenLabel = (() => {
+    const known: Record<string, string> = {
+      [config.tokens.usdc]: 'USDC',
+      [config.tokens.usdt]: 'USDT',
+      [config.tokens.aUSDC]: 'aUSDC',
+    };
+    return known[paymentMint] ?? `${paymentMint.slice(0, 4)}…`;
+  })();
+
   const paymentInfo = {
     txSignature,
     payer: publicKey.toBase58(),
-    amount: `${amountLamports / 10 ** config.tokenDecimals} aUSDC`,
+    amount: `${proofPayloadAmount} ${tokenLabel}`,
     recipient: requirement.recipient,
     zkProofHash: proofData.policy_data_hash_hex ?? proofData.proof_hash ?? null,
   };
