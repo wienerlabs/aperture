@@ -19,16 +19,20 @@ import { policyApi, type Policy, type PolicyInput } from '@/lib/api';
 import { config } from '@/lib/config';
 import { formatDate, formatAmount } from '@/lib/utils';
 import { useConnection } from '@solana/wallet-adapter-react';
-import { Transaction } from '@solana/web3.js';
+import { PublicKey, Transaction } from '@solana/web3.js';
 import { useApertureWalletModal } from '@/components/shared/WalletModal';
 import {
   buildInitializeOperatorIx,
   buildRegisterPolicyIx,
+  buildUpdatePolicyIx,
   deriveOperatorPDA,
 } from '@/lib/anchor-instructions';
 
-const USDC_MINT = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';
-const USDT_MINT = 'EJwZgeZrdC8TXTQbQBoL6bfuAnFUQS7QEkCybt4rCxsT';
+// Mint addresses come from runtime config so a deploy that re-issues any of
+// these (or rebrands aUSDC again) does not require a code change.
+const AUSDC_MINT = config.tokens.aUSDC;
+const USDC_MINT = config.tokens.usdc;
+const USDT_MINT = config.tokens.usdt;
 
 interface PolicyFormData {
   readonly name: string;
@@ -37,6 +41,7 @@ interface PolicyFormData {
   readonly max_per_transaction: string;
   readonly allowed_endpoint_categories: string;
   readonly blocked_addresses: string;
+  readonly ausdc_enabled: boolean;
   readonly usdc_enabled: boolean;
   readonly usdt_enabled: boolean;
   readonly time_restriction_days: string;
@@ -52,7 +57,11 @@ const INITIAL_FORM_DATA: PolicyFormData = {
   max_per_transaction: '',
   allowed_endpoint_categories: '',
   blocked_addresses: '',
-  usdc_enabled: true,
+  // aUSDC defaults to true because it is the only mint whose Token-2022
+  // transfer hook can enforce the policy on-chain. Plain USDC and USDT have
+  // no hook so a policy whitelisting them lets the agent bypass enforcement.
+  ausdc_enabled: true,
+  usdc_enabled: false,
   usdt_enabled: false,
   time_restriction_days: '',
   time_restriction_start: '',
@@ -70,11 +79,11 @@ export function PoliciesTab() {
   const [policies, setPolicies] = useState<readonly Policy[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [chainTxMap, setChainTxMap] = useState<Record<string, string>>({});
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<PolicyFormData>(INITIAL_FORM_DATA);
   const [submitting, setSubmitting] = useState(false);
+  const [anchoringId, setAnchoringId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const fetchPolicies = useCallback(async () => {
@@ -112,8 +121,15 @@ export function PoliciesTab() {
       max_per_transaction: String(policy.max_per_transaction),
       allowed_endpoint_categories: policy.allowed_endpoint_categories.join(', '),
       blocked_addresses: policy.blocked_addresses.join(', '),
-      usdc_enabled: policy.token_whitelist.includes(USDC_MINT),
-      usdt_enabled: policy.token_whitelist.includes(USDT_MINT),
+      ausdc_enabled: AUSDC_MINT
+        ? policy.token_whitelist.includes(AUSDC_MINT)
+        : false,
+      usdc_enabled: USDC_MINT
+        ? policy.token_whitelist.includes(USDC_MINT)
+        : false,
+      usdt_enabled: USDT_MINT
+        ? policy.token_whitelist.includes(USDT_MINT)
+        : false,
       time_restriction_days:
         policy.time_restrictions.length > 0
           ? policy.time_restrictions[0].allowed_days.join(', ')
@@ -142,8 +158,9 @@ export function PoliciesTab() {
 
   function buildTokenWhitelist(data: PolicyFormData): string[] {
     const tokens: string[] = [];
-    if (data.usdc_enabled) tokens.push(USDC_MINT);
-    if (data.usdt_enabled) tokens.push(USDT_MINT);
+    if (data.ausdc_enabled && AUSDC_MINT) tokens.push(AUSDC_MINT);
+    if (data.usdc_enabled && USDC_MINT) tokens.push(USDC_MINT);
+    if (data.usdt_enabled && USDT_MINT) tokens.push(USDT_MINT);
     return tokens;
   }
 
@@ -192,13 +209,137 @@ export function PoliciesTab() {
     };
   }
 
+  /**
+   * Pulls the canonical on-chain payload from policy-service, signs the
+   * register_policy or update_policy instruction with the connected wallet,
+   * and reports the outcome back to the server. Either side ends in a
+   * deterministic on-chain status — never the silent "saved to DB but maybe
+   * also on-chain" half-state the previous flow allowed.
+   *
+   * Throws on any failure; the caller decides how to surface to the user.
+   * On a thrown error, the policy row in the DB is already flipped to
+   * onchain_status='failed' with the error message attached.
+   */
+  async function anchorPolicy(policy: Policy): Promise<{ tx_signature: string; onchain_pda: string }> {
+    if (!publicKey || !sendTransaction) {
+      throw new Error('Wallet not connected');
+    }
+
+    const payloadRes = await policyApi.getOnchainPayload(policy.id);
+    const payload = payloadRes.data;
+    if (!payload) {
+      throw new Error('Policy onchain payload missing');
+    }
+    if (payload.operation === 'noop') {
+      // Already registered on-chain with the current commitment — surface the
+      // existing tx so the caller can short-circuit.
+      return {
+        tx_signature: policy.onchain_tx_signature ?? '',
+        onchain_pda: payload.onchain_pda ?? '',
+      };
+    }
+
+    const tx = new Transaction();
+
+    const [operatorPDA] = deriveOperatorPDA(publicKey);
+    const operatorInfo = await connection.getAccountInfo(operatorPDA);
+    if (!operatorInfo) {
+      tx.add(
+        buildInitializeOperatorIx(publicKey, publicKey.toBase58().slice(0, 32)),
+      );
+    }
+
+    let policyPDABase58: string;
+    let nextOnchainVersion: number;
+
+    if (payload.operation === 'register') {
+      const { instruction, policyPDA } = buildRegisterPolicyIx(
+        publicKey,
+        payload.policy_id_bytes_hex,
+        payload.merkle_root_hex,
+        payload.policy_data_hash_hex,
+      );
+      tx.add(instruction);
+      policyPDABase58 = policyPDA.toBase58();
+      nextOnchainVersion = 1;
+    } else {
+      // 'update' — the on-chain program bumps PolicyAccount.version atomically;
+      // we mirror that so the DB row converges on the new value.
+      if (!payload.onchain_pda) {
+        throw new Error('Update operation but onchain_pda missing in payload');
+      }
+      const policyPDA = new PublicKey(payload.onchain_pda);
+      tx.add(
+        buildUpdatePolicyIx(
+          publicKey,
+          operatorPDA,
+          policyPDA,
+          payload.merkle_root_hex,
+          payload.policy_data_hash_hex,
+        ),
+      );
+      policyPDABase58 = payload.onchain_pda;
+      nextOnchainVersion = (payload.onchain_version ?? 1) + 1;
+    }
+
+    tx.feePayer = publicKey;
+    const { blockhash } = await connection.getLatestBlockhash();
+    tx.recentBlockhash = blockhash;
+
+    // Pre-flight simulate so we surface the on-chain failure mode
+    // (account already in use, insufficient SOL, malformed Borsh, etc.)
+    // instead of the wallet adapter's opaque "Transaction failed" wrapper.
+    let sig: string;
+    try {
+      console.log('[anchor] simulating tx with', tx.instructions.length, 'instruction(s) for policy', policy.id);
+      const sim = await connection.simulateTransaction(tx);
+      if (sim.value.err) {
+        const logs = sim.value.logs?.join('\n') ?? '';
+        throw new Error(
+          `On-chain simulation failed: ${JSON.stringify(sim.value.err)}` +
+          (logs ? `\n\nProgram logs:\n${logs}` : ''),
+        );
+      }
+      console.log('[anchor] simulation OK, sending tx...');
+      sig = await sendTransaction(tx, connection);
+      console.log('[anchor] tx sent, signature:', sig);
+      await connection.confirmTransaction(sig, 'confirmed');
+      console.log('[anchor] tx confirmed');
+    } catch (sendErr) {
+      const message =
+        sendErr instanceof Error ? sendErr.message : 'Transaction failed';
+      console.error('[anchor] failed:', message, sendErr);
+      // Best-effort failure flag; do not let a failure-of-failure report
+      // mask the original cause.
+      try {
+        await policyApi.confirmOnchain(policy.id, {
+          status: 'failed',
+          error_message: message,
+        });
+      } catch {
+        /* noop — original error is what we surface */
+      }
+      throw sendErr;
+    }
+
+    await policyApi.confirmOnchain(policy.id, {
+      status: 'registered',
+      tx_signature: sig,
+      onchain_pda: policyPDABase58,
+      onchain_version: nextOnchainVersion,
+      merkle_root_hex: payload.merkle_root_hex,
+      policy_data_hash_hex: payload.policy_data_hash_hex,
+    });
+
+    return { tx_signature: sig, onchain_pda: policyPDABase58 };
+  }
+
   async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
     if (!operatorId) return;
 
-    // Check wallet BEFORE creating policy to prevent duplicates
     if (!publicKey) {
-      setError('Connect your wallet first to register policies on-chain.');
+      setError('Connect your wallet first — every policy must be anchored on Solana.');
       openWalletModal(true);
       return;
     }
@@ -216,38 +357,14 @@ export function PoliciesTab() {
         savedPolicy = res.data!;
       }
 
-      // Try on-chain registration (optional — policy is already saved to DB)
-      if (publicKey && sendTransaction && savedPolicy) {
-        try {
-          const compiledRes = await policyApi.compile(savedPolicy.id);
-          const compiledJson = JSON.stringify(compiledRes.data);
-
-          const tx = new Transaction();
-
-          const [operatorPDA] = deriveOperatorPDA(publicKey);
-          const operatorInfo = await connection.getAccountInfo(operatorPDA);
-          if (!operatorInfo) {
-            tx.add(buildInitializeOperatorIx(publicKey, publicKey.toBase58().slice(0, 32)));
-          }
-
-          const { instruction: registerIx } = await buildRegisterPolicyIx(
-            publicKey,
-            savedPolicy.id,
-            compiledJson
-          );
-          tx.add(registerIx);
-
-          tx.feePayer = publicKey;
-          const { blockhash } = await connection.getLatestBlockhash();
-          tx.recentBlockhash = blockhash;
-
-          const sig = await sendTransaction(tx, connection);
-          await connection.confirmTransaction(sig, 'confirmed');
-          setChainTxMap(prev => ({ ...prev, [savedPolicy.id]: sig }));
-        } catch (chainErr) {
-          console.warn('On-chain registration failed (policy saved to DB):', chainErr);
-          setError(`Policy saved successfully. On-chain registration failed: ${chainErr instanceof Error ? chainErr.message : 'Transaction error'}. You can retry later.`);
-        }
+      try {
+        await anchorPolicy(savedPolicy);
+      } catch (chainErr) {
+        const reason =
+          chainErr instanceof Error ? chainErr.message : 'Transaction error';
+        setError(
+          `Policy saved off-chain but on-chain anchoring failed: ${reason}. Use the "Anchor on-chain" button on the policy card to retry.`,
+        );
       }
 
       resetForm();
@@ -257,6 +374,32 @@ export function PoliciesTab() {
       setError(message);
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  /**
+   * Re-attempts on-chain anchoring for a policy that is currently in
+   * 'pending' or 'failed' state. Used by the "Anchor on-chain" button on
+   * each policy card.
+   */
+  async function handleAnchor(policy: Policy): Promise<void> {
+    if (!publicKey) {
+      setError('Connect your wallet first.');
+      openWalletModal(true);
+      return;
+    }
+    setError(null);
+    setAnchoringId(policy.id);
+    try {
+      await anchorPolicy(policy);
+      await fetchPolicies();
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : 'Transaction error';
+      setError(`On-chain anchoring failed: ${reason}`);
+      // Refresh anyway so the failure status badge shows up immediately.
+      await fetchPolicies();
+    } finally {
+      setAnchoringId(null);
     }
   }
 
@@ -436,25 +579,47 @@ export function PoliciesTab() {
               <label className="block text-sm text-amber-100/60 mb-2">
                 Token Whitelist
               </label>
-              <div className="flex gap-6">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.usdc_enabled}
-                    onChange={(e) => updateFormField('usdc_enabled', e.target.checked)}
-                    className="w-4 h-4 rounded border-amber-400/20 bg-transparent accent-amber-500"
-                  />
-                  <span className="text-sm text-amber-100">USDC</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.usdt_enabled}
-                    onChange={(e) => updateFormField('usdt_enabled', e.target.checked)}
-                    className="w-4 h-4 rounded border-amber-400/20 bg-transparent accent-amber-500"
-                  />
-                  <span className="text-sm text-amber-100">USDT</span>
-                </label>
+              <p className="text-xs text-amber-100/40 mb-2">
+                Compliance is enforced on-chain inside the verifier program
+                via verify_payment_proof_v2_with_transfer (ZK proof + atomic
+                recipient/mint/amount byte-binding + daily-spend ceiling).
+                Any token below works the same way; pick the rails the
+                operator wants to accept payments in.
+              </p>
+              <div className="flex gap-6 flex-wrap">
+                {USDC_MINT && (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.usdc_enabled}
+                      onChange={(e) => updateFormField('usdc_enabled', e.target.checked)}
+                      className="w-4 h-4 rounded border-amber-400/20 bg-transparent accent-amber-500"
+                    />
+                    <span className="text-sm text-amber-100">USDC</span>
+                  </label>
+                )}
+                {USDT_MINT && (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.usdt_enabled}
+                      onChange={(e) => updateFormField('usdt_enabled', e.target.checked)}
+                      className="w-4 h-4 rounded border-amber-400/20 bg-transparent accent-amber-500"
+                    />
+                    <span className="text-sm text-amber-100">USDT</span>
+                  </label>
+                )}
+                {AUSDC_MINT && (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.ausdc_enabled}
+                      onChange={(e) => updateFormField('ausdc_enabled', e.target.checked)}
+                      className="w-4 h-4 rounded border-amber-400/20 bg-transparent accent-amber-500"
+                    />
+                    <span className="text-sm text-amber-100">aUSDC <span className="text-xs text-amber-100/40">(legacy Token-2022 hook)</span></span>
+                  </label>
+                )}
               </div>
             </div>
 
@@ -668,26 +833,83 @@ export function PoliciesTab() {
                         key={mint}
                         className="px-2 py-0.5 rounded bg-amber-400/10 text-amber-400 text-xs font-mono"
                       >
-                        {mint === USDC_MINT ? 'USDC' : mint === USDT_MINT ? 'USDT' : mint.slice(0, 8)}
+                        {mint === AUSDC_MINT
+                          ? 'aUSDC'
+                          : mint === USDC_MINT
+                            ? 'USDC'
+                            : mint === USDT_MINT
+                              ? 'USDT'
+                              : mint.slice(0, 8)}
                       </span>
                     ))}
                   </div>
                 </div>
               )}
 
-              {chainTxMap[policy.id] && (
-                <div className="mt-3 pt-3 border-t border-amber-400/10">
-                  <a
-                    href={config.txExplorerUrl(chainTxMap[policy.id])}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 text-xs font-mono text-amber-400 hover:text-amber-300 transition-colors"
-                  >
-                    <ExternalLink className="w-3 h-3" />
-                    View on Solana
-                  </a>
-                </div>
-              )}
+              {/* On-chain anchoring status */}
+              <div className="mt-3 pt-3 border-t border-amber-400/10">
+                {policy.onchain_status === 'registered' ? (
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-400/10 text-green-400 font-medium">
+                      <CheckCircle className="w-3 h-3" />
+                      Anchored on Solana
+                      {policy.onchain_version !== null
+                        ? ` (v${policy.onchain_version})`
+                        : ''}
+                    </span>
+                    {policy.onchain_tx_signature && (
+                      <a
+                        href={config.txExplorerUrl(policy.onchain_tx_signature)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 font-mono text-amber-400 hover:text-amber-300 transition-colors"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        View tx
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span
+                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                          policy.onchain_status === 'failed'
+                            ? 'bg-red-400/10 text-red-400'
+                            : 'bg-amber-400/10 text-amber-400'
+                        }`}
+                      >
+                        {policy.onchain_status === 'failed' ? (
+                          <XCircle className="w-3 h-3" />
+                        ) : (
+                          <AlertTriangle className="w-3 h-3" />
+                        )}
+                        {policy.onchain_status === 'failed'
+                          ? 'On-chain anchoring failed'
+                          : policy.onchain_pda
+                            ? 'Off-chain edits pending — re-anchor required'
+                            : 'Not yet anchored on Solana'}
+                      </span>
+                      <button
+                        onClick={() => handleAnchor(policy)}
+                        disabled={anchoringId === policy.id || !publicKey}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed text-black transition-colors"
+                      >
+                        {anchoringId === policy.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : null}
+                        {policy.onchain_pda ? 'Re-anchor' : 'Anchor on-chain'}
+                      </button>
+                    </div>
+                    {policy.onchain_status === 'failed' &&
+                      policy.onchain_last_error && (
+                        <p className="text-xs text-red-400/80 font-mono break-all">
+                          {policy.onchain_last_error}
+                        </p>
+                      )}
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>

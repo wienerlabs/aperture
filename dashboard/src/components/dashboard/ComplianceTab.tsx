@@ -36,6 +36,8 @@ const INITIAL_FORM_DATA: AttestationFormData = {
   period_end: '',
 };
 
+const REFRESH_INTERVAL_MS = 5_000;
+
 
 export function ComplianceTab() {
   const operatorId = useOperatorId();
@@ -51,24 +53,33 @@ export function ComplianceTab() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [batchResult, setBatchResult] = useState<BatchAttestationOutput | null>(null);
 
-  const fetchAttestations = useCallback(async () => {
-    if (!operatorId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await complianceApi.listAttestations(operatorId);
-      setAttestations(response.data);
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to fetch attestations';
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  }, [operatorId]);
+  const fetchAttestations = useCallback(
+    async (showSpinner = false) => {
+      if (!operatorId) return;
+      if (showSpinner) setLoading(true);
+      try {
+        const response = await complianceApi.listAttestations(operatorId);
+        setAttestations(response.data);
+        setError(null);
+      } catch (err: unknown) {
+        // Only surface errors during the initial load; silent failure on background polls
+        // avoids flashing transient network errors while the user is mid-flow.
+        if (showSpinner) {
+          const message =
+            err instanceof Error ? err.message : 'Failed to fetch attestations';
+          setError(message);
+        }
+      } finally {
+        if (showSpinner) setLoading(false);
+      }
+    },
+    [operatorId]
+  );
 
   useEffect(() => {
-    fetchAttestations();
+    fetchAttestations(true);
+    const interval = setInterval(() => fetchAttestations(false), REFRESH_INTERVAL_MS);
+    return () => clearInterval(interval);
   }, [fetchAttestations]);
 
   function updateFormField<K extends keyof AttestationFormData>(
@@ -102,16 +113,20 @@ export function ComplianceTab() {
         // Verify attestation on-chain via real Verifier program (verify_batch_attestation)
         if (publicKey && sendTransaction) {
           const batchHashBytes = hexToBytes32(response.data.proof_hash);
-          // Build receipt data from attestation output
-          const receiptJson = JSON.stringify(response.data);
-          const receiptBytes = new TextEncoder().encode(receiptJson);
-          // On-chain verifier checks SHA-256(receipt_data) == journal_digest
-          const journalDigestBytes = await sha256Bytes(receiptBytes);
-          // Use a default image_id for batch attestations
           const batchImageId = [0, 0, 0, 0, 0, 0, 0, 0];
 
           const periodStartTs = BigInt(Math.floor(new Date(response.data.period_start).getTime() / 1000));
           const periodEndTs = BigInt(Math.floor(new Date(response.data.period_end).getTime() / 1000));
+
+          // verify_batch.rs requires receipt_data == "batch:{hex}:{total}:{start}:{end}"
+          // so that sha256(receipt_data) == journal_digest == compute_batch_digest(...).
+          // Must match the format the agent uses (services/agent-service/src/agent-loop.ts).
+          const batchHashHex = response.data.proof_hash.startsWith('0x')
+            ? response.data.proof_hash.slice(2)
+            : response.data.proof_hash;
+          const digestInput = `batch:${batchHashHex}:${response.data.total_payments}:${periodStartTs}:${periodEndTs}`;
+          const receiptBytes = new TextEncoder().encode(digestInput);
+          const journalDigestBytes = await sha256Bytes(receiptBytes);
 
           const verifyBatchIx = buildVerifyBatchAttestationIx(
             publicKey,
@@ -136,7 +151,7 @@ export function ComplianceTab() {
           await complianceApi.updateTxSignature(response.data!.id, sig);
         }
       }
-      await fetchAttestations();
+      await fetchAttestations(false);
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : 'Failed to create batch attestation';

@@ -25,6 +25,7 @@ import {
   buildVerifyPaymentProofV2Ix,
   deriveOperatorPDA,
   derivePolicyPDA,
+  readEffectiveDailySpentLamports,
   sha256Bytes,
 } from '@/lib/anchor-instructions';
 import {
@@ -33,7 +34,16 @@ import {
   isLightProtocolConfigured,
 } from '@/lib/light-protocol';
 import { fetchWithX402, type X402Result } from '@/lib/x402-client';
-import { fetchWithMPP, type MPPResult } from '@/lib/mpp-client';
+import {
+  completeMppFlow,
+  fetchMppChallenge,
+  fetchMppPublicConfig,
+  getStripeDashboardUrl,
+  type MppChallenge,
+  type MppFlowResult,
+  type MppPublicConfig,
+} from '@/lib/mpp-client';
+import { loadStripe, type Stripe, type StripeElements, type StripeCardElement } from '@stripe/stripe-js';
 import { useApertureWalletModal } from '@/components/shared/WalletModal';
 
 function formatElapsed(sec: number): string {
@@ -42,30 +52,18 @@ function formatElapsed(sec: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-function formatProvingTime(ms: number): string {
-  if (ms < 1000) return `${ms} ms`;
-  const totalSec = ms / 1000;
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  if (m > 0) return `${m}m ${Math.round(s)}s`;
-  return `${s.toFixed(2)}s`;
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  if (bytes >= 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${bytes} bytes`;
-}
-
-const USDC_MINT = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';
-const USDT_MINT = 'EJwZgeZrdC8TXTQbQBoL6bfuAnFUQS7QEkCybt4rCxsT';
-const TOKEN_2022_PROGRAM_ID = new PublicKey('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb');
+// SPL Token-2022 program — pinned at the protocol level, not a deployment
+// concern, so it stays as a literal here. Every Aperture-issued mint with a
+// transfer-hook attached lives under this program.
+const TOKEN_2022_PROGRAM_ID = new PublicKey(
+  'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
+);
 
 function getTokenLabel(mint: string): string {
-  if (mint === USDC_MINT) return 'USDC';
-  if (mint === USDT_MINT) return 'USDT';
+  if (config.tokens.usdc && mint === config.tokens.usdc) return 'USDC';
+  if (config.tokens.usdt && mint === config.tokens.usdt) return 'USDT';
+  if (config.tokens.aUSDC && mint === config.tokens.aUSDC) return 'aUSDC';
   if (mint.toLowerCase() === 'usd') return 'USD';
-  if (config.tokens.vUSDC && mint === config.tokens.vUSDC) return 'vUSDC';
   return truncateAddress(mint, 4);
 }
 
@@ -82,26 +80,11 @@ export function PaymentsTab() {
   const [error, setError] = useState<string | null>(null);
   const [expandedHash, setExpandedHash] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [simulating, setSimulating] = useState(false);
-  const [simResult, setSimResult] = useState<{
-    message: string;
-    txSig: string | null;
-    compressedTxSig: string | null;
-    proofHash: string | null;
-    provingTimeMs: number | null;
-    amountRangeMin: number | null;
-    amountRangeMax: number | null;
-    isCompliant: boolean | null;
-    receiptSize: number | null;
-  } | null>(null);
-  const [provingStatus, setProvingStatus] = useState<string | null>(null);
   const [elapsedSec, setElapsedSec] = useState(0);
   const [x402Loading, setX402Loading] = useState(false);
   const [showHookTest, setShowHookTest] = useState(false);
   const [showCostSavings, setShowCostSavings] = useState(false);
   const [x402Result, setX402Result] = useState<X402Result<unknown> | null>(null);
-  const [mppLoading, setMppLoading] = useState(false);
-  const [mppResult, setMppResult] = useState<MPPResult<unknown> | null>(null);
   const [hookTestingWithout, setHookTestingWithout] = useState(false);
   const [hookTestingWith, setHookTestingWith] = useState(false);
   const [hookResult, setHookResult] = useState<{
@@ -109,6 +92,20 @@ export function PaymentsTab() {
     readonly message: string;
     readonly txSignature?: string;
   } | null>(null);
+
+  // ---- MPP B-flow state ----
+  const [mppPublicConfig, setMppPublicConfig] = useState<MppPublicConfig | null>(null);
+  const [mppLoading, setMppLoading] = useState(false);
+  const [mppStatus, setMppStatus] = useState<string | null>(null);
+  const [mppError, setMppError] = useState<string | null>(null);
+  const [mppChallenge, setMppChallenge] = useState<MppChallenge | null>(null);
+  const [mppEndpoint, setMppEndpoint] = useState<string | null>(null);
+  const [mppResult, setMppResult] = useState<MppFlowResult<unknown> | null>(null);
+  const stripeRef = useRef<Stripe | null>(null);
+  const stripeElementsRef = useRef<StripeElements | null>(null);
+  const cardElementRef = useRef<StripeCardElement | null>(null);
+  const cardMountRef = useRef<HTMLDivElement | null>(null);
+  const [cardReady, setCardReady] = useState(false);
 
   const fetchProofs = useCallback(async () => {
     if (!operatorId) return;
@@ -130,9 +127,9 @@ export function PaymentsTab() {
     fetchProofs();
   }, [fetchProofs]);
 
-  // Elapsed timer -- runs while simulating or x402Loading, never resets mid-operation
+  // Elapsed timer -- runs only while the x402 flow is in flight.
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const isTimerActive = simulating || x402Loading || mppLoading;
+  const isTimerActive = x402Loading;
   useEffect(() => {
     if (isTimerActive) {
       setElapsedSec(0);
@@ -155,9 +152,9 @@ export function PaymentsTab() {
 
   async function testTransferHook(withProof: boolean) {
     if (!publicKey || !sendTransaction) return;
-    const vUsdcMint = config.tokens.vUSDC;
-    if (!vUsdcMint) {
-      setError('vUSDC mint address not configured. Set NEXT_PUBLIC_VUSDC_MINT in .env');
+    const aUsdcMint = config.tokens.aUSDC;
+    if (!aUsdcMint) {
+      setError('aUSDC mint address not configured. Set NEXT_PUBLIC_AUSDC_MINT in .env');
       return;
     }
 
@@ -166,9 +163,13 @@ export function PaymentsTab() {
     setError(null);
 
     try {
-      const mintPubkey = new PublicKey(vUsdcMint);
+      const mintPubkey = new PublicKey(aUsdcMint);
       const VERIFIER_PROGRAM = new PublicKey(config.programs.verifier);
-      const amount = 1_000_000; // 1 vUSDC (6 decimals)
+      // Test fixture: a fixed 1.000000 aUSDC self-transfer. The amount lives
+      // in the proof's public outputs and the transfer-hook checks it against
+      // the actual transfer instruction, so changing it here would surface a
+      // hook rejection rather than silently corrupt anything.
+      const amount = 1_000_000; // 1 aUSDC at 6 decimals
 
       const { getAssociatedTokenAddressSync } = await import('@solana/spl-token');
       const senderAta = getAssociatedTokenAddressSync(
@@ -189,8 +190,8 @@ export function PaymentsTab() {
         if (complianceInfo) {
           setHookResult({
             type: 'success',
-            message: 'This test requires a wallet without a ComplianceStatus PDA. Your current wallet already has a verified compliance record, so transfers pass the hook. Connect a different wallet to see the rejection. The hook is proven to work -- a non-compliant wallet was rejected on-chain:',
-            txSignature: '26ywKDBVpJA6Sc8qBPjH6YeifcxEgnJAYDRoVHzgdBrVLVsiP3UZkDFTjvGPRK1ByYEUzWTcv7Pe6H9F2j3u6Bdx',
+            message:
+              'This wallet already has a verified ComplianceStatus PDA, so a Token-2022 transfer would pass the hook. To observe a rejection, connect a wallet that has never anchored a proof and re-run the test.',
           });
           setHookTestingWithout(false);
           return;
@@ -201,13 +202,24 @@ export function PaymentsTab() {
         // Step 1: Generate a real proof first via prover service
         const policiesRes = await policyApi.list(publicKey.toBase58());
         const policies = policiesRes.data;
-        if (policies.length === 0) {
-          setError('No active policies found. Create a policy first to test with proof.');
+        const candidates = policies.filter(
+          (p) => p.is_active && p.onchain_status === 'registered' && p.onchain_pda,
+        );
+        const policy =
+          candidates.find((p) => p.token_whitelist.includes(aUsdcMint)) ??
+          candidates[0];
+        if (!policy) {
+          setError('No on-chain-registered policy. Create + anchor one first.');
+          setHookTestingWith(false);
+          return;
+        }
+        if (!policy.token_whitelist.includes(aUsdcMint)) {
+          setError(`Active policy "${policy.name}" does not whitelist aUSDC. Edit it to enable aUSDC and re-anchor.`);
           setHookTestingWith(false);
           return;
         }
 
-        const compiled = await policyApi.compile(policies[0].id);
+        const compiled = await policyApi.compile(policy.id);
         if (!compiled.data) {
           setError('Failed to compile policy.');
           setHookTestingWith(false);
@@ -215,6 +227,12 @@ export function PaymentsTab() {
         }
 
         // Generate proof
+        // The hook test does a self-transfer (sender == recipient) so we
+        // can prove the hook gates a real Token-2022 transfer end-to-end
+        // without needing a separate counterparty wallet on devnet.
+        const dailySpentBeforeLamports = (
+          await readEffectiveDailySpentLamports(connection, publicKey)
+        ).toString();
         const proveRes = await fetch(`${config.proverServiceUrl}/prove`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -226,12 +244,13 @@ export function PaymentsTab() {
             allowed_endpoint_categories: compiled.data.allowed_endpoint_categories,
             blocked_addresses: compiled.data.blocked_addresses,
             token_whitelist: compiled.data.token_whitelist,
+            time_restrictions: compiled.data.time_restrictions ?? [],
             payment_amount_lamports: amount,
-            payment_token_mint: vUsdcMint,
+            payment_token_mint: aUsdcMint,
             payment_recipient: publicKey.toBase58(),
             payment_endpoint_category: compiled.data.allowed_endpoint_categories[0] ?? 'compute',
-            payment_timestamp: new Date().toISOString(),
-            daily_spent_so_far_lamports: 0,
+            daily_spent_before_lamports: dailySpentBeforeLamports,
+            current_unix_timestamp: Math.floor(Date.now() / 1000),
           }),
         });
 
@@ -251,7 +270,7 @@ export function PaymentsTab() {
         );
 
         const [operatorPDA] = deriveOperatorPDA(publicKey);
-        const hookPolicyIdBytes = await sha256Bytes(policies[0].id);
+        const hookPolicyIdBytes = await sha256Bytes(policy.id);
         const [hookPolicyPDA] = derivePolicyPDA(operatorPDA, hookPolicyIdBytes);
 
         const verifyIx = buildVerifyPaymentProofV2Ix(
@@ -268,6 +287,15 @@ export function PaymentsTab() {
         proofTx.feePayer = publicKey;
         const { blockhash: bh1 } = await connection.getLatestBlockhash();
         proofTx.recentBlockhash = bh1;
+        // Pre-flight simulate so the user gets a clear program-log message
+        // instead of the wallet adapter's opaque "Unexpected error" wrapper.
+        const proofSim = await connection.simulateTransaction(proofTx);
+        if (proofSim.value.err) {
+          const logs = proofSim.value.logs?.join('\n') ?? '';
+          throw new Error(
+            `verify_payment_proof_v2 simulate failed: ${JSON.stringify(proofSim.value.err)}\n\nProgram logs:\n${logs}`,
+          );
+        }
         const proofSig = await sendTransaction(proofTx, connection);
         await connection.confirmTransaction(proofSig, 'confirmed');
       }
@@ -293,6 +321,16 @@ export function PaymentsTab() {
       const { blockhash } = await connection.getLatestBlockhash();
       tx.recentBlockhash = blockhash;
 
+      // Pre-flight simulate so transfer-hook rejections surface their real
+      // program log (e.g. recipient/amount/mint mismatch, no pending
+      // proof, daily-spent overflow) instead of "Unexpected error".
+      const transferSim = await connection.simulateTransaction(tx);
+      if (transferSim.value.err) {
+        const logs = transferSim.value.logs?.join('\n') ?? '';
+        throw new Error(
+          `transfer simulate failed: ${JSON.stringify(transferSim.value.err)}\n\nProgram logs:\n${logs}`,
+        );
+      }
       const sig = await sendTransaction(tx, connection);
       await connection.confirmTransaction(sig, 'confirmed');
 
@@ -340,7 +378,6 @@ export function PaymentsTab() {
     setX402Loading(true);
     setX402Result(null);
     setError(null);
-    setProvingStatus('x402');
     try {
       const endpoint = `${config.complianceApiUrl}/api/v1/compliance/protected-report?operator_id=${operatorId}`;
       const result = await fetchWithX402(
@@ -354,336 +391,147 @@ export function PaymentsTab() {
         setError(result.error ?? 'x402 payment failed');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'x402 request failed');
+      const message = err instanceof Error ? err.message : 'x402 request failed';
+      setError(message);
+      // Mirror to x402Result so the failure card renders next to the x402
+      // button — operators tend to look there, not at the page-top error.
+      setX402Result({ success: false, data: null, error: message, payment: null });
     } finally {
       setX402Loading(false);
-      setProvingStatus(null);
     }
   }
 
-  async function accessMPPReport() {
+  // ---- MPP: load Stripe publishable key + authority pubkey ----
+  useEffect(() => {
+    let cancelled = false;
+    fetchMppPublicConfig()
+      .then((cfg) => {
+        if (!cancelled) setMppPublicConfig(cfg);
+      })
+      .catch(() => {
+        if (!cancelled) setMppPublicConfig(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // ---- MPP: kick off the 402 challenge + mount Stripe Elements card input ----
+  async function startMppFlow(): Promise<void> {
     if (!operatorId) return;
     if (!publicKey || !sendTransaction) {
       openWalletModal(true);
       return;
     }
-    const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-    if (!stripeKey) {
-      setError('NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY not configured in .env');
+    if (!mppPublicConfig?.stripe.publishableKey) {
+      setMppError(
+        'Stripe publishable key not configured on the compliance-api. Set STRIPE_PUBLISHABLE_KEY and restart.',
+      );
+      return;
+    }
+
+    setMppLoading(true);
+    setMppError(null);
+    setMppResult(null);
+    setMppStatus('Requesting Stripe PaymentIntent…');
+    try {
+      const { endpoint, challenge } = await fetchMppChallenge(operatorId);
+      setMppEndpoint(endpoint);
+      setMppChallenge(challenge);
+
+      if (!stripeRef.current) {
+        stripeRef.current = await loadStripe(mppPublicConfig.stripe.publishableKey);
+      }
+      if (!stripeRef.current) throw new Error('Stripe.js failed to load');
+
+      const elements = stripeRef.current.elements({ clientSecret: challenge.stripe.clientSecret });
+      stripeElementsRef.current = elements;
+      // Wait one render so the mount div exists, then create + mount the card element.
+      setMppStatus('Enter card details and confirm payment.');
+      // Defer the mount so React renders the form first
+      setTimeout(() => {
+        if (!cardMountRef.current || !stripeElementsRef.current) return;
+        const card = stripeElementsRef.current.create('card', {
+          style: {
+            base: {
+              color: '#fef3c7',
+              fontFamily: 'ui-monospace, SFMono-Regular, monospace',
+              fontSize: '14px',
+              '::placeholder': { color: 'rgba(254, 243, 199, 0.4)' },
+            },
+            invalid: { color: '#f87171' },
+          },
+        });
+        card.mount(cardMountRef.current);
+        card.on('ready', () => setCardReady(true));
+        cardElementRef.current = card;
+      }, 50);
+    } catch (err) {
+      setMppError(err instanceof Error ? err.message : 'Failed to start MPP flow');
+      setMppStatus(null);
+    } finally {
+      setMppLoading(false);
+    }
+  }
+
+  async function confirmMppCardAndComplete(): Promise<void> {
+    if (!operatorId || !publicKey || !sendTransaction) return;
+    if (!stripeRef.current || !mppChallenge || !mppEndpoint || !cardElementRef.current) {
+      setMppError('MPP flow not initialized');
       return;
     }
     setMppLoading(true);
+    setMppError(null);
     setMppResult(null);
-    setError(null);
-    setProvingStatus('Processing MPP payment...');
+    setMppStatus('Confirming card with Stripe…');
     try {
-      const endpoint = `${config.complianceApiUrl}/api/v1/compliance/mpp-report?operator_id=${operatorId}`;
-      const result = await fetchWithMPP<unknown>(endpoint, stripeKey);
-
-      if (result.success && result.payment) {
-        // 1. Fetch policy and compile for ZK circuit
-        setProvingStatus('Fetching policy for ZK proof...');
-        const policiesRes = await policyApi.list(operatorId);
-        const policies = policiesRes.data;
-
-        if (policies.length > 0) {
-          const compiled = await policyApi.compile(policies[0].id);
-          if (compiled.data) {
-            // 2. Generate Groth16 ZK proof via Circom prover-service
-            setProvingStatus('Generating ZK proof... this may take several minutes');
-            const amountLamports = Math.round(parseFloat(result.payment.amount) * 1_000_000);
-
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 600_000);
-
-            const proveRes = await fetch(`${config.proverServiceUrl}/prove`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              signal: controller.signal,
-              body: JSON.stringify({
-                policy_id: compiled.data.policy_id,
-                operator_id: compiled.data.operator_id,
-                max_daily_spend_lamports: parseInt(compiled.data.max_daily_spend_lamports, 10),
-                max_per_transaction_lamports: parseInt(compiled.data.max_per_transaction_lamports, 10),
-                allowed_endpoint_categories: compiled.data.allowed_endpoint_categories,
-                blocked_addresses: compiled.data.blocked_addresses,
-                token_whitelist: compiled.data.token_whitelist,
-                payment_amount_lamports: amountLamports,
-                payment_token_mint: compiled.data.token_whitelist[0] ?? '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
-                payment_recipient: operatorId,
-                payment_endpoint_category: compiled.data.allowed_endpoint_categories[0] ?? 'mpp',
-                payment_timestamp: new Date().toISOString(),
-                daily_spent_so_far_lamports: 0,
-              }),
-            });
-            clearTimeout(timeoutId);
-
-            if (proveRes.ok) {
-              const proofData = await proveRes.json();
-
-              // 3. Submit proof record to compliance API
-              setProvingStatus('Submitting proof record...');
-              await new Promise(r => setTimeout(r, 0));
-              const paymentId = `mpp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-              await complianceApi.submitProof({
-                operator_id: operatorId,
-                policy_id: policies[0].id,
-                payment_id: paymentId,
-                proof_hash: proofData.proof_hash,
-                amount_range_min: proofData.amount_range_min / 1_000_000,
-                amount_range_max: proofData.amount_range_max / 1_000_000,
-                token_mint: compiled.data.token_whitelist[0] ?? 'usd',
-                is_compliant: proofData.is_compliant,
-                verified_at: proofData.verification_timestamp,
-              });
-
-              // 4. Verify proof on-chain via Solana Verifier program
-              setProvingStatus('Verifying proof on Solana Devnet...');
-              await new Promise(r => setTimeout(r, 0));
-              let solanaTxSig = '';
-
-              const proofA = Uint8Array.from(Buffer.from(proofData.groth16.proof_a, 'base64'));
-              const proofB = Uint8Array.from(Buffer.from(proofData.groth16.proof_b, 'base64'));
-              const proofC = Uint8Array.from(Buffer.from(proofData.groth16.proof_c, 'base64'));
-              const publicInputs = proofData.groth16.public_inputs.map(
-                (b64: string) => Uint8Array.from(Buffer.from(b64, 'base64'))
-              );
-
-              await new Promise(r => setTimeout(r, 0));
-
-              const [operatorPDA] = deriveOperatorPDA(publicKey);
-              const policyIdBytes = await sha256Bytes(policies[0].id);
-              const [policyPDA] = derivePolicyPDA(operatorPDA, policyIdBytes);
-
-              const verifyIx = buildVerifyPaymentProofV2Ix(
-                publicKey,
-                publicKey,
-                policyPDA,
-                proofA,
-                proofB,
-                proofC,
-                publicInputs,
-              );
-
-              const tx = new Transaction().add(verifyIx);
-              tx.feePayer = publicKey;
-              const { blockhash } = await connection.getLatestBlockhash();
-              tx.recentBlockhash = blockhash;
-
-              solanaTxSig = await sendTransaction(tx, connection);
-              setProvingStatus('Confirming Solana transaction...');
-              await connection.confirmTransaction(solanaTxSig, 'confirmed');
-
-              // 5. Save tx_signature to backend
-              if (solanaTxSig) {
-                const proofRes = await complianceApi.getProofByPayment(paymentId);
-                if (proofRes.data) {
-                  await complianceApi.updateProofTxSignature(proofRes.data.id, solanaTxSig);
-                }
-              }
-
-              const enrichedResult = {
-                ...result,
-                payment: {
-                  ...result.payment,
-                  zkProofHash: proofData.proof_hash as string,
-                  solanaTxSignature: solanaTxSig || null,
-                },
-              };
-              setMppResult(enrichedResult);
-              await fetchProofs();
-              return;
-            }
-          }
-        }
+      const { error: stripeError, paymentIntent } =
+        await stripeRef.current.confirmCardPayment(mppChallenge.stripe.clientSecret, {
+          payment_method: { card: cardElementRef.current },
+        });
+      if (stripeError) {
+        setMppError(stripeError.message ?? 'Stripe declined the card');
+        setMppStatus(null);
+        return;
+      }
+      if (!paymentIntent || paymentIntent.status !== 'succeeded') {
+        setMppError(`Stripe PaymentIntent status: ${paymentIntent?.status ?? 'unknown'}`);
+        setMppStatus(null);
+        return;
       }
 
+      const result = await completeMppFlow<unknown>({
+        connection,
+        publicKey,
+        sendTransaction,
+        operatorId,
+        endpoint: mppEndpoint,
+        challenge: mppChallenge,
+        paymentIntentId: paymentIntent.id,
+        onStatus: (msg) => setMppStatus(msg),
+      });
       setMppResult(result);
       if (!result.success) {
-        setError(result.error ?? 'MPP payment failed');
+        setMppError(result.error ?? 'MPP flow failed');
+      } else {
+        setMppStatus(null);
+        // Tear down the card element so a re-run starts a new challenge
+        cardElementRef.current?.destroy();
+        cardElementRef.current = null;
+        stripeElementsRef.current = null;
+        setMppChallenge(null);
+        setCardReady(false);
+        // Refresh the proof table so the new MPP ProofRecord shows up.
+        fetchProofs();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'MPP request failed');
+      setMppError(err instanceof Error ? err.message : 'MPP completion failed');
+      setMppStatus(null);
     } finally {
       setMppLoading(false);
-      setProvingStatus(null);
     }
   }
 
-  async function simulatePayment() {
-    if (!operatorId) return;
-    if (!publicKey) {
-      openWalletModal(true);
-      return;
-    }
-    setSimulating(true);
-    setSimResult(null);
-    setProvingStatus(null);
-    setError(null);
-    try {
-      setProvingStatus('Fetching policy...');
-      // 1. Fetch active policies and compile for circuit
-      const policiesRes = await policyApi.list(operatorId);
-      const policies = policiesRes.data;
-      if (policies.length === 0) {
-        setError('No active policies found. Create a policy first.');
-        setSimulating(false);
-        return;
-      }
-      const policy = policies[0];
-      const compiled = await policyApi.compile(policy.id);
-      if (!compiled.data) {
-        setError('Failed to compile policy for circuit.');
-        setSimulating(false);
-        return;
-      }
-
-      const paymentId = `pay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const paymentAmount = 1_000_000 + Math.floor(Math.random() * 4_000_000); // 1-5 USDC in lamports
-
-      // 2. Send to real Circom prover-service (proof lands in ~500 ms)
-      setProvingStatus('Generating ZK proof... this may take several minutes on CPU');
-
-      // Use AbortController with 10 minute timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 600_000);
-
-      const proveRes = await fetch(`${config.proverServiceUrl}/prove`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-        body: JSON.stringify({
-          policy_id: compiled.data.policy_id,
-          operator_id: compiled.data.operator_id,
-          max_daily_spend_lamports: parseInt(compiled.data.max_daily_spend_lamports, 10),
-          max_per_transaction_lamports: parseInt(compiled.data.max_per_transaction_lamports, 10),
-          allowed_endpoint_categories: compiled.data.allowed_endpoint_categories,
-          blocked_addresses: compiled.data.blocked_addresses,
-          token_whitelist: compiled.data.token_whitelist,
-          payment_amount_lamports: paymentAmount,
-          payment_token_mint: USDC_MINT,
-          payment_recipient: publicKey?.toBase58() ?? 'unknown',
-          payment_endpoint_category: compiled.data.allowed_endpoint_categories[0] ?? 'compute',
-          payment_timestamp: new Date().toISOString(),
-          daily_spent_so_far_lamports: 0,
-        }),
-      });
-      clearTimeout(timeoutId);
-
-      if (!proveRes.ok) {
-        const errBody = await proveRes.json().catch(() => ({ error: proveRes.statusText }));
-        throw new Error(errBody.error ?? `Prover service returned ${proveRes.status}`);
-      }
-
-      // Parse response -- yield to UI between heavy operations
-      const proofText = await proveRes.text();
-      await new Promise(r => setTimeout(r, 0)); // yield to render loop
-      const proofData = JSON.parse(proofText);
-
-      // 3. Submit proof record to compliance API
-      setProvingStatus('Submitting proof record...');
-      await new Promise(r => setTimeout(r, 0)); // yield to render loop
-      await complianceApi.submitProof({
-        operator_id: operatorId,
-        policy_id: policy.id,
-        payment_id: paymentId,
-        proof_hash: proofData.proof_hash,
-        amount_range_min: proofData.amount_range_min / 1_000_000,
-        amount_range_max: proofData.amount_range_max / 1_000_000,
-        token_mint: USDC_MINT,
-        is_compliant: proofData.is_compliant,
-        verified_at: proofData.verification_timestamp,
-      });
-
-      // 4. Verify proof on-chain via real Verifier program (verify_payment_proof)
-      setProvingStatus('Verifying proof on Solana...');
-      await new Promise(r => setTimeout(r, 0));
-      let txSig = '';
-      if (publicKey && sendTransaction) {
-        const proofA = Uint8Array.from(Buffer.from(proofData.groth16.proof_a, 'base64'));
-        const proofB = Uint8Array.from(Buffer.from(proofData.groth16.proof_b, 'base64'));
-        const proofC = Uint8Array.from(Buffer.from(proofData.groth16.proof_c, 'base64'));
-        const publicInputs = proofData.groth16.public_inputs.map(
-          (b64: string) => Uint8Array.from(Buffer.from(b64, 'base64'))
-        );
-
-        await new Promise(r => setTimeout(r, 0));
-
-        const [operatorPDA] = deriveOperatorPDA(publicKey);
-        const policyIdBytes = await sha256Bytes(policy.id);
-        const [policyPDA] = derivePolicyPDA(operatorPDA, policyIdBytes);
-
-        const verifyIx = buildVerifyPaymentProofV2Ix(
-          publicKey,
-          publicKey,
-          policyPDA,
-          proofA,
-          proofB,
-          proofC,
-          publicInputs
-        );
-
-        const tx = new Transaction().add(verifyIx);
-        tx.feePayer = publicKey;
-        const { blockhash } = await connection.getLatestBlockhash();
-        tx.recentBlockhash = blockhash;
-
-        txSig = await sendTransaction(tx, connection);
-        setProvingStatus('Confirming transaction...');
-        await connection.confirmTransaction(txSig, 'confirmed');
-      }
-
-      // Save tx_signature to backend
-      let proofRecordId = '';
-      if (txSig) {
-        const proofRes = await complianceApi.getProofByPayment(paymentId);
-        if (proofRes.data) {
-          await complianceApi.updateProofTxSignature(proofRes.data.id, txSig);
-          proofRecordId = proofRes.data.id;
-        }
-      }
-
-      // 5. Mint compressed attestation token via Light Protocol
-      let compressedTxSig: string | null = null;
-      if (proofRecordId && publicKey && proofData.is_compliant) {
-        try {
-          setProvingStatus('Minting compressed attestation via Light Protocol...');
-          await new Promise(r => setTimeout(r, 0));
-          const compressRes = await complianceApi.compressAttestation(
-            proofRecordId,
-            publicKey.toBase58()
-          );
-          if (compressRes.data) {
-            compressedTxSig = compressRes.data.tx_signature;
-          }
-        } catch {
-          // Light Protocol not configured or mint failed -- non-blocking
-        }
-      }
-
-      setSimResult({
-        message: compressedTxSig
-          ? 'ZK proof verified on-chain + compressed attestation minted'
-          : 'ZK proof verified on-chain',
-        txSig: txSig || null,
-        compressedTxSig,
-        proofHash: proofData.proof_hash,
-        provingTimeMs: proofData.proving_time_ms,
-        amountRangeMin: proofData.amount_range_min,
-        amountRangeMax: proofData.amount_range_max,
-        isCompliant: proofData.is_compliant,
-        receiptSize: proofData.receipt_bytes?.length ?? null,
-      });
-
-      // 6. Refresh proofs list
-      await fetchProofs();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Payment proof generation failed');
-    } finally {
-      setSimulating(false);
-      setProvingStatus(null);
-    }
-  }
 
   if (!operatorId) {
     return (
@@ -703,131 +551,10 @@ export function PaymentsTab() {
           <p className="text-amber-100/40 text-sm mt-1">
             Zero-knowledge proof records for processed payments</p>
         </div>
-        <button
-          onClick={simulatePayment}
-          disabled={simulating}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 text-black font-mono text-sm font-bold hover:bg-amber-400 disabled:opacity-50 transition-colors"
-        >
-          {simulating ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-          {simulating ? 'Proving...' : 'Payment'}
-        </button>
       </div>
 
-      {simulating && provingStatus && (
-        <div className="p-4 rounded-lg bg-amber-400/10 border border-amber-400/20 text-amber-400">
-          <div className="flex items-center gap-3">
-            <Loader2 className="w-5 h-5 animate-spin flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-sm font-medium">{provingStatus}</p>
-              <p className="text-xs text-amber-100/40 mt-0.5">
-                Production ZK proof generation may take up to 5 minutes on CPU
-              </p>
-            </div>
-            <span className="font-mono text-lg text-amber-400/80">{formatElapsed(elapsedSec)}</span>
-          </div>
-          <div className="flex items-center gap-2 mt-3">
-            {['Fetching policy', 'Generating ZK proof', 'Submitting record', 'Verifying on Solana', 'Confirming'].map((step) => {
-              const keywords = ['fetching', 'generating', 'submitting', 'verifying', 'confirming'];
-              const isCurrent = provingStatus.toLowerCase().includes(step.toLowerCase().split(' ')[0]);
-              const stepIndex = keywords.indexOf(step.toLowerCase().split(' ')[0]);
-              const currentIndex = keywords.findIndex(s => provingStatus.toLowerCase().includes(s));
-              const isDone = stepIndex < currentIndex;
-              return (
-                <div key={step} className="flex items-center gap-1">
-                  {isDone ? (
-                    <CheckCircle className="w-3 h-3 text-green-400" />
-                  ) : isCurrent ? (
-                    <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
-                  ) : (
-                    <div className="w-3 h-3 rounded-full border border-amber-400/30" />
-                  )}
-                  <span className={`text-xs ${isDone ? 'text-green-400' : isCurrent ? 'text-amber-400' : 'text-amber-100/50'}`}>
-                    {step}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {simResult && !provingStatus && (
-        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-green-400/20 rounded-xl p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <CheckCircle className="w-5 h-5 text-green-400" />
-            <span className="text-sm font-semibold text-green-400">{simResult.message}</span>
-            {simResult.isCompliant !== null && (
-              <span className="px-2 py-0.5 rounded-full bg-green-400/10 text-green-400 text-xs font-medium">
-                Compliant: {simResult.isCompliant ? 'Yes' : 'No'}
-              </span>
-            )}
-            {simResult.receiptSize !== null && simResult.receiptSize > 1000 && (
-              <span className="px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-400 text-xs font-medium ml-auto">
-                Production ZK Proof
-              </span>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-3 text-xs">
-            {simResult.proofHash && (
-              <div className="col-span-2">
-                <span className="text-amber-100/40">ZK Proof Hash</span>
-                <p className="text-amber-400 font-mono mt-0.5 break-all">{simResult.proofHash}</p>
-              </div>
-            )}
-            {simResult.txSig && (
-              <div>
-                <span className="text-amber-100/40">Transaction</span>
-                <a
-                  href={config.txExplorerUrl(simResult.txSig)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-amber-400 hover:text-amber-300 font-mono mt-0.5"
-                >
-                  {simResult.txSig.slice(0, 20)}...
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-            )}
-            {simResult.compressedTxSig && (
-              <div>
-                <span className="text-amber-100/40">Compressed Attestation</span>
-                <a
-                  href={config.txExplorerUrl(simResult.compressedTxSig)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-green-400 font-mono mt-0.5 hover:underline"
-                >
-                  {simResult.compressedTxSig.slice(0, 20)}...
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-            )}
-            {simResult.provingTimeMs !== null && (
-              <div>
-                <span className="text-amber-100/40">Proving Time</span>
-                <p className="text-amber-100 font-mono mt-0.5">{formatProvingTime(simResult.provingTimeMs)}</p>
-              </div>
-            )}
-            {simResult.receiptSize !== null && (
-              <div>
-                <span className="text-amber-100/40">Receipt</span>
-                <p className="text-amber-100 font-mono mt-0.5">{formatBytes(simResult.receiptSize)} cryptographic receipt</p>
-              </div>
-            )}
-            {simResult.amountRangeMin !== null && simResult.amountRangeMax !== null && (
-              <div>
-                <span className="text-amber-100/40">Amount Range</span>
-                <p className="text-amber-100 font-mono mt-0.5">
-                  {(simResult.amountRangeMin / 1_000_000).toFixed(2)} - {(simResult.amountRangeMax / 1_000_000).toFixed(2)} USDC
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Transfer Hook Test (collapsible) */}
-      {config.tokens.vUSDC && (
+      {config.tokens.aUSDC && (
         <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl">
           <button
             onClick={() => setShowHookTest(!showHookTest)}
@@ -836,7 +563,7 @@ export function PaymentsTab() {
             <div className="flex items-center gap-3">
               <ShieldCheck className="w-4 h-4 text-amber-400" />
               <span className="text-sm font-semibold text-amber-100">Transfer Hook Test</span>
-              <span className="text-xs text-amber-100/50">vUSDC compliance enforcement</span>
+              <span className="text-xs text-amber-100/50">aUSDC compliance enforcement</span>
             </div>
             <ChevronDown className={`w-4 h-4 text-amber-100/40 transition-transform ${showHookTest ? 'rotate-180' : ''}`} />
           </button>
@@ -891,12 +618,12 @@ export function PaymentsTab() {
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-3 p-4 rounded-lg bg-red-400/10 border border-red-400/20 text-red-400">
-          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-          <p className="text-sm">{error}</p>
+        <div className="flex items-start gap-3 p-4 rounded-lg bg-red-400/10 border border-red-400/20 text-red-400">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <pre className="text-xs whitespace-pre-wrap break-words flex-1 font-mono">{error}</pre>
           <button
             onClick={() => setError(null)}
-            className="ml-auto"
+            className="ml-auto flex-shrink-0"
             aria-label="Dismiss error"
           >
             <X className="w-4 h-4" />
@@ -1122,116 +849,207 @@ export function PaymentsTab() {
               </div>
             )}
 
-            {x402Result.success && x402Result.data && (
+            {x402Result.success && x402Result.data ? (
               <div className="p-4 rounded-lg bg-amber-400/5 border border-amber-400/10">
                 <span className="text-xs text-amber-100/40 block mb-2">Compliance Report</span>
                 <pre className="text-xs text-amber-100 font-mono overflow-x-auto max-h-64 overflow-y-auto whitespace-pre-wrap">
                   {JSON.stringify(x402Result.data, null, 2)}
                 </pre>
               </div>
-            )}
+            ) : null}
+
+            {!x402Result.success && x402Result.error ? (
+              <div className="p-4 rounded-lg bg-red-400/10 border border-red-400/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <XCircle className="w-4 h-4 text-red-400" />
+                  <span className="text-sm font-medium text-red-400">x402 flow failed</span>
+                </div>
+                <pre className="text-xs text-red-300 font-mono whitespace-pre-wrap break-words">
+                  {x402Result.error}
+                </pre>
+              </div>
+            ) : null}
           </div>
         )}
       </div>
 
-      {/* MPP Protected Report */}
+      {/* MPP Protected Service (B-flow with full Stripe Elements + on-chain ZK) */}
       <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-purple-400/20 rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg font-semibold text-amber-100">MPP Protected Report</h3>
+            <h3 className="text-lg font-semibold text-amber-100">MPP Protected Service</h3>
             <p className="text-xs text-amber-100/40 mt-0.5">
-              Access compliance reports via Machine Payments Protocol ($0.50 Stripe)
+              Stripe-backed HTTP 402 paywall with on-chain ZK proof verification ($1.00)
             </p>
           </div>
-          <button
-            onClick={accessMPPReport}
-            disabled={mppLoading}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold
-              bg-purple-500 text-white hover:bg-purple-400
-              disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {mppLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-            {mppLoading ? 'Processing MPP payment...' : 'Access MPP Report'}
-          </button>
+          {!mppChallenge && (
+            <button
+              onClick={startMppFlow}
+              disabled={
+                mppLoading ||
+                !publicKey ||
+                !sendTransaction ||
+                !mppPublicConfig?.stripe.publishableKey
+              }
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold
+                bg-purple-500 text-black hover:bg-purple-400
+                disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {mppLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+              {mppLoading ? 'Starting…' : 'Access MPP Service'}
+            </button>
+          )}
         </div>
 
-        {mppLoading && provingStatus && (
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-purple-400/10 border border-purple-400/20 text-purple-400 mb-4">
-            <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-xs font-medium">{provingStatus}</p>
-              <p className="text-xs text-amber-100/50 mt-0.5">MPP 402 challenge/credential flow with ZK proof</p>
+        {!mppPublicConfig?.stripe.publishableKey && (
+          <div className="p-3 rounded-lg bg-amber-400/5 border border-amber-400/20 text-amber-100/60 text-xs mb-3">
+            Stripe publishable key not configured on the compliance-api. Set
+            <code className="mx-1 text-amber-400">STRIPE_PUBLISHABLE_KEY</code>
+            in the compliance-api environment and restart to enable this card.
+          </div>
+        )}
+
+        {mppChallenge && (
+          <div className="space-y-3">
+            <div className="p-4 rounded-lg bg-purple-400/5 border border-purple-400/20">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm font-medium text-purple-300">
+                  Stripe PaymentIntent: ${mppChallenge.request.amount} {mppChallenge.request.currency.toUpperCase()}
+                </div>
+                <div className="text-xs text-amber-100/40 font-mono">
+                  {truncateAddress(mppChallenge.stripe.paymentIntentId, 6)}
+                </div>
+              </div>
+              <p className="text-xs text-amber-100/50 mb-3">
+                Test mode: use <code className="text-amber-400">4242 4242 4242 4242</code>, any future expiry, any CVC, any ZIP.
+              </p>
+              <div
+                ref={cardMountRef}
+                className="p-3 rounded bg-[rgba(0,0,0,0.5)] border border-amber-400/10 min-h-[42px]"
+              />
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={confirmMppCardAndComplete}
+                  disabled={mppLoading || !cardReady}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold
+                    bg-purple-500 text-black hover:bg-purple-400
+                    disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {mppLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                  {mppLoading ? 'Processing…' : `Pay $${mppChallenge.request.amount}`}
+                </button>
+                <button
+                  onClick={() => {
+                    cardElementRef.current?.destroy();
+                    cardElementRef.current = null;
+                    stripeElementsRef.current = null;
+                    setMppChallenge(null);
+                    setMppEndpoint(null);
+                    setMppStatus(null);
+                    setCardReady(false);
+                  }}
+                  disabled={mppLoading}
+                  className="px-4 py-2 rounded-lg text-sm font-medium
+                    bg-amber-100/5 text-amber-100/60 border border-amber-400/20
+                    hover:bg-amber-100/10 disabled:opacity-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
-            <span className="font-mono text-sm text-purple-400/80">{formatElapsed(elapsedSec)}</span>
+          </div>
+        )}
+
+        {mppStatus && (
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-purple-400/10 border border-purple-400/20 text-purple-300 mt-3">
+            <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+            <p className="text-xs">{mppStatus}</p>
+          </div>
+        )}
+
+        {mppError && (
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-red-400/10 border border-red-400/20 text-red-400 mt-3">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <pre className="text-xs whitespace-pre-wrap break-words flex-1 font-mono">{mppError}</pre>
+            <button onClick={() => setMppError(null)} aria-label="Dismiss MPP error">
+              <X className="w-4 h-4" />
+            </button>
           </div>
         )}
 
         {mppResult && (
-          <div className="space-y-3">
+          <div className="space-y-3 mt-3">
             {mppResult.payment && (
-              <div className="p-4 rounded-lg bg-purple-400/5 border border-purple-400/10">
+              <div className="p-4 rounded-lg bg-green-400/5 border border-green-400/10">
                 <div className="flex items-center gap-2 mb-3">
-                  <CheckCircle className="w-4 h-4 text-purple-400" />
-                  <span className="text-sm font-medium text-purple-400">MPP Payment verified</span>
-                  <span className="px-2 py-0.5 rounded-full bg-purple-400/10 text-purple-400 text-xs font-medium">
-                    MPP Payment
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                  <span className="text-sm font-medium text-green-400">
+                    Stripe charged + on-chain MPP proof verified
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
-                    <span className="text-amber-100/40">Stripe PaymentIntent</span>
-                    <p className="text-purple-400 font-mono mt-0.5">
-                      {mppResult.payment.paymentIntentId}
-                    </p>
+                    <span className="text-amber-100/40">Stripe PI</span>
+                    <a
+                      href={getStripeDashboardUrl(
+                        mppResult.payment.stripePaymentIntent,
+                        mppPublicConfig?.stripe.isTestMode ?? true,
+                      )}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-purple-400 hover:text-purple-300 font-mono mt-0.5"
+                      title="View on Stripe Dashboard"
+                    >
+                      {truncateAddress(mppResult.payment.stripePaymentIntent, 6)}
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
                   </div>
                   <div>
                     <span className="text-amber-100/40">Amount</span>
-                    <p className="text-amber-100 font-mono mt-0.5">
-                      ${mppResult.payment.amount} {mppResult.payment.currency.toUpperCase()}
-                    </p>
+                    <p className="text-amber-100 font-mono mt-0.5">{mppResult.payment.amount}</p>
                   </div>
-                  {mppResult.payment.solanaTxSignature && (
-                    <div>
-                      <span className="text-amber-100/40">Solana TX</span>
-                      <a
-                        href={config.txExplorerUrl(mppResult.payment.solanaTxSignature)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-purple-400 hover:text-purple-300 font-mono mt-0.5"
-                      >
-                        {truncateAddress(mppResult.payment.solanaTxSignature, 8)}
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                  )}
                   <div>
-                    <span className="text-amber-100/40">Protocol</span>
-                    <p className="text-amber-100 font-mono mt-0.5">MPP (Machine Payments Protocol)</p>
+                    <span className="text-amber-100/40">Solana TX</span>
+                    <a
+                      href={config.txExplorerUrl(mppResult.payment.txSignature)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-purple-400 hover:text-purple-300 font-mono mt-0.5"
+                    >
+                      {truncateAddress(mppResult.payment.txSignature, 8)}
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                  <div>
+                    <span className="text-amber-100/40">ProofRecord PDA</span>
+                    <a
+                      href={config.explorerUrl(mppResult.payment.proofRecordPda)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-purple-400 hover:text-purple-300 font-mono mt-0.5"
+                    >
+                      {truncateAddress(mppResult.payment.proofRecordPda, 8)}
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
                   </div>
                   <div className="col-span-2">
-                    <span className="text-amber-100/40">ZK Proof Hash</span>
-                    <p className="text-purple-400 font-mono mt-0.5 text-xs break-all">
-                      {mppResult.payment.zkProofHash ?? 'No active policy found - create a policy first'}
+                    <span className="text-amber-100/40">Poseidon Receipt Hash</span>
+                    <p className="text-purple-300 font-mono mt-0.5 text-xs break-all">
+                      {mppResult.payment.poseidonHash}
                     </p>
                   </div>
                 </div>
               </div>
             )}
 
-            {mppResult.success && mppResult.data && (
+            {mppResult.success && mppResult.data ? (
               <div className="p-4 rounded-lg bg-amber-400/5 border border-amber-400/10">
-                <span className="text-xs text-amber-100/40 block mb-2">Compliance Report (MPP)</span>
+                <span className="text-xs text-amber-100/40 block mb-2">Unlocked MPP Service Response</span>
                 <pre className="text-xs text-amber-100 font-mono overflow-x-auto max-h-64 overflow-y-auto whitespace-pre-wrap">
                   {JSON.stringify(mppResult.data, null, 2)}
                 </pre>
               </div>
-            )}
-
-            {!mppResult.success && mppResult.error && (
-              <div className="p-3 rounded-lg bg-red-400/10 border border-red-400/20 text-red-400 text-sm">
-                {mppResult.error}
-              </div>
-            )}
+            ) : null}
           </div>
         )}
       </div>

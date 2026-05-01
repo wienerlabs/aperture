@@ -20,6 +20,8 @@ interface OverviewData {
   readonly policies: readonly Policy[];
 }
 
+const REFRESH_INTERVAL_MS = 5_000;
+
 export function OverviewTab({ onNavigate }: { onNavigate: (tab: string) => void }) {
   const operatorId = useOperatorId();
   const { publicKey } = useWallet();
@@ -49,30 +51,37 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: string) => void 
     }
   }, [walletAddress]);
 
-  const fetchData = useCallback(async () => {
-    if (!operatorId) return;
-    setLoading(true);
-    try {
-      const [proofsRes, attestationsRes, policiesRes] = await Promise.all([
-        complianceApi.listProofsByOperator(operatorId, 1, 5),
-        complianceApi.listAttestations(operatorId, 1, 5),
-        policyApi.list(operatorId, 1, 5),
-      ]);
-      setData({
-        proofs: proofsRes.data,
-        totalProofs: proofsRes.pagination.total,
-        attestations: attestationsRes.data,
-        totalAttestations: attestationsRes.pagination.total,
-        policies: policiesRes.data,
-      });
-    } catch {
-      // Silently handle -- individual sections show empty states
-    } finally {
-      setLoading(false);
-    }
-  }, [operatorId]);
+  const fetchData = useCallback(
+    async (showSpinner = false) => {
+      if (!operatorId) return;
+      if (showSpinner) setLoading(true);
+      try {
+        const [proofsRes, attestationsRes, policiesRes] = await Promise.all([
+          complianceApi.listProofsByOperator(operatorId, 1, 5),
+          complianceApi.listAttestations(operatorId, 1, 5),
+          policyApi.list(operatorId, 1, 5),
+        ]);
+        setData({
+          proofs: proofsRes.data,
+          totalProofs: proofsRes.pagination.total,
+          attestations: attestationsRes.data,
+          totalAttestations: attestationsRes.pagination.total,
+          policies: policiesRes.data,
+        });
+      } catch {
+        // Silently handle -- individual sections show empty states
+      } finally {
+        if (showSpinner) setLoading(false);
+      }
+    },
+    [operatorId]
+  );
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData(true);
+    const interval = setInterval(() => fetchData(false), REFRESH_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [fetchData]);
 
   function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -367,11 +376,21 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: string) => void 
                 </div>
               </div>
               <div className="flex gap-1.5">
-                {activePolicy.token_whitelist.map(t => (
-                  <span key={t} className="px-2 py-0.5 rounded bg-amber-400/10 text-amber-400 text-xs font-mono">
-                    {t === '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU' ? 'USDC' : t === 'EJwZgeZrdC8TXTQbQBoL6bfuAnFUQS7QEkCybt4rCxsT' ? 'USDT' : truncateAddress(t, 4)}
-                  </span>
-                ))}
+                {activePolicy.token_whitelist.map((t) => {
+                  const label =
+                    config.tokens.aUSDC && t === config.tokens.aUSDC
+                      ? 'aUSDC'
+                      : config.tokens.usdc && t === config.tokens.usdc
+                        ? 'USDC'
+                        : config.tokens.usdt && t === config.tokens.usdt
+                          ? 'USDT'
+                          : truncateAddress(t, 4);
+                  return (
+                    <span key={t} className="px-2 py-0.5 rounded bg-amber-400/10 text-amber-400 text-xs font-mono">
+                      {label}
+                    </span>
+                  );
+                })}
               </div>
               <button onClick={() => onNavigate('policies')}
                 className="text-xs text-amber-400 hover:text-amber-300 transition-colors">

@@ -11,6 +11,7 @@ import {
   buildVerifyPaymentProofV2Ix,
   deriveOperatorPDA,
   derivePolicyPDA,
+  readEffectiveDailySpentLamports,
   sha256Bytes,
 } from '@/lib/anchor-instructions';
 import { truncateAddress } from '@/lib/utils';
@@ -244,6 +245,16 @@ export function AIPAgentsTab() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 600_000);
 
+      // The AIP task call is itself an x402-style payment from this wallet to
+      // the agent's authority. Mint MUST be aUSDC so the transfer-hook fires
+      // — anything else silently bypasses the on-chain compliance gate.
+      const ausdcMint = config.tokens.aUSDC;
+      if (!ausdcMint) {
+        throw new Error('NEXT_PUBLIC_AUSDC_MINT not configured');
+      }
+      const dailySpentBeforeLamports = (
+        await readEffectiveDailySpentLamports(connection, publicKey)
+      ).toString();
       const proveRes = await fetch(`${config.proverServiceUrl}/prove`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -256,12 +267,13 @@ export function AIPAgentsTab() {
           allowed_endpoint_categories: compiled.data.allowed_endpoint_categories,
           blocked_addresses: compiled.data.blocked_addresses,
           token_whitelist: compiled.data.token_whitelist,
+          time_restrictions: compiled.data.time_restrictions ?? [],
           payment_amount_lamports: amountLamports,
-          payment_token_mint: compiled.data.token_whitelist[0] ?? '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
+          payment_token_mint: ausdcMint,
           payment_recipient: selectedAgent.authority,
           payment_endpoint_category: compiled.data.allowed_endpoint_categories[0] ?? 'aip',
-          payment_timestamp: new Date().toISOString(),
-          daily_spent_so_far_lamports: 0,
+          daily_spent_before_lamports: dailySpentBeforeLamports,
+          current_unix_timestamp: Math.floor(Date.now() / 1000),
         }),
       });
       clearTimeout(timeoutId);
@@ -432,7 +444,10 @@ export function AIPAgentsTab() {
           agentResponse = 'Agent endpoint not reachable (task recorded with compliance proof)';
         }
       } else {
-        agentResponse = 'Agent is on localhost (dev mode). Compliance proof recorded successfully.';
+        // No public endpoint registered for this AIP agent — only the
+        // on-chain compliance side ran. Surface that explicitly so the
+        // operator does not assume a downstream call happened.
+        agentResponse = 'AIP agent has no published endpoint. Compliance proof anchored on-chain; downstream task call skipped.';
       }
 
       setTaskResult({

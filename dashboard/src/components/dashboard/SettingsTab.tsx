@@ -19,6 +19,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { config } from '@/lib/config';
 import { truncateAddress } from '@/lib/utils';
 import { Keypair, PublicKey } from '@solana/web3.js';
+import { AgentStripeCard } from './AgentStripeCard';
 
 interface MultisigInfo {
   readonly address: string;
@@ -341,6 +342,9 @@ export function SettingsTab() {
           )}
         </div>
       </div>
+
+      {/* Agent Stripe Configuration */}
+      <AgentStripeCard operatorId={operatorId} />
 
       {/* API Configuration */}
       <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6">

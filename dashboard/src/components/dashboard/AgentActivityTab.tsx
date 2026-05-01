@@ -128,7 +128,14 @@ export function AgentActivityTab() {
     setActionLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${config.agentServiceUrl}/start`, { method: 'POST' });
+      const res = await fetch(`${config.agentServiceUrl}/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // Pass the connected wallet so agent-side DB records (proof_records,
+        // attestations) are tagged with this operator_id and surface in the
+        // dashboard's Compliance / Overview tabs which filter by operator_id.
+        body: JSON.stringify({ operator_id: operatorId }),
+      });
       const body = await res.json();
       if (!res.ok || !body.success) {
         throw new Error(body.error ?? `HTTP ${res.status}`);
@@ -232,37 +239,37 @@ export function AgentActivityTab() {
               <Activity className="w-4 h-4 text-amber-400" />
               <span className="text-xs text-amber-100/40">Sessions</span>
             </div>
-            <p className="text-xl font-bold text-amber-100 font-mono">{stats.totalSessions}</p>
+            <p className="text-xl font-bold text-amber-100 font-mono">{stats?.totalSessions ?? 0}</p>
           </div>
           <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <Zap className="w-4 h-4 text-amber-400" />
               <span className="text-xs text-amber-100/40">x402</span>
             </div>
-            <p className="text-xl font-bold text-amber-100 font-mono">{stats.totalX402}</p>
-            <p className="text-xs text-amber-100/50 mt-0.5">{stats.totalUsdcSpent.toFixed(2)} USDC</p>
+            <p className="text-xl font-bold text-amber-100 font-mono">{stats?.totalX402 ?? 0}</p>
+            <p className="text-xs text-amber-100/50 mt-0.5">{(stats?.totalUsdcSpent ?? 0).toFixed(2)} USDC</p>
           </div>
           <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-purple-400/20 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <Zap className="w-4 h-4 text-purple-400" />
               <span className="text-xs text-amber-100/40">MPP</span>
             </div>
-            <p className="text-xl font-bold text-amber-100 font-mono">{stats.totalMpp}</p>
-            <p className="text-xs text-amber-100/50 mt-0.5">${stats.totalMppSpent.toFixed(2)}</p>
+            <p className="text-xl font-bold text-amber-100 font-mono">{stats?.totalMpp ?? 0}</p>
+            <p className="text-xs text-amber-100/50 mt-0.5">${(stats?.totalMppSpent ?? 0).toFixed(2)}</p>
           </div>
           <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-green-400/20 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <ShieldCheck className="w-4 h-4 text-green-400" />
               <span className="text-xs text-amber-100/40">ZK Proofs</span>
             </div>
-            <p className="text-xl font-bold text-amber-100 font-mono">{stats.totalProofs}</p>
+            <p className="text-xl font-bold text-amber-100 font-mono">{stats?.totalProofs ?? 0}</p>
           </div>
           <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-red-400/20 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <XCircle className="w-4 h-4 text-red-400" />
               <span className="text-xs text-amber-100/40">Violations</span>
             </div>
-            <p className="text-xl font-bold text-amber-100 font-mono">{stats.totalViolations}</p>
+            <p className="text-xl font-bold text-amber-100 font-mono">{stats?.totalViolations ?? 0}</p>
           </div>
         </div>
       )}
