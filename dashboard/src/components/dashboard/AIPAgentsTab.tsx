@@ -339,14 +339,18 @@ export function AIPAgentsTab() {
       setProvingStatus('Recording compliance proof...');
       const paymentId = `aip-${selectedAgent.agentId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
+      // amount_range_{min,max} mirror the actual transfer amount; the
+      // prover doesn't return them as separate fields anymore (they used
+      // to be bucketed; now the proof commits the exact value).
+      const amountInTokens = amountLamports / 1_000_000;
       await complianceApi.submitProof({
         operator_id: operatorId,
         policy_id: policy.id,
         payment_id: paymentId,
         proof_hash: proofData.proof_hash,
-        amount_range_min: proofData.amount_range_min / 1_000_000,
-        amount_range_max: proofData.amount_range_max / 1_000_000,
-        token_mint: compiled.data.token_whitelist[0] ?? 'usdc',
+        amount_range_min: amountInTokens,
+        amount_range_max: amountInTokens,
+        token_mint: sentinelMint,
         is_compliant: proofData.is_compliant,
         verified_at: proofData.verification_timestamp,
       });
