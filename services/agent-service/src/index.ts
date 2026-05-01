@@ -43,28 +43,19 @@ const agentConfig: AgentConfig = {
   complianceApiUrl: process.env.COMPLIANCE_API_URL ?? 'http://localhost:3002',
   proverServiceUrl: process.env.PROVER_SERVICE_URL ?? 'http://localhost:3003',
   stripeSecretKey: requireEnv('STRIPE_SECRET_KEY'),
-  // The transfer-hook only fires for vUSDC, so the agent must be pinned to
-  // the vUSDC mint explicitly via env. Refuse to start with an unset value
-  // because falling back to plain USDC would silently bypass compliance.
-  // The transfer-hook only fires for aUSDC (Aperture's Token-2022 mint with
-  // the compliance hook attached); the agent must be pinned to it explicitly.
-  // Refuse to start with an unset value because falling back to plain USDC
-  // would silently bypass on-chain compliance enforcement. Accepts either
-  // the new AUSDC_MINT[_ADDRESS] env or the legacy VUSDC_MINT[_ADDRESS] for
-  // backwards compatibility with .env files that pre-date the rebrand.
-  ausdcMint: (() => {
-    const v =
-      process.env.AUSDC_MINT ??
-      process.env.AUSDC_MINT_ADDRESS ??
-      process.env.VUSDC_MINT ??
-      process.env.VUSDC_MINT_ADDRESS;
-    if (!v) {
-      throw new Error(
-        'Set AUSDC_MINT_ADDRESS in .env (or VUSDC_MINT_ADDRESS as a legacy fallback). The agent refuses to start without an explicit aUSDC mint pin.',
-      );
-    }
-    return v;
-  })(),
+  // Optional fallback mint pin used as the MPP sentinel when the operator's
+  // policy whitelist is empty (extreme edge case). Compliance is enforced
+  // inside the verifier program for whatever mint the policy whitelists, so
+  // unsetting this no longer bypasses on-chain enforcement — the legacy
+  // pre-flight guard the agent used to refuse boot on is gone.
+  // Default points at the devnet aUSDC mint kept around for the legacy demo
+  // flow; mainnet deploys override via AUSDC_MINT_ADDRESS or set their own.
+  ausdcMint:
+    process.env.AUSDC_MINT_ADDRESS ??
+    process.env.AUSDC_MINT ??
+    process.env.VUSDC_MINT_ADDRESS ??
+    process.env.VUSDC_MINT ??
+    'E9Ab23WT97qHTmmWxEmHfWCmPsrQb77nJnAFFuDRfhar',
   // Optional Stripe off-session credentials. When either is unset the agent
   // skips its MPP cycle instead of failing — provisioning the customer +
   // payment method is a manual one-time SCA flow the operator does outside
