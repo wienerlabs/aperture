@@ -11,16 +11,12 @@ import {
   Loader2,
   AlertTriangle,
   X,
-  CheckCircle,
-  XCircle,
-  Copy,
   ShieldCheck,
   ShieldX,
   ExternalLink,
-  ChevronDown,
 } from 'lucide-react';
 import { complianceApi, policyApi, type ProofRecord } from '@/lib/api';
-import { truncateAddress, formatDate, formatAmount } from '@/lib/utils';
+import { truncateAddress } from '@/lib/utils';
 import {
   buildVerifyPaymentProofV2Ix,
   deriveOperatorPDA,
@@ -28,11 +24,6 @@ import {
   readEffectiveDailySpentLamports,
   sha256Bytes,
 } from '@/lib/anchor-instructions';
-import {
-  getProofRecordCostComparison,
-  lamportsToSol,
-  isLightProtocolConfigured,
-} from '@/lib/light-protocol';
 import { fetchWithX402, type X402Result } from '@/lib/x402-client';
 import {
   completeMppFlow,
@@ -45,6 +36,19 @@ import {
 } from '@/lib/mpp-client';
 import { loadStripe, type Stripe, type StripeElements, type StripeCardElement } from '@stripe/stripe-js';
 import { useApertureWalletModal } from '@/components/shared/WalletModal';
+import { useTxModal } from '@/components/providers/TxModalProvider';
+import {
+  makeFromParticipant,
+  makeToParticipant,
+} from '@/components/shared/TxModal';
+import { Receipt, Banknote, ShieldHalf, Wallet, Sparkles, Zap } from 'lucide-react';
+import { PaymentStatsRow } from './payments/PaymentStatsRow';
+import { PaymentMethodCard } from './payments/PaymentMethodCard';
+import { PaymentResultPanel } from './payments/PaymentResultPanel';
+import { ProofTable } from './payments/ProofTable';
+import { CollapsibleSection } from './payments/CollapsibleSection';
+import { CompressionSavingsCard } from './payments/CompressionSavingsCard';
+import type { EligibilityState } from './payments/EligibilityChecklist';
 
 function formatElapsed(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -59,27 +63,16 @@ const TOKEN_2022_PROGRAM_ID = new PublicKey(
   'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
 );
 
-function getTokenLabel(mint: string): string {
-  if (config.tokens.usdc && mint === config.tokens.usdc) return 'USDC';
-  if (config.tokens.usdt && mint === config.tokens.usdt) return 'USDT';
-  if (config.tokens.aUSDC && mint === config.tokens.aUSDC) return 'aUSDC';
-  if (mint.toLowerCase() === 'usd') return 'USD';
-  return truncateAddress(mint, 4);
-}
-
-
-
 export function PaymentsTab() {
   const operatorId = useOperatorId();
   const { publicKey, sendTransaction } = useWallet();
   const { connection } = useConnection();
   const { setVisible: openWalletModal } = useApertureWalletModal();
+  const tx = useTxModal();
 
   const [proofs, setProofs] = useState<readonly ProofRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [expandedHash, setExpandedHash] = useState<string | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [elapsedSec, setElapsedSec] = useState(0);
   const [x402Loading, setX402Loading] = useState(false);
   const [showHookTest, setShowHookTest] = useState(false);
@@ -139,16 +132,6 @@ export function PaymentsTab() {
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [isTimerActive]);
-
-  async function copyToClipboard(text: string, id: string): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedId(id);
-      setTimeout(() => setCopiedId(null), 2000);
-    } catch {
-      // Clipboard API may not be available in all contexts
-    }
-  }
 
   async function testTransferHook(withProof: boolean) {
     if (!publicKey || !sendTransaction) return;
@@ -378,6 +361,32 @@ export function PaymentsTab() {
     setX402Loading(true);
     setX402Result(null);
     setError(null);
+
+    // 1 USDC by default for the protected report — matches the
+    // compliance-api's PUBLISHER_AMOUNT_LAMPORTS env. We seed the modal with
+    // this expected shape; the real txSignature lands when the x402 client
+    // returns.
+    const tokenSymbol = 'USDC';
+    const expectedLamports = 1_000_000n;
+    const fromParticipant = makeFromParticipant({
+      walletPubkey: publicKey.toBase58(),
+      tokenSymbol,
+      amountLamports: expectedLamports,
+    });
+    const toParticipant = makeToParticipant({
+      treasuryPubkey: config.publisherWallet,
+      tokenSymbol,
+      amountLamports: expectedLamports,
+      resourceLabel: 'x402 Compliance Report',
+    });
+
+    tx.show({
+      status: 'pending',
+      from: fromParticipant,
+      to: toParticipant,
+      footnote: 'Generating Groth16 proof with snarkjs…',
+    });
+
     try {
       const endpoint = `${config.complianceApiUrl}/api/v1/compliance/protected-report?operator_id=${operatorId}`;
       const result = await fetchWithX402(
@@ -389,13 +398,21 @@ export function PaymentsTab() {
       setX402Result(result);
       if (!result.success) {
         setError(result.error ?? 'x402 payment failed');
+        tx.update({
+          status: 'error',
+          errorMessage: result.error ?? 'x402 payment failed',
+        });
+      } else {
+        tx.update({
+          status: 'success',
+          txSignature: result.payment?.txSignature ?? null,
+        });
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'x402 request failed';
       setError(message);
-      // Mirror to x402Result so the failure card renders next to the x402
-      // button — operators tend to look there, not at the page-top error.
       setX402Result({ success: false, data: null, error: message, payment: null });
+      tx.update({ status: 'error', errorMessage: message });
     } finally {
       setX402Loading(false);
     }
@@ -535,407 +552,302 @@ export function PaymentsTab() {
 
   if (!operatorId) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-amber-100/40">
-        <FileText className="w-12 h-12 mb-4" />
-        <p className="text-lg">Connect your wallet to view payments</p>
+      <div className="ap-card p-12 flex flex-col items-center text-center gap-3">
+        <span className="inline-flex h-12 w-12 items-center justify-center rounded-pill bg-aperture/15 text-aperture-dark">
+          <Wallet className="h-6 w-6" />
+        </span>
+        <h2 className="font-display text-[24px] tracking-[-0.012em] text-black">
+          Connect a wallet to view payments
+        </h2>
+        <p className="text-[14px] text-black/55 tracking-tighter max-w-md">
+          Aperture surfaces zero-knowledge proof records, x402 paywalled flows, and Stripe MPP
+          settlements per operator. Sign in or connect a wallet to continue.
+        </p>
       </div>
     );
   }
 
+  // ---- Eligibility checklists (computed inline for both cards) ----
+  const x402Checks: readonly { label: string; state: EligibilityState; hint?: string }[] = [
+    {
+      label: publicKey ? 'Wallet connected' : 'Connect wallet',
+      state: publicKey ? 'ready' : 'blocked',
+    },
+    {
+      label: x402Loading ? 'Generating proof' : 'Prover ready',
+      state: x402Loading ? 'pending' : 'ready',
+    },
+    { label: 'USDC treasury', state: 'ready', hint: 'Treasury wallet pinned in config' },
+  ];
+
+  const mppChecks: readonly { label: string; state: EligibilityState; hint?: string }[] = [
+    {
+      label: publicKey ? 'Wallet connected' : 'Connect wallet',
+      state: publicKey ? 'ready' : 'blocked',
+    },
+    {
+      label: mppPublicConfig?.stripe.publishableKey ? 'Stripe configured' : 'Stripe key missing',
+      state: mppPublicConfig?.stripe.publishableKey ? 'ready' : 'blocked',
+      hint: 'Set STRIPE_PUBLISHABLE_KEY on the compliance-api',
+    },
+    {
+      label: mppLoading ? 'Charging card' : 'Idle',
+      state: mppLoading ? 'pending' : 'ready',
+    },
+  ];
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-amber-100">Payments</h2>
-          <p className="text-amber-100/40 text-sm mt-1">
-            Zero-knowledge proof records for processed payments</p>
-        </div>
-      </div>
-
-      {/* Transfer Hook Test (collapsible) */}
-      {config.tokens.aUSDC && (
-        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl">
-          <button
-            onClick={() => setShowHookTest(!showHookTest)}
-            className="flex items-center justify-between w-full p-4 text-left"
-          >
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="w-4 h-4 text-amber-400" />
-              <span className="text-sm font-semibold text-amber-100">Transfer Hook Test</span>
-              <span className="text-xs text-amber-100/50">aUSDC compliance enforcement</span>
-            </div>
-            <ChevronDown className={`w-4 h-4 text-amber-100/40 transition-transform ${showHookTest ? 'rotate-180' : ''}`} />
-          </button>
-          {showHookTest && <div className="px-4 pb-4 pt-0">
-
-          <div className="flex items-center gap-3 mb-4">
-            <button
-              onClick={() => testTransferHook(false)}
-              disabled={hookTestingWithout || hookTestingWith || !publicKey}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold
-                bg-red-500/20 text-red-400 border border-red-400/30 hover:bg-red-500/30
-                disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {hookTestingWithout ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldX className="w-4 h-4" />}
-              Transfer Without Proof
-            </button>
-            <button
-              onClick={() => testTransferHook(true)}
-              disabled={hookTestingWithout || hookTestingWith || !publicKey}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold
-                bg-green-500/20 text-green-400 border border-green-400/30 hover:bg-green-500/30
-                disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {hookTestingWith ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-              Transfer With Proof
-            </button>
+      {/* Hero ribbon */}
+      <section
+        className="relative overflow-hidden rounded-[24px] border border-black/8 bg-white p-6 sm:p-8"
+        style={{ boxShadow: 'var(--shadow-card)' }}
+      >
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              'radial-gradient(ellipse 50% 80% at 95% 10%, rgba(248,179,0,0.18) 0%, rgba(248,179,0,0) 65%)',
+          }}
+        />
+        <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+          <div className="flex flex-col gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-pill bg-aperture/15 px-2.5 py-1 text-[11px] font-medium tracking-tighter text-aperture-dark w-fit">
+              <Receipt className="h-3 w-3" />
+              Payments &amp; Proof Records
+            </span>
+            <h1 className="font-display text-[36px] sm:text-[44px] leading-[1.04] tracking-[-0.012em] text-black">
+              Atomic verify + transfer
+            </h1>
+            <p className="text-[14px] text-black/55 tracking-tighter max-w-2xl">
+              Run an x402 paywalled flow or MPP Stripe settlement, then watch the proof land
+              on Devnet. Every transfer is gated by the verifier program before settlement.
+            </p>
           </div>
-
-          {hookResult && (
-            <div className={`p-3 rounded-lg text-sm font-mono ${
-              hookResult.type === 'success'
-                ? 'bg-green-400/10 border border-green-400/20 text-green-400'
-                : 'bg-red-400/10 border border-red-400/20 text-red-400'
-            }`}>
-              <p>{hookResult.message}</p>
-              {hookResult.txSignature && (
-                <a
-                  href={config.txExplorerUrl(hookResult.txSignature)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 mt-2 text-xs text-amber-400 hover:text-amber-300"
-                >
-                  <ExternalLink className="w-3 h-3" />
-                  View on Solana Explorer
-                </a>
-              )}
-            </div>
-          )}
-          </div>}
         </div>
-      )}
+      </section>
 
-      {/* Error */}
+      {/* Stats row */}
+      <PaymentStatsRow proofs={proofs} />
+
+      {/* Top-level error (kept above the cards so it's hard to miss) */}
       {error && (
-        <div className="flex items-start gap-3 p-4 rounded-lg bg-red-400/10 border border-red-400/20 text-red-400">
-          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-          <pre className="text-xs whitespace-pre-wrap break-words flex-1 font-mono">{error}</pre>
+        <div className="ap-card p-4 flex items-start gap-3" style={{ borderColor: '#fca5a5' }}>
+          <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5 text-red-600" />
+          <pre className="text-[12px] whitespace-pre-wrap break-words flex-1 font-mono text-red-700/85">
+            {error}
+          </pre>
           <button
             onClick={() => setError(null)}
-            className="ml-auto flex-shrink-0"
+            className="ml-auto flex-shrink-0 text-black/45 hover:text-black"
             aria-label="Dismiss error"
           >
-            <X className="w-4 h-4" />
+            <X className="h-4 w-4" />
           </button>
         </div>
       )}
 
-      {/* Loading */}
+      {/* Loading state */}
       {loading && (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
+        <div className="ap-card p-12 flex items-center justify-center">
+          <Loader2 className="h-7 w-7 text-aperture animate-spin" />
         </div>
       )}
 
       {/* Empty state */}
       {!loading && proofs.length === 0 && !error && (
-        <div className="flex flex-col items-center justify-center py-20 text-amber-100/40">
-          <FileText className="w-12 h-12 mb-4" />
-          <p className="text-lg">No payment proofs recorded yet</p>
-          <p className="text-sm mt-1">
-            Payment proofs will appear here after transactions are processed
+        <div className="ap-card p-10 flex flex-col items-center text-center gap-3">
+          <span className="inline-flex h-12 w-12 items-center justify-center rounded-pill bg-aperture/15 text-aperture-dark">
+            <FileText className="h-6 w-6" />
+          </span>
+          <h3 className="font-display text-[22px] tracking-[-0.005em] text-black">
+            No payment proofs yet
+          </h3>
+          <p className="text-[14px] text-black/55 tracking-tighter max-w-md">
+            Run the x402 or MPP flow below to generate your first ZK proof. The verifier
+            program records every settlement on Solana Devnet.
           </p>
         </div>
       )}
 
-      {/* Table */}
-      {!loading && proofs.length > 0 && (
-        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-amber-400/10">
-                  <th className="text-left px-6 py-4 text-xs font-medium text-amber-100/40 uppercase tracking-wider">
-                    Payment ID
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-medium text-amber-100/40 uppercase tracking-wider">
-                    Policy ID
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-medium text-amber-100/40 uppercase tracking-wider">
-                    Proof Hash
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-medium text-amber-100/40 uppercase tracking-wider">
-                    Amount Range
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-medium text-amber-100/40 uppercase tracking-wider">
-                    Token
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-medium text-amber-100/40 uppercase tracking-wider">
-                    Compliant
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-medium text-amber-100/40 uppercase tracking-wider">
-                    Verified At
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-medium text-amber-100/40 uppercase tracking-wider">
-                    TX
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-amber-400/10">
-                {proofs.map((proof) => (
-                  <tr
-                    key={proof.id}
-                    className="hover:bg-amber-400/5 transition-colors"
-                  >
-                    <td className="px-6 py-4 text-sm font-mono text-amber-100">
-                      {truncateAddress(proof.payment_id, 6)}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-mono text-amber-100/60">
-                      {truncateAddress(proof.policy_id, 6)}
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() =>
-                            setExpandedHash(
-                              expandedHash === proof.id ? null : proof.id
-                            )
-                          }
-                          className="font-mono text-amber-400 hover:text-amber-300 transition-colors cursor-pointer"
-                          title="Click to expand"
-                        >
-                          {expandedHash === proof.id
-                            ? proof.proof_hash
-                            : truncateAddress(proof.proof_hash, 8)}
-                        </button>
-                        <button
-                          onClick={() =>
-                            copyToClipboard(proof.proof_hash, proof.id)
-                          }
-                          className="text-amber-100/40 hover:text-amber-400 transition-colors"
-                          aria-label="Copy proof hash"
-                        >
-                          {copiedId === proof.id ? (
-                            <CheckCircle className="w-3.5 h-3.5 text-green-400" />
-                          ) : (
-                            <Copy className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm font-mono text-amber-100">
-                      {formatAmount(proof.amount_range_min)} -{' '}
-                      {formatAmount(proof.amount_range_max)}
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <span className="px-2 py-0.5 rounded bg-amber-400/10 text-amber-400 text-xs font-mono">
-                        {getTokenLabel(proof.token_mint)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {proof.is_compliant ? (
-                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-400 text-xs font-medium w-fit">
-                          <CheckCircle className="w-3 h-3" />
-                          Yes
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-400/10 text-red-400 text-xs font-medium w-fit">
-                          <XCircle className="w-3 h-3" />
-                          No
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-amber-100/60">
-                      {formatDate(proof.verified_at)}
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      {proof.tx_signature ? (
-                        <a
-                          href={config.txExplorerUrl(proof.tx_signature)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-amber-400 hover:text-amber-300 font-mono"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          View
-                        </a>
-                      ) : (
-                        <span className="text-amber-100/40">-</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* x402 Protected Report */}
-      <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-lg font-semibold text-amber-100">x402 Protected Report</h3>
-            <p className="text-xs text-amber-100/40 mt-0.5">
-              Access compliance reports via HTTP 402 payment protocol (1 USDC)
-            </p>
-          </div>
-          <button
-            onClick={accessProtectedReport}
-            disabled={x402Loading || !publicKey || !sendTransaction}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold
-              bg-amber-500 text-black hover:bg-amber-400
-              disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {x402Loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-            {x402Loading ? 'Generating proof + paying...' : 'Access Protected Report'}
-          </button>
-        </div>
-
-        {x402Loading && (
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-400/10 border border-amber-400/20 text-amber-400 mb-4">
-            <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-xs">Generating ZK proof and processing USDC payment...</p>
-              <p className="text-xs text-amber-100/50 mt-0.5">This may take several minutes</p>
-            </div>
-            <span className="font-mono text-sm text-amber-400/80">{formatElapsed(elapsedSec)}</span>
-          </div>
-        )}
-
-        {x402Result && (
-          <div className="space-y-3">
-            {x402Result.payment && (
-              <div className="p-4 rounded-lg bg-green-400/5 border border-green-400/10">
-                <div className="flex items-center gap-2 mb-3">
-                  <CheckCircle className="w-4 h-4 text-green-400" />
-                  <span className="text-sm font-medium text-green-400">Payment verified on-chain</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <span className="text-amber-100/40">Transaction</span>
-                    <a
-                      href={config.txExplorerUrl(x402Result.payment.txSignature)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-amber-400 hover:text-amber-300 font-mono mt-0.5"
-                    >
-                      {truncateAddress(x402Result.payment.txSignature, 8)}
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  </div>
-                  <div>
-                    <span className="text-amber-100/40">Amount</span>
-                    <p className="text-amber-100 font-mono mt-0.5">{x402Result.payment.amount}</p>
-                  </div>
-                  <div>
-                    <span className="text-amber-100/40">Payer</span>
-                    <p className="text-amber-100 font-mono mt-0.5">{truncateAddress(x402Result.payment.payer, 6)}</p>
-                  </div>
-                  <div>
-                    <span className="text-amber-100/40">ZK Proof Hash</span>
-                    <p className="text-amber-400 font-mono mt-0.5 text-xs break-all">
-                      {x402Result.payment.zkProofHash
-                        ? truncateAddress(x402Result.payment.zkProofHash, 10)
-                        : '-'}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-amber-100/40">Endpoint</span>
-                    <p className="text-amber-100 font-mono mt-0.5">/compliance/protected-report</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {x402Result.success && x402Result.data ? (
-              <div className="p-4 rounded-lg bg-amber-400/5 border border-amber-400/10">
-                <span className="text-xs text-amber-100/40 block mb-2">Compliance Report</span>
-                <pre className="text-xs text-amber-100 font-mono overflow-x-auto max-h-64 overflow-y-auto whitespace-pre-wrap">
-                  {JSON.stringify(x402Result.data, null, 2)}
-                </pre>
-              </div>
-            ) : null}
-
-            {!x402Result.success && x402Result.error ? (
-              <div className="p-4 rounded-lg bg-red-400/10 border border-red-400/20">
-                <div className="flex items-center gap-2 mb-2">
-                  <XCircle className="w-4 h-4 text-red-400" />
-                  <span className="text-sm font-medium text-red-400">x402 flow failed</span>
-                </div>
-                <pre className="text-xs text-red-300 font-mono whitespace-pre-wrap break-words">
-                  {x402Result.error}
-                </pre>
-              </div>
-            ) : null}
-          </div>
-        )}
-      </div>
-
-      {/* MPP Protected Service (B-flow with full Stripe Elements + on-chain ZK) */}
-      <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-purple-400/20 rounded-xl p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-lg font-semibold text-amber-100">MPP Protected Service</h3>
-            <p className="text-xs text-amber-100/40 mt-0.5">
-              Stripe-backed HTTP 402 paywall with on-chain ZK proof verification ($1.00)
-            </p>
-          </div>
-          {!mppChallenge && (
+      {/* Two-column payment methods */}
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* x402 — Coinbase / USDC rails */}
+        <PaymentMethodCard
+          title="x402 Protected Report"
+          subtitle="HTTP 402 + atomic Groth16 verify + SPL transfer (1 USDC)."
+          badge="USDC · Solana"
+          icon={Zap}
+          variant="x402"
+          accent="orange"
+          checklist={x402Checks}
+          protocols={['coinbase', 'solana', 'circom']}
+          action={
             <button
-              onClick={startMppFlow}
-              disabled={
-                mppLoading ||
-                !publicKey ||
-                !sendTransaction ||
-                !mppPublicConfig?.stripe.publishableKey
-              }
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold
-                bg-purple-500 text-black hover:bg-purple-400
-                disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              onClick={accessProtectedReport}
+              disabled={x402Loading || !publicKey || !sendTransaction}
+              className="ap-btn-orange inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {mppLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-              {mppLoading ? 'Starting…' : 'Access MPP Service'}
+              {x402Loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileText className="h-4 w-4" />
+              )}
+              {x402Loading ? 'Generating proof + paying…' : 'Access Protected Report'}
             </button>
-          )}
-        </div>
-
-        {!mppPublicConfig?.stripe.publishableKey && (
-          <div className="p-3 rounded-lg bg-amber-400/5 border border-amber-400/20 text-amber-100/60 text-xs mb-3">
-            Stripe publishable key not configured on the compliance-api. Set
-            <code className="mx-1 text-amber-400">STRIPE_PUBLISHABLE_KEY</code>
-            in the compliance-api environment and restart to enable this card.
-          </div>
-        )}
-
-        {mppChallenge && (
-          <div className="space-y-3">
-            <div className="p-4 rounded-lg bg-purple-400/5 border border-purple-400/20">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-sm font-medium text-purple-300">
-                  Stripe PaymentIntent: ${mppChallenge.request.amount} {mppChallenge.request.currency.toUpperCase()}
-                </div>
-                <div className="text-xs text-amber-100/40 font-mono">
-                  {truncateAddress(mppChallenge.stripe.paymentIntentId, 6)}
-                </div>
+          }
+        >
+          {x402Loading && (
+            <div className="flex items-center gap-3 rounded-[14px] border border-aperture/30 bg-aperture/5 px-3 py-2.5">
+              <Loader2 className="h-4 w-4 animate-spin shrink-0 text-aperture-dark" />
+              <div className="flex-1">
+                <p className="text-[13px] text-black tracking-tighter">
+                  Generating ZK proof and processing USDC payment…
+                </p>
+                <p className="text-[11px] text-black/55 tracking-tighter mt-0.5">
+                  Witness + Groth16 prove may take several minutes on first run.
+                </p>
               </div>
-              <p className="text-xs text-amber-100/50 mb-3">
-                Test mode: use <code className="text-amber-400">4242 4242 4242 4242</code>, any future expiry, any CVC, any ZIP.
+              <span className="font-mono text-[13px] text-aperture-dark">
+                {formatElapsed(elapsedSec)}
+              </span>
+            </div>
+          )}
+
+          {x402Result?.payment && (
+            <PaymentResultPanel
+              status="success"
+              title="Payment verified on-chain"
+              details={[
+                {
+                  label: 'Transaction',
+                  value: truncateAddress(x402Result.payment.txSignature, 8),
+                  href: config.txExplorerUrl(x402Result.payment.txSignature),
+                  mono: true,
+                },
+                { label: 'Amount', value: x402Result.payment.amount, mono: true },
+                {
+                  label: 'Payer',
+                  value: truncateAddress(x402Result.payment.payer, 6),
+                  mono: true,
+                },
+                {
+                  label: 'ZK Proof Hash',
+                  value: x402Result.payment.zkProofHash
+                    ? truncateAddress(x402Result.payment.zkProofHash, 10)
+                    : '—',
+                  mono: true,
+                },
+                {
+                  label: 'Endpoint',
+                  value: '/compliance/protected-report',
+                  mono: true,
+                  fullWidth: true,
+                },
+              ]}
+            >
+              {x402Result.success && x402Result.data ? (
+                <div className="rounded-[12px] border border-black/8 bg-[rgba(248,179,0,0.03)] px-3 py-2.5">
+                  <span className="text-[11px] uppercase tracking-[0.08em] text-black/55 block mb-1">
+                    Compliance Report
+                  </span>
+                  <pre className="text-[11px] text-black font-mono overflow-x-auto max-h-48 overflow-y-auto whitespace-pre-wrap">
+                    {JSON.stringify(x402Result.data, null, 2)}
+                  </pre>
+                </div>
+              ) : null}
+            </PaymentResultPanel>
+          )}
+
+          {x402Result && !x402Result.success && x402Result.error && (
+            <PaymentResultPanel
+              status="error"
+              title="x402 flow failed"
+              errorMessage={x402Result.error}
+            />
+          )}
+        </PaymentMethodCard>
+
+        {/* MPP — Stripe + Solana */}
+        <PaymentMethodCard
+          title="MPP Protected Service"
+          subtitle="Stripe charge → ed25519 receipt → on-chain proof ($1.00)."
+          badge="Stripe · Devnet"
+          icon={Banknote}
+          variant="mpp"
+          accent="navy"
+          checklist={mppChecks}
+          protocols={['stripe', 'solana', 'circom']}
+          action={
+            !mppChallenge ? (
+              <button
+                onClick={startMppFlow}
+                disabled={
+                  mppLoading ||
+                  !publicKey ||
+                  !sendTransaction ||
+                  !mppPublicConfig?.stripe.publishableKey
+                }
+                className="ap-btn-orange inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {mppLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FileText className="h-4 w-4" />
+                )}
+                {mppLoading ? 'Starting…' : 'Access MPP Service'}
+              </button>
+            ) : (
+              <span className="text-[12px] text-black/55 tracking-tighter">
+                Complete the card form above to settle.
+              </span>
+            )
+          }
+        >
+          {!mppPublicConfig?.stripe.publishableKey && (
+            <div className="rounded-[14px] border border-aperture/25 bg-aperture/5 px-3 py-2.5 text-[12px] text-black/65 tracking-tighter">
+              Stripe publishable key not configured on the compliance-api. Set{' '}
+              <code className="rounded bg-black/5 px-1 text-aperture-dark font-mono">
+                STRIPE_PUBLISHABLE_KEY
+              </code>{' '}
+              and restart to enable.
+            </div>
+          )}
+
+          {mppChallenge && (
+            <div className="rounded-[16px] border border-black/8 bg-[rgba(248,179,0,0.03)] p-3.5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[13px] font-medium text-black tracking-tighter">
+                  Stripe PaymentIntent: ${mppChallenge.request.amount}{' '}
+                  {mppChallenge.request.currency.toUpperCase()}
+                </span>
+                <span className="text-[11px] font-mono text-black/55">
+                  {truncateAddress(mppChallenge.stripe.paymentIntentId, 6)}
+                </span>
+              </div>
+              <p className="text-[11px] text-black/55 tracking-tighter mb-3">
+                Test mode: use{' '}
+                <code className="rounded bg-black/5 px-1 text-aperture-dark font-mono">
+                  4242 4242 4242 4242
+                </code>
+                , any future expiry, any CVC, any ZIP.
               </p>
               <div
                 ref={cardMountRef}
-                className="p-3 rounded bg-[rgba(0,0,0,0.5)] border border-amber-400/10 min-h-[42px]"
+                className="rounded-[10px] border border-black/15 bg-white p-3 min-h-[42px]"
               />
               <div className="flex gap-2 mt-3">
                 <button
                   onClick={confirmMppCardAndComplete}
                   disabled={mppLoading || !cardReady}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold
-                    bg-purple-500 text-black hover:bg-purple-400
-                    disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="ap-btn-orange inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {mppLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                  {mppLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ShieldCheck className="h-4 w-4" />
+                  )}
                   {mppLoading ? 'Processing…' : `Pay $${mppChallenge.request.amount}`}
                 </button>
                 <button
@@ -949,180 +861,177 @@ export function PaymentsTab() {
                     setCardReady(false);
                   }}
                   disabled={mppLoading}
-                  className="px-4 py-2 rounded-lg text-sm font-medium
-                    bg-amber-100/5 text-amber-100/60 border border-amber-400/20
-                    hover:bg-amber-100/10 disabled:opacity-50 transition-colors"
+                  className="ap-btn-ghost-light disabled:opacity-50"
                 >
                   Cancel
                 </button>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {mppStatus && (
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-purple-400/10 border border-purple-400/20 text-purple-300 mt-3">
-            <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
-            <p className="text-xs">{mppStatus}</p>
-          </div>
-        )}
+          {mppStatus && (
+            <div className="flex items-center gap-3 rounded-[14px] border border-aperture/25 bg-aperture/5 px-3 py-2.5">
+              <Loader2 className="h-4 w-4 animate-spin shrink-0 text-aperture-dark" />
+              <p className="text-[12px] text-black tracking-tighter">{mppStatus}</p>
+            </div>
+          )}
 
-        {mppError && (
-          <div className="flex items-start gap-3 p-3 rounded-lg bg-red-400/10 border border-red-400/20 text-red-400 mt-3">
-            <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-            <pre className="text-xs whitespace-pre-wrap break-words flex-1 font-mono">{mppError}</pre>
-            <button onClick={() => setMppError(null)} aria-label="Dismiss MPP error">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        )}
+          {mppError && (
+            <div className="flex items-start gap-3 rounded-[14px] border border-red-500/30 bg-red-500/5 px-3 py-2.5">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-red-600" />
+              <pre className="text-[11px] whitespace-pre-wrap break-words flex-1 font-mono text-red-700/85">
+                {mppError}
+              </pre>
+              <button
+                onClick={() => setMppError(null)}
+                className="text-black/45 hover:text-black"
+                aria-label="Dismiss MPP error"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
 
-        {mppResult && (
-          <div className="space-y-3 mt-3">
-            {mppResult.payment && (
-              <div className="p-4 rounded-lg bg-green-400/5 border border-green-400/10">
-                <div className="flex items-center gap-2 mb-3">
-                  <CheckCircle className="w-4 h-4 text-green-400" />
-                  <span className="text-sm font-medium text-green-400">
-                    Stripe charged + on-chain MPP proof verified
+          {mppResult?.payment && (
+            <PaymentResultPanel
+              status="success"
+              title="Stripe charged + MPP proof verified on-chain"
+              details={[
+                {
+                  label: 'Stripe PI',
+                  value: truncateAddress(mppResult.payment.stripePaymentIntent, 6),
+                  href: getStripeDashboardUrl(
+                    mppResult.payment.stripePaymentIntent,
+                    mppPublicConfig?.stripe.isTestMode ?? true,
+                  ),
+                  mono: true,
+                },
+                { label: 'Amount', value: mppResult.payment.amount, mono: true },
+                {
+                  label: 'Solana Tx',
+                  value: truncateAddress(mppResult.payment.txSignature, 8),
+                  href: config.txExplorerUrl(mppResult.payment.txSignature),
+                  mono: true,
+                },
+                {
+                  label: 'ProofRecord PDA',
+                  value: truncateAddress(mppResult.payment.proofRecordPda, 8),
+                  href: config.explorerUrl(mppResult.payment.proofRecordPda),
+                  mono: true,
+                },
+                {
+                  label: 'Poseidon Receipt Hash',
+                  value: mppResult.payment.poseidonHash,
+                  mono: true,
+                  fullWidth: true,
+                },
+              ]}
+            >
+              {mppResult.success && mppResult.data ? (
+                <div className="rounded-[12px] border border-black/8 bg-[rgba(248,179,0,0.03)] px-3 py-2.5">
+                  <span className="text-[11px] uppercase tracking-[0.08em] text-black/55 block mb-1">
+                    Unlocked MPP Service Response
                   </span>
+                  <pre className="text-[11px] text-black font-mono overflow-x-auto max-h-48 overflow-y-auto whitespace-pre-wrap">
+                    {JSON.stringify(mppResult.data, null, 2)}
+                  </pre>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <span className="text-amber-100/40">Stripe PI</span>
-                    <a
-                      href={getStripeDashboardUrl(
-                        mppResult.payment.stripePaymentIntent,
-                        mppPublicConfig?.stripe.isTestMode ?? true,
-                      )}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-purple-400 hover:text-purple-300 font-mono mt-0.5"
-                      title="View on Stripe Dashboard"
-                    >
-                      {truncateAddress(mppResult.payment.stripePaymentIntent, 6)}
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  </div>
-                  <div>
-                    <span className="text-amber-100/40">Amount</span>
-                    <p className="text-amber-100 font-mono mt-0.5">{mppResult.payment.amount}</p>
-                  </div>
-                  <div>
-                    <span className="text-amber-100/40">Solana TX</span>
-                    <a
-                      href={config.txExplorerUrl(mppResult.payment.txSignature)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-purple-400 hover:text-purple-300 font-mono mt-0.5"
-                    >
-                      {truncateAddress(mppResult.payment.txSignature, 8)}
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  </div>
-                  <div>
-                    <span className="text-amber-100/40">ProofRecord PDA</span>
-                    <a
-                      href={config.explorerUrl(mppResult.payment.proofRecordPda)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-purple-400 hover:text-purple-300 font-mono mt-0.5"
-                    >
-                      {truncateAddress(mppResult.payment.proofRecordPda, 8)}
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="text-amber-100/40">Poseidon Receipt Hash</span>
-                    <p className="text-purple-300 font-mono mt-0.5 text-xs break-all">
-                      {mppResult.payment.poseidonHash}
-                    </p>
-                  </div>
-                </div>
+              ) : null}
+            </PaymentResultPanel>
+          )}
+        </PaymentMethodCard>
+      </section>
+
+      {/* Verified Proof Ledger */}
+      {!loading && proofs.length > 0 && <ProofTable proofs={proofs} />}
+
+      {/* Transfer Hook Test (collapsible, aUSDC-only) */}
+      {config.tokens.aUSDC && (
+        <CollapsibleSection
+          icon={ShieldHalf}
+          title="Transfer Hook Test"
+          subtitle="Token-2022 compliance enforcement on the legacy aUSDC mint"
+          open={showHookTest}
+          onToggle={() => setShowHookTest(!showHookTest)}
+        >
+          <div className="flex flex-col gap-4">
+            <p className="text-[12px] text-black/65 tracking-tighter">
+              The hook rejects any transfer without an unconsumed proof. Use the buttons
+              below to confirm the hook&apos;s reject-by-default behaviour and the
+              proof-passes-through path.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={() => testTransferHook(false)}
+                disabled={hookTestingWithout || hookTestingWith || !publicKey}
+                className="inline-flex items-center gap-2 rounded-pill border border-red-500/30 bg-red-500/8 px-4 py-2 text-[13px] font-medium tracking-tighter text-red-700 hover:bg-red-500/12 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {hookTestingWithout ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ShieldX className="h-4 w-4" />
+                )}
+                Transfer without proof
+              </button>
+              <button
+                onClick={() => testTransferHook(true)}
+                disabled={hookTestingWithout || hookTestingWith || !publicKey}
+                className="inline-flex items-center gap-2 rounded-pill border border-green-500/30 bg-green-500/8 px-4 py-2 text-[13px] font-medium tracking-tighter text-green-700 hover:bg-green-500/12 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {hookTestingWith ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ShieldCheck className="h-4 w-4" />
+                )}
+                Transfer with proof
+              </button>
+            </div>
+
+            {hookResult && (
+              <div
+                className={`rounded-[14px] border px-3 py-2.5 ${
+                  hookResult.type === 'success'
+                    ? 'border-green-500/25 bg-green-500/5'
+                    : 'border-red-500/30 bg-red-500/5'
+                }`}
+              >
+                <p
+                  className={`text-[12px] font-mono ${
+                    hookResult.type === 'success' ? 'text-green-700' : 'text-red-700'
+                  }`}
+                >
+                  {hookResult.message}
+                </p>
+                {hookResult.txSignature && (
+                  <a
+                    href={config.txExplorerUrl(hookResult.txSignature)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 mt-2 text-[11px] text-aperture-dark hover:text-black"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    View on Solana Explorer
+                  </a>
+                )}
               </div>
             )}
-
-            {mppResult.success && mppResult.data ? (
-              <div className="p-4 rounded-lg bg-amber-400/5 border border-amber-400/10">
-                <span className="text-xs text-amber-100/40 block mb-2">Unlocked MPP Service Response</span>
-                <pre className="text-xs text-amber-100 font-mono overflow-x-auto max-h-64 overflow-y-auto whitespace-pre-wrap">
-                  {JSON.stringify(mppResult.data, null, 2)}
-                </pre>
-              </div>
-            ) : null}
           </div>
-        )}
-      </div>
+        </CollapsibleSection>
+      )}
 
       {/* ZK Compression Cost Savings (collapsible) */}
       {proofs.length > 0 && (
-        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl">
-          <button
-            onClick={() => setShowCostSavings(!showCostSavings)}
-            className="flex items-center justify-between w-full p-4 text-left"
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-semibold text-amber-100">ZK Compression Cost Savings</span>
-              <span className="text-xs text-amber-100/50">Light Protocol</span>
-            </div>
-            <ChevronDown className={`w-4 h-4 text-amber-100/40 transition-transform ${showCostSavings ? 'rotate-180' : ''}`} />
-          </button>
-          {showCostSavings && <div className="px-4 pb-4 pt-0">
-
-          {(() => {
-            const cost = getProofRecordCostComparison();
-            const totalProofs = proofs.length;
-            const regularTotal = cost.regularAccountRentLamports * totalProofs;
-            const compressedTotal = cost.compressedTokenCostLamports * totalProofs;
-            const savedTotal = regularTotal - compressedTotal;
-
-            return (
-              <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="p-4 rounded-lg bg-red-400/5 border border-red-400/10">
-                    <span className="text-xs text-red-400/60 block mb-1">Regular PDA Cost</span>
-                    <p className="text-lg font-mono text-red-400 font-bold">
-                      {lamportsToSol(regularTotal)} SOL
-                    </p>
-                    <p className="text-xs text-amber-100/50 mt-1">
-                      {lamportsToSol(cost.regularAccountRentLamports)} SOL x {totalProofs} proofs
-                    </p>
-                  </div>
-
-                  <div className="p-4 rounded-lg bg-green-400/5 border border-green-400/10">
-                    <span className="text-xs text-green-400/60 block mb-1">Compressed Cost</span>
-                    <p className="text-lg font-mono text-green-400 font-bold">
-                      {lamportsToSol(compressedTotal)} SOL
-                    </p>
-                    <p className="text-xs text-amber-100/50 mt-1">
-                      {lamportsToSol(cost.compressedTokenCostLamports)} SOL x {totalProofs} proofs
-                    </p>
-                  </div>
-
-                  <div className="p-4 rounded-lg bg-amber-400/5 border border-amber-400/10">
-                    <span className="text-xs text-amber-400/60 block mb-1">Total Saved</span>
-                    <p className="text-lg font-mono text-amber-400 font-bold">
-                      {lamportsToSol(savedTotal)} SOL
-                    </p>
-                    <p className="text-xs text-amber-100/50 mt-1">
-                      {cost.savingsMultiplier}x cheaper ({cost.savingsPercent}% savings)
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 text-xs text-amber-100/50">
-                  <div className="w-2 h-2 rounded-full bg-green-400" />
-                  <span>
-                    {isLightProtocolConfigured()
-                      ? 'Light Protocol ZK Compression active'
-                      : 'Light Protocol available (configure NEXT_PUBLIC_LIGHT_RPC_URL to activate)'}
-                  </span>
-                </div>
-              </div>
-            );
-          })()}
-          </div>}
-        </div>
+        <CollapsibleSection
+          icon={Sparkles}
+          title="ZK Compression Cost Savings"
+          subtitle={`Light Protocol · estimated over ${proofs.length} historical proof${
+            proofs.length === 1 ? '' : 's'
+          }`}
+          open={showCostSavings}
+          onToggle={() => setShowCostSavings(!showCostSavings)}
+        >
+          <CompressionSavingsCard totalProofs={proofs.length} />
+        </CollapsibleSection>
       )}
     </div>
   );

@@ -1,6 +1,5 @@
 import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import GoogleProvider from 'next-auth/providers/google';
 
 const POLICY_SERVICE_URL = process.env.POLICY_SERVICE_URL ?? process.env.NEXT_PUBLIC_POLICY_SERVICE_URL ?? 'http://localhost:3001';
 
@@ -76,10 +75,6 @@ export const authOptions: NextAuthOptions = {
           image: body.data.wallet_address ?? undefined,
         };
       },
-    }),
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID ?? '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
     }),
   ],
 

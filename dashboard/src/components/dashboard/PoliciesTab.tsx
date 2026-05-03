@@ -27,6 +27,11 @@ import {
   buildUpdatePolicyIx,
   deriveOperatorPDA,
 } from '@/lib/anchor-instructions';
+import {
+  ApInput,
+  ApCheckbox,
+  ApFieldset,
+} from './policies/ApField';
 
 // Mint addresses come from runtime config so a deploy that re-issues any of
 // these (or rebrands aUSDC again) does not require a code change.
@@ -427,11 +432,13 @@ export function PoliciesTab() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-2xl font-bold text-amber-100">Policies</h2>
-          <p className="text-amber-100/40 text-sm mt-1">
-            Manage compliance policies for your payment operations
+          <h2 className="font-display text-[32px] sm:text-[40px] leading-[1.05] tracking-[-0.012em] text-black">
+            Policies
+          </h2>
+          <p className="text-[14px] text-black/55 tracking-tighter mt-1">
+            Compliance rules enforced atomically inside the verifier program
           </p>
         </div>
         <button
@@ -439,7 +446,7 @@ export function PoliciesTab() {
             resetForm();
             setShowForm(true);
           }}
-          className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-lg px-6 py-2 transition-colors"
+          className="ap-btn-orange inline-flex items-center gap-2"
         >
           <Plus className="w-4 h-4" />
           Create Policy
@@ -447,14 +454,13 @@ export function PoliciesTab() {
       </div>
 
       {/* Error */}
-
       {error && (
-        <div className="flex items-center gap-3 p-4 rounded-lg bg-red-400/10 border border-red-400/20 text-red-400">
-          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-          <p className="text-sm">{error}</p>
+        <div className="ap-card p-4 flex items-center gap-3" style={{ borderColor: '#fca5a5' }}>
+          <AlertTriangle className="w-4 h-4 flex-shrink-0 text-red-600" />
+          <p className="text-[14px] text-red-700 tracking-tighter">{error}</p>
           <button
             onClick={() => setError(null)}
-            className="ml-auto"
+            className="ml-auto text-black/45 hover:text-black"
             aria-label="Dismiss error"
           >
             <X className="w-4 h-4" />
@@ -464,247 +470,195 @@ export function PoliciesTab() {
 
       {/* Create/Edit Form */}
       {showForm && (
-        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6">
+        <div className="ap-card p-6 sm:p-7">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-amber-100">
-              {editingId ? 'Edit Policy' : 'Create New Policy'}
-            </h3>
+            <div>
+              <h3 className="font-display text-[22px] tracking-[-0.005em] text-black">
+                {editingId ? 'Edit Policy' : 'Create New Policy'}
+              </h3>
+              <p className="text-[12px] text-black/55 tracking-tighter mt-1">
+                Saved as a Poseidon-hashed Merkle root and anchored on Solana via the
+                Policy Registry program.
+              </p>
+            </div>
             <button
               onClick={resetForm}
-              className="text-amber-100/40 hover:text-amber-100"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-pill text-black/55 hover:bg-black/5 hover:text-black transition-colors"
               aria-label="Close form"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Name */}
-              <div>
-                <label className="block text-sm text-amber-100/60 mb-1.5">
-                  Policy Name
-                </label>
-                <input
-                  type="text"
+          <form onSubmit={handleSubmit} className="flex flex-col gap-7">
+            <ApFieldset
+              title="Policy Identity"
+              description="Names and short descriptions only — no PII. The on-chain commitment hashes only the rule values, not these labels."
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <ApInput
+                  label="Policy Name"
                   required
                   value={formData.name}
                   onChange={(e) => updateFormField('name', e.target.value)}
-                  className="w-full bg-transparent border border-amber-400/20 focus:border-amber-400 rounded-lg px-4 py-2 text-amber-100 outline-none transition-colors"
                   placeholder="e.g. Standard Compliance"
                 />
-              </div>
-
-              {/* Description */}
-              <div>
-                <label className="block text-sm text-amber-100/60 mb-1.5">
-                  Description
-                </label>
-                <input
-                  type="text"
+                <ApInput
+                  label="Description"
                   value={formData.description}
                   onChange={(e) => updateFormField('description', e.target.value)}
-                  className="w-full bg-transparent border border-amber-400/20 focus:border-amber-400 rounded-lg px-4 py-2 text-amber-100 outline-none transition-colors"
                   placeholder="Optional description"
                 />
               </div>
+            </ApFieldset>
 
-              {/* Max Daily Spend */}
-              <div>
-                <label className="block text-sm text-amber-100/60 mb-1.5">
-                  Max Daily Spend
-                </label>
-                <input
-                  type="number"
+            <ApFieldset
+              title="Spend Limits"
+              description="Caps enforced atomically inside verify_payment_proof_v2_with_transfer. Daily totals reset on Solana clock midnight UTC."
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <ApInput
+                  label="Max Daily Spend"
                   required
-                  min="0"
+                  type="number"
+                  min={0}
                   step="0.01"
                   value={formData.max_daily_spend}
                   onChange={(e) => updateFormField('max_daily_spend', e.target.value)}
-                  className="w-full bg-transparent border border-amber-400/20 focus:border-amber-400 rounded-lg px-4 py-2 text-amber-100 outline-none transition-colors"
                   placeholder="10000"
+                  trailingAdornment="USD"
                 />
-              </div>
-
-              {/* Max Per Transaction */}
-              <div>
-                <label className="block text-sm text-amber-100/60 mb-1.5">
-                  Max Per Transaction
-                </label>
-                <input
-                  type="number"
+                <ApInput
+                  label="Max Per Transaction"
                   required
-                  min="0"
+                  type="number"
+                  min={0}
                   step="0.01"
                   value={formData.max_per_transaction}
                   onChange={(e) => updateFormField('max_per_transaction', e.target.value)}
-                  className="w-full bg-transparent border border-amber-400/20 focus:border-amber-400 rounded-lg px-4 py-2 text-amber-100 outline-none transition-colors"
                   placeholder="5000"
+                  trailingAdornment="USD"
                 />
               </div>
+            </ApFieldset>
 
-              {/* Allowed Endpoint Categories */}
-              <div>
-                <label className="block text-sm text-amber-100/60 mb-1.5">
-                  Allowed Endpoint Categories
-                </label>
-                <input
-                  type="text"
+            <ApFieldset
+              title="Allow / Block Lists"
+              description="Categories gate which paywalled endpoints the agent can pay; blocked addresses are rejected before the proof is even built."
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <ApInput
+                  label="Allowed Endpoint Categories"
                   value={formData.allowed_endpoint_categories}
                   onChange={(e) =>
                     updateFormField('allowed_endpoint_categories', e.target.value)
                   }
-                  className="w-full bg-transparent border border-amber-400/20 focus:border-amber-400 rounded-lg px-4 py-2 text-amber-100 outline-none transition-colors"
-                  placeholder="payroll, vendor, treasury (comma separated)"
+                  placeholder="payroll, vendor, treasury"
+                  helper="Comma-separated. The agent loop requires x402 + mpp here to start."
                 />
-              </div>
-
-              {/* Blocked Addresses */}
-              <div>
-                <label className="block text-sm text-amber-100/60 mb-1.5">
-                  Blocked Addresses
-                </label>
-                <input
-                  type="text"
+                <ApInput
+                  label="Blocked Addresses"
                   value={formData.blocked_addresses}
                   onChange={(e) => updateFormField('blocked_addresses', e.target.value)}
-                  className="w-full bg-transparent border border-amber-400/20 focus:border-amber-400 rounded-lg px-4 py-2 text-amber-100 outline-none transition-colors"
-                  placeholder="Address1, Address2 (comma separated)"
+                  placeholder="Address1, Address2"
+                  helper="Comma-separated. Hashed into the Merkle leaf, not stored in the clear on-chain."
                 />
               </div>
-            </div>
+            </ApFieldset>
 
-            {/* Token Whitelist */}
-            <div>
-              <label className="block text-sm text-amber-100/60 mb-2">
-                Token Whitelist
-              </label>
-              <p className="text-xs text-amber-100/40 mb-2">
-                Compliance is enforced on-chain inside the verifier program
-                via verify_payment_proof_v2_with_transfer (ZK proof + atomic
-                recipient/mint/amount byte-binding + daily-spend ceiling).
-                Any token below works the same way; pick the rails the
-                operator wants to accept payments in.
-              </p>
-              <div className="flex gap-6 flex-wrap">
+            <ApFieldset
+              title="Token Whitelist"
+              description="The verifier rejects any transfer whose mint isn't whitelisted. aUSDC additionally enforces the Token-2022 transfer hook."
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {USDC_MINT && (
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.usdc_enabled}
-                      onChange={(e) => updateFormField('usdc_enabled', e.target.checked)}
-                      className="w-4 h-4 rounded border-amber-400/20 bg-transparent accent-amber-500"
-                    />
-                    <span className="text-sm text-amber-100">USDC</span>
-                  </label>
+                  <ApCheckbox
+                    label="USDC"
+                    description="SPL Token v1 · standard Devnet mint"
+                    checked={formData.usdc_enabled}
+                    onChange={(e) => updateFormField('usdc_enabled', e.target.checked)}
+                  />
                 )}
                 {USDT_MINT && (
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.usdt_enabled}
-                      onChange={(e) => updateFormField('usdt_enabled', e.target.checked)}
-                      className="w-4 h-4 rounded border-amber-400/20 bg-transparent accent-amber-500"
-                    />
-                    <span className="text-sm text-amber-100">USDT</span>
-                  </label>
+                  <ApCheckbox
+                    label="USDT"
+                    description="SPL Token v1 · Aperture Devnet"
+                    checked={formData.usdt_enabled}
+                    onChange={(e) => updateFormField('usdt_enabled', e.target.checked)}
+                  />
                 )}
                 {AUSDC_MINT && (
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.ausdc_enabled}
-                      onChange={(e) => updateFormField('ausdc_enabled', e.target.checked)}
-                      className="w-4 h-4 rounded border-amber-400/20 bg-transparent accent-amber-500"
-                    />
-                    <span className="text-sm text-amber-100">aUSDC <span className="text-xs text-amber-100/40">(legacy Token-2022 hook)</span></span>
-                  </label>
+                  <ApCheckbox
+                    label="aUSDC"
+                    description="Token-2022 · legacy compliance hook"
+                    checked={formData.ausdc_enabled}
+                    onChange={(e) => updateFormField('ausdc_enabled', e.target.checked)}
+                  />
                 )}
               </div>
-            </div>
+            </ApFieldset>
 
-            {/* Time Restrictions */}
-            <div>
-              <label className="block text-sm text-amber-100/60 mb-2">
-                Time Restrictions
-              </label>
+            <ApFieldset
+              title="Time Restrictions"
+              description="Optional. Compared against Solana's Clock sysvar at proof-verification time."
+            >
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-xs text-amber-100/40 mb-1">
-                    Allowed Days
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.time_restriction_days}
-                    onChange={(e) =>
-                      updateFormField('time_restriction_days', e.target.value)
-                    }
-                    className="w-full bg-transparent border border-amber-400/20 focus:border-amber-400 rounded-lg px-4 py-2 text-amber-100 outline-none transition-colors text-sm"
-                    placeholder="Mon, Tue, Wed..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-amber-100/40 mb-1">
-                    Start Hour (0-23)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="23"
-                    value={formData.time_restriction_start}
-                    onChange={(e) =>
-                      updateFormField('time_restriction_start', e.target.value)
-                    }
-                    className="w-full bg-transparent border border-amber-400/20 focus:border-amber-400 rounded-lg px-4 py-2 text-amber-100 outline-none transition-colors text-sm"
-                    placeholder="9"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-amber-100/40 mb-1">
-                    End Hour (0-23)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="23"
-                    value={formData.time_restriction_end}
-                    onChange={(e) =>
-                      updateFormField('time_restriction_end', e.target.value)
-                    }
-                    className="w-full bg-transparent border border-amber-400/20 focus:border-amber-400 rounded-lg px-4 py-2 text-amber-100 outline-none transition-colors text-sm"
-                    placeholder="17"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-amber-100/40 mb-1">
-                    Timezone
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.time_restriction_timezone}
-                    onChange={(e) =>
-                      updateFormField('time_restriction_timezone', e.target.value)
-                    }
-                    className="w-full bg-transparent border border-amber-400/20 focus:border-amber-400 rounded-lg px-4 py-2 text-amber-100 outline-none transition-colors text-sm"
-                    placeholder="UTC"
-                  />
-                </div>
+                <ApInput
+                  label="Allowed Days"
+                  value={formData.time_restriction_days}
+                  onChange={(e) =>
+                    updateFormField('time_restriction_days', e.target.value)
+                  }
+                  placeholder="Mon, Tue, Wed…"
+                />
+                <ApInput
+                  label="Start Hour"
+                  type="number"
+                  min={0}
+                  max={23}
+                  value={formData.time_restriction_start}
+                  onChange={(e) =>
+                    updateFormField('time_restriction_start', e.target.value)
+                  }
+                  placeholder="9"
+                  trailingAdornment="0–23"
+                />
+                <ApInput
+                  label="End Hour"
+                  type="number"
+                  min={0}
+                  max={23}
+                  value={formData.time_restriction_end}
+                  onChange={(e) =>
+                    updateFormField('time_restriction_end', e.target.value)
+                  }
+                  placeholder="17"
+                  trailingAdornment="0–23"
+                />
+                <ApInput
+                  label="Timezone"
+                  value={formData.time_restriction_timezone}
+                  onChange={(e) =>
+                    updateFormField('time_restriction_timezone', e.target.value)
+                  }
+                  placeholder="UTC"
+                />
               </div>
-            </div>
+            </ApFieldset>
 
             {/* Submit */}
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-3 pt-2 border-t border-black/8">
               <button
                 type="button"
                 onClick={resetForm}
-                className="px-4 py-2 rounded-lg text-sm text-amber-100/60 hover:text-amber-100 border border-amber-400/20 hover:border-amber-400/40 transition-colors"
+                className="ap-btn-ghost-light"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold rounded-lg px-6 py-2 transition-colors"
+                className="ap-btn-orange inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                 {editingId ? 'Update Policy' : 'Create Policy'}
@@ -716,19 +670,34 @@ export function PoliciesTab() {
 
       {/* Loading */}
       {loading && (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
+        <div className="ap-card p-12 flex items-center justify-center">
+          <Loader2 className="w-7 h-7 text-aperture animate-spin" />
         </div>
       )}
 
       {/* Empty state */}
       {!loading && policies.length === 0 && !error && (
-        <div className="flex flex-col items-center justify-center py-20 text-amber-100/40">
-          <Shield className="w-12 h-12 mb-4" />
-          <p className="text-lg">No policies created yet</p>
-          <p className="text-sm mt-1">
-            Create your first compliance policy to get started
+        <div className="ap-card p-12 flex flex-col items-center text-center gap-3">
+          <span className="inline-flex h-12 w-12 items-center justify-center rounded-pill bg-aperture/15 text-aperture-dark">
+            <Shield className="w-6 h-6" />
+          </span>
+          <h3 className="font-display text-[22px] tracking-[-0.005em] text-black">
+            No policies yet
+          </h3>
+          <p className="text-[14px] text-black/55 tracking-tighter max-w-md">
+            Create your first compliance policy to define spending limits and allowed
+            tokens. Aperture enforces every rule on-chain via Groth16 proofs.
           </p>
+          <button
+            onClick={() => {
+              resetForm();
+              setShowForm(true);
+            }}
+            className="ap-btn-orange inline-flex items-center gap-2 mt-2"
+          >
+            <Plus className="w-4 h-4" />
+            Create your first policy
+          </button>
         </div>
       )}
 
@@ -736,38 +705,35 @@ export function PoliciesTab() {
       {!loading && policies.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {policies.map((policy) => (
-            <div
-              key={policy.id}
-              className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6"
-            >
-              <div className="flex items-start justify-between mb-4">
+            <div key={policy.id} className="ap-card p-5 sm:p-6 flex flex-col gap-4">
+              <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-lg font-semibold text-amber-100 truncate">
+                    <h3 className="font-display text-[20px] tracking-[-0.005em] text-black truncate">
                       {policy.name}
                     </h3>
                     {policy.is_active ? (
-                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-400 text-xs font-medium">
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-pill bg-aperture/15 px-2 py-0.5 text-[11px] font-medium tracking-tighter text-aperture-dark">
                         <CheckCircle className="w-3 h-3" />
                         Active
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-400/10 text-red-400 text-xs font-medium">
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-pill bg-red-500/12 px-2 py-0.5 text-[11px] font-medium tracking-tighter text-red-700">
                         <XCircle className="w-3 h-3" />
                         Inactive
                       </span>
                     )}
                   </div>
                   {policy.description && (
-                    <p className="text-sm text-amber-100/40 truncate">
+                    <p className="text-[13px] text-black/55 tracking-tighter truncate">
                       {policy.description}
                     </p>
                   )}
                 </div>
-                <div className="flex items-center gap-1 ml-2">
+                <div className="flex items-center gap-1 shrink-0">
                   <button
                     onClick={() => handleEdit(policy)}
-                    className="p-2 rounded-lg text-amber-100/40 hover:text-amber-400 hover:bg-amber-400/10 transition-colors"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-pill text-black/55 hover:text-aperture-dark hover:bg-aperture/10 transition-colors"
                     aria-label={`Edit ${policy.name}`}
                   >
                     <Edit3 className="w-4 h-4" />
@@ -776,14 +742,14 @@ export function PoliciesTab() {
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleDelete(policy.id)}
-                        className="p-2 rounded-lg text-red-400 hover:bg-red-400/10 transition-colors"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-pill text-red-600 hover:bg-red-500/10 transition-colors"
                         aria-label="Confirm delete"
                       >
                         <CheckCircle className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => setDeleteConfirm(null)}
-                        className="p-2 rounded-lg text-amber-100/40 hover:text-amber-100 transition-colors"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-pill text-black/55 hover:bg-black/5 hover:text-black transition-colors"
                         aria-label="Cancel delete"
                       >
                         <X className="w-4 h-4" />
@@ -792,7 +758,7 @@ export function PoliciesTab() {
                   ) : (
                     <button
                       onClick={() => setDeleteConfirm(policy.id)}
-                      className="p-2 rounded-lg text-amber-100/40 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-pill text-black/55 hover:text-red-600 hover:bg-red-500/10 transition-colors"
                       aria-label={`Delete ${policy.name}`}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -801,56 +767,68 @@ export function PoliciesTab() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span className="text-amber-100/40">Max Daily Spend</span>
-                  <p className="text-amber-100 font-mono">
+              <dl className="grid grid-cols-2 gap-3">
+                <div className="rounded-[12px] border border-black/8 bg-white px-3 py-2.5">
+                  <div className="text-[11px] uppercase tracking-[0.08em] text-black/55">
+                    Max Daily Spend
+                  </div>
+                  <div className="text-[14px] font-medium text-black tracking-tighter mt-0.5 font-mono">
                     {formatAmount(policy.max_daily_spend)}
-                  </p>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-amber-100/40">Max Per Transaction</span>
-                  <p className="text-amber-100 font-mono">
+                <div className="rounded-[12px] border border-black/8 bg-white px-3 py-2.5">
+                  <div className="text-[11px] uppercase tracking-[0.08em] text-black/55">
+                    Max Per Tx
+                  </div>
+                  <div className="text-[14px] font-medium text-black tracking-tighter mt-0.5 font-mono">
                     {formatAmount(policy.max_per_transaction)}
-                  </p>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-amber-100/40">Version</span>
-                  <p className="text-amber-100">v{policy.version}</p>
+                <div className="rounded-[12px] border border-black/8 bg-white px-3 py-2.5">
+                  <div className="text-[11px] uppercase tracking-[0.08em] text-black/55">
+                    Version
+                  </div>
+                  <div className="text-[14px] font-medium text-black tracking-tighter mt-0.5">
+                    v{policy.version}
+                  </div>
                 </div>
-                <div>
-                  <span className="text-amber-100/40">Created</span>
-                  <p className="text-amber-100">{formatDate(policy.created_at)}</p>
+                <div className="rounded-[12px] border border-black/8 bg-white px-3 py-2.5">
+                  <div className="text-[11px] uppercase tracking-[0.08em] text-black/55">
+                    Created
+                  </div>
+                  <div className="text-[14px] font-medium text-black tracking-tighter mt-0.5">
+                    {formatDate(policy.created_at)}
+                  </div>
                 </div>
-              </div>
+              </dl>
 
               {policy.token_whitelist.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-amber-400/10">
-                  <span className="text-xs text-amber-100/40">Tokens: </span>
-                  <div className="flex gap-1.5 mt-1">
-                    {policy.token_whitelist.map((mint) => (
-                      <span
-                        key={mint}
-                        className="px-2 py-0.5 rounded bg-amber-400/10 text-amber-400 text-xs font-mono"
-                      >
-                        {mint === AUSDC_MINT
-                          ? 'aUSDC'
-                          : mint === USDC_MINT
-                            ? 'USDC'
-                            : mint === USDT_MINT
-                              ? 'USDT'
-                              : mint.slice(0, 8)}
-                      </span>
-                    ))}
-                  </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[11px] uppercase tracking-[0.08em] text-black/55 mr-1">
+                    Tokens
+                  </span>
+                  {policy.token_whitelist.map((mint) => (
+                    <span
+                      key={mint}
+                      className="inline-flex items-center rounded-pill bg-aperture/10 px-2 py-0.5 text-[11px] font-mono text-aperture-dark"
+                    >
+                      {mint === AUSDC_MINT
+                        ? 'aUSDC'
+                        : mint === USDC_MINT
+                          ? 'USDC'
+                          : mint === USDT_MINT
+                            ? 'USDT'
+                            : mint.slice(0, 8)}
+                    </span>
+                  ))}
                 </div>
               )}
 
               {/* On-chain anchoring status */}
-              <div className="mt-3 pt-3 border-t border-amber-400/10">
+              <div className="pt-3 border-t border-black/8">
                 {policy.onchain_status === 'registered' ? (
-                  <div className="flex items-center gap-3 text-xs">
-                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-400/10 text-green-400 font-medium">
+                  <div className="flex flex-wrap items-center gap-3 text-[12px] tracking-tighter">
+                    <span className="inline-flex items-center gap-1 rounded-pill bg-green-500/10 px-2 py-0.5 text-[11px] font-medium text-green-700">
                       <CheckCircle className="w-3 h-3" />
                       Anchored on Solana
                       {policy.onchain_version !== null
@@ -862,7 +840,7 @@ export function PoliciesTab() {
                         href={config.txExplorerUrl(policy.onchain_tx_signature)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 font-mono text-amber-400 hover:text-amber-300 transition-colors"
+                        className="inline-flex items-center gap-1.5 font-mono text-aperture-dark hover:text-black transition-colors"
                       >
                         <ExternalLink className="w-3 h-3" />
                         View tx
@@ -870,13 +848,13 @@ export function PoliciesTab() {
                     )}
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
                       <span
-                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                        className={`inline-flex items-center gap-1 rounded-pill px-2 py-0.5 text-[11px] font-medium ${
                           policy.onchain_status === 'failed'
-                            ? 'bg-red-400/10 text-red-400'
-                            : 'bg-amber-400/10 text-amber-400'
+                            ? 'bg-red-500/12 text-red-700'
+                            : 'bg-aperture/15 text-aperture-dark'
                         }`}
                       >
                         {policy.onchain_status === 'failed' ? (
@@ -887,23 +865,23 @@ export function PoliciesTab() {
                         {policy.onchain_status === 'failed'
                           ? 'On-chain anchoring failed'
                           : policy.onchain_pda
-                            ? 'Off-chain edits pending — re-anchor required'
+                            ? 'Off-chain edits pending — re-anchor'
                             : 'Not yet anchored on Solana'}
                       </span>
                       <button
                         onClick={() => handleAnchor(policy)}
                         disabled={anchoringId === policy.id || !publicKey}
-                        className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed text-black transition-colors"
+                        className="ap-btn-orange inline-flex items-center gap-1.5 px-3 h-8 text-[13px] disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {anchoringId === policy.id ? (
+                        {anchoringId === policy.id && (
                           <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : null}
+                        )}
                         {policy.onchain_pda ? 'Re-anchor' : 'Anchor on-chain'}
                       </button>
                     </div>
                     {policy.onchain_status === 'failed' &&
                       policy.onchain_last_error && (
-                        <p className="text-xs text-red-400/80 font-mono break-all">
+                        <p className="text-[11px] text-red-700/85 font-mono break-all">
                           {policy.onchain_last_error}
                         </p>
                       )}

@@ -8,18 +8,20 @@ import {
   Wallet,
   Users,
   Server,
-  Copy,
   CheckCircle,
   LogOut,
   Loader2,
   ExternalLink,
   Plus,
+  Cpu,
 } from 'lucide-react';
 import { useState, useCallback, useEffect } from 'react';
 import { config } from '@/lib/config';
 import { truncateAddress } from '@/lib/utils';
 import { Keypair, PublicKey } from '@solana/web3.js';
 import { AgentStripeCard } from './AgentStripeCard';
+import { SettingsSection } from './shared/SettingsSection';
+import { CopyableField } from './shared/CopyableField';
 
 interface MultisigInfo {
   readonly address: string;
@@ -33,7 +35,6 @@ export function SettingsTab() {
   const { connection } = useConnection();
   const operatorId = useOperatorId();
 
-  const [copiedField, setCopiedField] = useState<string | null>(null);
   const [creatingMultisig, setCreatingMultisig] = useState(false);
   const [multisigInfo, setMultisigInfo] = useState<MultisigInfo | null>(null);
   const [multisigError, setMultisigError] = useState<string | null>(null);
@@ -41,23 +42,15 @@ export function SettingsTab() {
 
   const walletAddress = publicKey?.toBase58() ?? null;
 
-  async function copyToClipboard(text: string, field: string): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedField(field);
-      setTimeout(() => setCopiedField(null), 2000);
-    } catch {
-      // Clipboard API may not be available in all contexts
-    }
-  }
-
   const checkExistingMultisig = useCallback(async () => {
     if (!publicKey) return;
     try {
       const sqds = await import('@sqds/multisig');
 
       // Check localStorage for previously created multisig
-      const storedKey = localStorage.getItem(`aperture_multisig_createkey_${publicKey.toBase58()}`);
+      const storedKey = localStorage.getItem(
+        `aperture_multisig_createkey_${publicKey.toBase58()}`,
+      );
       if (!storedKey) return;
 
       const createKeyPubkey = new PublicKey(storedKey);
@@ -67,7 +60,7 @@ export function SettingsTab() {
 
       const multisigAccount = await sqds.accounts.Multisig.fromAccountAddress(
         connection,
-        multisigPda
+        multisigPda,
       );
 
       setMultisigInfo({
@@ -104,11 +97,14 @@ export function SettingsTab() {
         createKey: createKey.publicKey,
       });
 
-      // Build the create multisig transaction
-      // Threshold: 1/1 for demo
-      // Squads program treasury (from on-chain ProgramConfig)
+      // Build the create multisig transaction. Threshold 1/1 for the demo
+      // — operators can re-create with a higher threshold once they have
+      // multiple signers ready to add.
       const [programConfigPda] = sqds.getProgramConfigPda({});
-      const programConfig = await sqds.accounts.ProgramConfig.fromAccountAddress(connection, programConfigPda);
+      const programConfig = await sqds.accounts.ProgramConfig.fromAccountAddress(
+        connection,
+        programConfigPda,
+      );
 
       const createMultisigIx = sqds.instructions.multisigCreateV2({
         createKey: createKey.publicKey,
@@ -145,7 +141,7 @@ export function SettingsTab() {
       // Store createKey in localStorage for future lookups
       localStorage.setItem(
         `aperture_multisig_createkey_${publicKey.toBase58()}`,
-        createKey.publicKey.toBase58()
+        createKey.publicKey.toBase58(),
       );
 
       setMultisigInfo({
@@ -164,384 +160,221 @@ export function SettingsTab() {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-amber-100">Settings</h2>
-        <p className="text-amber-100/40 text-sm mt-1">
-          Manage your wallet, multisig, and API configuration
-        </p>
-      </div>
+      {/* Hero ribbon */}
+      <section
+        className="relative overflow-hidden rounded-[24px] border border-black/8 bg-white p-6 sm:p-8"
+        style={{ boxShadow: 'var(--shadow-card)' }}
+      >
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              'radial-gradient(ellipse 50% 80% at 95% 10%, rgba(248,179,0,0.18) 0%, rgba(248,179,0,0) 65%)',
+          }}
+        />
+        <div className="relative flex flex-col gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-pill bg-aperture/15 px-2.5 py-1 text-[11px] font-medium tracking-tighter text-aperture-dark w-fit">
+            <Settings className="h-3 w-3" />
+            Operator Settings
+          </span>
+          <h1 className="font-display text-[36px] sm:text-[44px] leading-[1.04] tracking-[-0.012em] text-black">
+            Wallet, multisig &amp; APIs
+          </h1>
+          <p className="text-[14px] text-black/55 tracking-tighter max-w-2xl">
+            Aperture is wallet-first. Your operator identity, multisig governance, and
+            backend service URLs all live in one place — no admin console required.
+          </p>
+        </div>
+      </section>
 
       {/* Wallet Connection */}
-      <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <Wallet className="w-5 h-5 text-amber-400" />
-          <h3 className="text-lg font-semibold text-amber-100">Wallet Connection</h3>
-        </div>
-
+      <SettingsSection
+        icon={Wallet}
+        title="Wallet Connection"
+        description="The connected wallet acts as your operator identity across every service."
+        action={
+          connected && (
+            <span className="inline-flex items-center gap-1.5 rounded-pill bg-green-500/10 px-2.5 py-1 text-[11px] font-medium tracking-tighter text-green-700">
+              <CheckCircle className="h-3 w-3" />
+              Connected
+            </span>
+          )
+        }
+      >
         {connected && walletAddress ? (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm text-amber-100/40 mb-1">
-                Connected Wallet Address
-              </label>
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-amber-100 text-sm break-all">
-                  {walletAddress}
-                </span>
-                <button
-                  onClick={() => copyToClipboard(walletAddress, 'wallet')}
-                  className="flex-shrink-0 text-amber-100/40 hover:text-amber-400 transition-colors"
-                  aria-label="Copy wallet address"
-                >
-                  {copiedField === 'wallet' ? (
-                    <CheckCircle className="w-4 h-4 text-green-400" />
-                  ) : (
-                    <Copy className="w-4 h-4" />
-                  )}
-                </button>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-400/10 text-amber-400 text-xs font-medium">
-                <CheckCircle className="w-3 h-3" />
-                Connected
-              </span>
-            </div>
+          <>
+            <CopyableField
+              label="Wallet address"
+              value={walletAddress}
+              helper="Shared with backend services as operator_id."
+            />
             <button
               onClick={() => disconnect()}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm text-red-400 hover:bg-red-400/10 border border-red-400/20 transition-colors"
+              className="inline-flex items-center gap-2 rounded-pill border border-red-500/30 bg-red-500/8 px-4 py-2 text-[13px] font-medium tracking-tighter text-red-700 hover:bg-red-500/12 transition-colors w-fit"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="h-4 w-4" />
               Disconnect Wallet
             </button>
-          </div>
+          </>
         ) : (
-          <div className="text-amber-100/40">
-            <p className="text-sm mb-3">No wallet connected.</p>
-            <p className="text-xs">
-              Connect a Solana wallet (Phantom, Solflare) using the wallet adapter
-              to access full functionality.
-            </p>
-          </div>
+          <p className="text-[14px] text-black/55 tracking-tighter">
+            No wallet connected. Use Phantom or Solflare via the wallet adapter to
+            access full functionality.
+          </p>
         )}
-      </div>
+      </SettingsSection>
 
       {/* Squads Multisig */}
-      <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <Users className="w-5 h-5 text-amber-400" />
-          <h3 className="text-lg font-semibold text-amber-100">Squads Multisig</h3>
-        </div>
-
-        <div className="space-y-4">
-          <p className="text-sm text-amber-100/60">
-            Squads V4 multisig enables multi-signature approval for policy changes.
-            Policy registration and updates can be routed through the multisig for added security.
-          </p>
-
-          {multisigInfo ? (
-            <div className="space-y-3">
-              <div className="p-4 rounded-lg bg-amber-400/5 border border-amber-400/10">
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <span className="text-amber-100/40">Status</span>
-                    <p className="flex items-center gap-1.5 text-amber-400 font-medium">
-                      <CheckCircle className="w-3.5 h-3.5" />
-                      Active
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-amber-100/40">Threshold</span>
-                    <p className="text-amber-100 font-mono">
-                      {multisigInfo.threshold}/{multisigInfo.memberCount}
-                    </p>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="text-amber-100/40">Multisig Address</span>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-sm font-mono text-amber-100 break-all">
-                        {multisigInfo.address}
-                      </span>
-                      <button
-                        onClick={() => copyToClipboard(multisigInfo.address, 'multisig')}
-                        className="flex-shrink-0 text-amber-100/40 hover:text-amber-400 transition-colors"
-                        aria-label="Copy multisig address"
-                      >
-                        {copiedField === 'multisig' ? (
-                          <CheckCircle className="w-4 h-4 text-green-400" />
-                        ) : (
-                          <Copy className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
+      <SettingsSection
+        icon={Users}
+        title="Squads Multisig"
+        description="Squads V4 enables multi-signature approval for policy changes. Policy registration and updates can be routed through the multisig for added security."
+        action={
+          multisigInfo ? (
+            <span className="inline-flex items-center gap-1.5 rounded-pill bg-green-500/10 px-2.5 py-1 text-[11px] font-medium tracking-tighter text-green-700">
+              <CheckCircle className="h-3 w-3" />
+              Active · {multisigInfo.threshold}/{multisigInfo.memberCount}
+            </span>
+          ) : (
+            <span className="inline-flex items-center rounded-pill bg-black/5 px-2.5 py-1 text-[11px] font-medium tracking-tighter text-black/55">
+              Not configured
+            </span>
+          )
+        }
+      >
+        {multisigInfo ? (
+          <>
+            <CopyableField label="Multisig address" value={multisigInfo.address} />
+            <div className="flex flex-wrap items-center gap-3">
               <a
                 href={config.explorerUrl(multisigInfo.address)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-sm text-amber-400 hover:text-amber-300 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-pill border border-black/8 bg-white px-3 py-1.5 text-[12px] font-medium tracking-tighter text-aperture-dark hover:border-aperture/40 transition-colors"
               >
-                <ExternalLink className="w-3.5 h-3.5" />
-                View on Solana Explorer
+                <ExternalLink className="h-3.5 w-3.5" />
+                View on Solana
               </a>
-
               {multisigTxSig && (
                 <a
                   href={config.txExplorerUrl(multisigTxSig)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-xs text-amber-100/40 hover:text-amber-300 transition-colors"
+                  className="inline-flex items-center gap-1.5 text-[12px] tracking-tighter text-black/55 hover:text-black transition-colors"
                 >
-                  <ExternalLink className="w-3 h-3" />
-                  Creation transaction
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Creation tx
                 </a>
               )}
             </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span className="text-amber-100/40">Status</span>
-                  <p className="text-amber-100/60">Not configured</p>
-                </div>
-                <div>
-                  <span className="text-amber-100/40">Required Signers</span>
-                  <p className="text-amber-100/60">-</p>
-                </div>
+          </>
+        ) : (
+          <>
+            {multisigError && (
+              <div className="rounded-[12px] border border-red-500/25 bg-red-500/5 p-3 text-[12px] text-red-700 tracking-tighter">
+                {multisigError}
               </div>
-
-              {multisigError && (
-                <div className="p-3 rounded-lg bg-red-400/10 border border-red-400/20 text-red-400 text-sm">
-                  {multisigError}
-                </div>
+            )}
+            <button
+              onClick={createMultisig}
+              disabled={creatingMultisig || !connected}
+              className="ap-btn-orange inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed w-fit"
+            >
+              {creatingMultisig ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
               )}
+              {creatingMultisig ? 'Creating…' : 'Create Multisig'}
+            </button>
+            <p className="text-[12px] text-black/55 tracking-tighter">
+              Creates a Squads V4 multisig on Devnet with 1/1 threshold. Your connected
+              wallet will be the sole member; raise the threshold once additional
+              signers are ready.
+            </p>
+          </>
+        )}
+      </SettingsSection>
 
-              <button
-                onClick={createMultisig}
-                disabled={creatingMultisig || !connected}
-                className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold rounded-lg px-6 py-2 transition-colors"
-              >
-                {creatingMultisig ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Plus className="w-4 h-4" />
-                )}
-                {creatingMultisig ? 'Creating...' : 'Create Multisig'}
-              </button>
-
-              <p className="text-xs text-amber-100/50">
-                Creates a Squads V4 multisig on Devnet with 1/1 threshold.
-                Your connected wallet will be the sole member.
-                Policy operations can then be routed through this multisig.
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Agent Stripe Configuration */}
+      {/* Agent Stripe Configuration — kept as its own component, theming
+          updates land via globals.css overrides. */}
       <AgentStripeCard operatorId={operatorId} />
 
       {/* API Configuration */}
-      <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <Server className="w-5 h-5 text-amber-400" />
-          <h3 className="text-lg font-semibold text-amber-100">API Configuration</h3>
+      <SettingsSection
+        icon={Server}
+        title="API Configuration"
+        description="Backend service URLs read at runtime. Override via NEXT_PUBLIC_* env to point at staging/prod."
+      >
+        <div className="grid grid-cols-1 gap-3">
+          <CopyableField label="Policy Service" value={config.policyServiceUrl} />
+          <CopyableField label="Compliance API" value={config.complianceApiUrl} />
+          <CopyableField label="Prover Service" value={config.proverServiceUrl} />
+          <CopyableField label="Solana RPC" value={config.solanaRpcUrl} />
         </div>
-
-        <div className="space-y-3">
-          <div>
-            <label className="block text-sm text-amber-100/40 mb-1">
-              Policy Service URL
-            </label>
-            <div className="flex items-center gap-2">
-              <code className="text-sm font-mono text-amber-100 bg-amber-400/5 px-3 py-1.5 rounded-lg border border-amber-400/10 flex-1">
-                {config.policyServiceUrl}
-              </code>
-              <button
-                onClick={() => copyToClipboard(config.policyServiceUrl, 'policy-url')}
-                className="flex-shrink-0 text-amber-100/40 hover:text-amber-400 transition-colors"
-                aria-label="Copy policy service URL"
-              >
-                {copiedField === 'policy-url' ? (
-                  <CheckCircle className="w-4 h-4 text-green-400" />
-                ) : (
-                  <Copy className="w-4 h-4" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm text-amber-100/40 mb-1">
-              Compliance API URL
-            </label>
-            <div className="flex items-center gap-2">
-              <code className="text-sm font-mono text-amber-100 bg-amber-400/5 px-3 py-1.5 rounded-lg border border-amber-400/10 flex-1">
-                {config.complianceApiUrl}
-              </code>
-              <button
-                onClick={() => copyToClipboard(config.complianceApiUrl, 'compliance-url')}
-                className="flex-shrink-0 text-amber-100/40 hover:text-amber-400 transition-colors"
-                aria-label="Copy compliance API URL"
-              >
-                {copiedField === 'compliance-url' ? (
-                  <CheckCircle className="w-4 h-4 text-green-400" />
-                ) : (
-                  <Copy className="w-4 h-4" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm text-amber-100/40 mb-1">
-              Prover Service URL
-            </label>
-            <div className="flex items-center gap-2">
-              <code className="text-sm font-mono text-amber-100 bg-amber-400/5 px-3 py-1.5 rounded-lg border border-amber-400/10 flex-1">
-                {config.proverServiceUrl}
-              </code>
-              <button
-                onClick={() => copyToClipboard(config.proverServiceUrl, 'prover-url')}
-                className="flex-shrink-0 text-amber-100/40 hover:text-amber-400 transition-colors"
-                aria-label="Copy prover service URL"
-              >
-                {copiedField === 'prover-url' ? (
-                  <CheckCircle className="w-4 h-4 text-green-400" />
-                ) : (
-                  <Copy className="w-4 h-4" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm text-amber-100/40 mb-1">
-              Solana RPC URL
-            </label>
-            <div className="flex items-center gap-2">
-              <code className="text-sm font-mono text-amber-100 bg-amber-400/5 px-3 py-1.5 rounded-lg border border-amber-400/10 flex-1">
-                {config.solanaRpcUrl}
-              </code>
-              <button
-                onClick={() => copyToClipboard(config.solanaRpcUrl, 'rpc-url')}
-                className="flex-shrink-0 text-amber-100/40 hover:text-amber-400 transition-colors"
-                aria-label="Copy Solana RPC URL"
-              >
-                {copiedField === 'rpc-url' ? (
-                  <CheckCircle className="w-4 h-4 text-green-400" />
-                ) : (
-                  <Copy className="w-4 h-4" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm text-amber-100/40 mb-1">
-              Solana Network
-            </label>
-            <span className="px-2.5 py-1 rounded-full bg-amber-400/10 text-amber-400 text-xs font-medium">
-              {config.solanaNetwork}
-            </span>
-          </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] uppercase tracking-[0.08em] text-black/55">
+            Network
+          </span>
+          <span className="inline-flex items-center rounded-pill bg-aperture/12 px-2.5 py-1 text-[11px] font-medium tracking-tighter text-aperture-dark">
+            {config.solanaNetwork}
+          </span>
         </div>
-      </div>
+      </SettingsSection>
 
-      {/* Operator ID */}
-      <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <Settings className="w-5 h-5 text-amber-400" />
-          <h3 className="text-lg font-semibold text-amber-100">Operator Identity</h3>
-        </div>
-
+      {/* Operator Identity */}
+      <SettingsSection
+        icon={Settings}
+        title="Operator Identity"
+        description="Derived from your connected wallet address or session email. Used to scope every Aperture record."
+      >
         {operatorId ? (
-          <div>
-            <label className="block text-sm text-amber-100/40 mb-1">
-              Operator ID
-            </label>
-            <div className="flex items-center gap-2">
-              <code className="text-sm font-mono text-amber-100 bg-amber-400/5 px-3 py-1.5 rounded-lg border border-amber-400/10 flex-1 break-all">
-                {operatorId}
-              </code>
-              <button
-                onClick={() => copyToClipboard(operatorId, 'operator-id')}
-                className="flex-shrink-0 text-amber-100/40 hover:text-amber-400 transition-colors"
-                aria-label="Copy operator ID"
-              >
-                {copiedField === 'operator-id' ? (
-                  <CheckCircle className="w-4 h-4 text-green-400" />
-                ) : (
-                  <Copy className="w-4 h-4" />
-                )}
-              </button>
-            </div>
-            <p className="text-xs text-amber-100/50 mt-2">
-              This ID is derived from your connected wallet address or session email.
-              It is used to identify your operator account across all Aperture services.
-            </p>
-          </div>
+          <CopyableField
+            label="Operator ID"
+            value={operatorId}
+            helper="Backend services namespace policies, proofs and attestations under this ID."
+          />
         ) : (
-          <p className="text-sm text-amber-100/40">
+          <p className="text-[14px] text-black/55 tracking-tighter">
             Connect a wallet or sign in to view your operator ID.
           </p>
         )}
-      </div>
+      </SettingsSection>
 
       {/* On-chain Programs */}
-      <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <Server className="w-5 h-5 text-amber-400" />
-          <h3 className="text-lg font-semibold text-amber-100">On-chain Programs</h3>
+      <SettingsSection
+        icon={Cpu}
+        title="On-chain Programs"
+        description="Aperture's deployed Solana Devnet program IDs."
+      >
+        <div className="grid grid-cols-1 gap-3">
+          {[
+            { label: 'Policy Registry', id: config.programs.policyRegistry },
+            { label: 'Verifier', id: config.programs.verifier },
+            { label: 'Transfer Hook', id: config.programs.transferHook },
+            { label: 'AIP Registry', id: config.programs.aipRegistry },
+            { label: 'AIP Escrow', id: config.programs.aipEscrow },
+          ].map((p) => (
+            <CopyableField
+              key={p.label}
+              label={p.label}
+              value={p.id}
+              display={
+                <a
+                  href={config.explorerUrl(p.id)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-aperture-dark hover:text-black transition-colors"
+                >
+                  {truncateAddress(p.id, 8)}
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              }
+            />
+          ))}
         </div>
-
-        <div className="space-y-3">
-          <div>
-            <label className="block text-sm text-amber-100/40 mb-1">
-              Policy Registry Program
-            </label>
-            <a
-              href={config.explorerUrl(config.programs.policyRegistry)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-mono text-amber-400 hover:text-amber-300 transition-colors"
-            >
-              {truncateAddress(config.programs.policyRegistry, 8)}
-            </a>
-          </div>
-          <div>
-            <label className="block text-sm text-amber-100/40 mb-1">
-              Verifier Program
-            </label>
-            <a
-              href={config.explorerUrl(config.programs.verifier)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-mono text-amber-400 hover:text-amber-300 transition-colors"
-            >
-              {truncateAddress(config.programs.verifier, 8)}
-            </a>
-          </div>
-          <div>
-            <label className="block text-sm text-amber-100/40 mb-1">
-              Transfer Hook Program
-            </label>
-            <a
-              href={config.explorerUrl(config.programs.transferHook)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-mono text-amber-400 hover:text-amber-300 transition-colors"
-            >
-              {truncateAddress(config.programs.transferHook, 8)}
-            </a>
-          </div>
-        </div>
-      </div>
+      </SettingsSection>
     </div>
   );
 }

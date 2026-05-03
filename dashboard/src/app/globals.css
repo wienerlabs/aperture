@@ -1,78 +1,353 @@
+/* Host Grotesk — primary UI face. Loaded directly from Google Fonts
+   because Next.js 14's next/font/google does not yet ship a Host Grotesk
+   metadata file. */
+@import url("https://fonts.googleapis.com/css2?family=Host+Grotesk:ital,wght@0,300..800;1,300..800&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  /* Tie the variable Tailwind/CSS expects to the actual Google Fonts
+     family name. */
+  --font-host-grotesk: "Host Grotesk", ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* =========================================================================
+   Aperture Design System — Antimetal-inspired adaptation
+   Mapping:
+     Antimetal navy hero (#001033)        ->  Aperture orange  (#f8b300)
+     Antimetal ghost canvas (#f8f9fc)     ->  Aperture white   (#ffffff)
+     Antimetal pure surface (#ffffff)     ->  Aperture white surface
+     Antimetal midnight ink (#1b2540)     ->  Aperture ink     (#1a1a1a)
+     Antimetal chartreuse CTA (#d0f100)   ->  Aperture white CTA + #f8b300 text
+   Surfaces are warm-tinted (rgba(101,69,0,..)) instead of blue-tinted.
+   ========================================================================= */
 
 @layer base {
   html {
     scroll-behavior: smooth;
   }
 
-  /* Dark theme (default) */
   :root {
-    --bg-primary: #000000;
-    --bg-secondary: rgba(0, 0, 0, 0.9);
-    --bg-card: rgba(10, 10, 10, 0.8);
-    --bg-card-solid: #0a0a0a;
-    --text-primary: #fef3c7;
-    --text-secondary: rgba(254, 243, 199, 0.6);
-    --text-muted: rgba(254, 243, 199, 0.4);
+    /* ----- Brand colors ----- */
+    --color-aperture: #f8b300;
+    --color-aperture-dark: #c98f00;
+    --color-aperture-light: #ffd066;
+
+    /* ----- Antimetal-equivalent tokens (re-tinted) ----- */
+    --color-midnight-navy: #1a1a1a;        /* primary ink on light */
+    --color-deep-cosmos: #f8b300;          /* "hero dark" -> orange */
+    --color-chartreuse-pulse: #ffffff;     /* CTA fill -> white */
+    --color-ice-veil: rgba(255, 255, 255, 0.85);
+    --color-ghost-canvas: #ffffff;         /* primary page bg */
+    --color-pure-surface: #ffffff;         /* elevated surface */
+    --color-slate-ink: #6b7184;            /* secondary text */
+    --color-ash-medium: #7c8293;           /* tertiary text */
+    --color-storm-gray: #596075;           /* mid-tone */
+    --color-fog-border: #e5e3df;           /* hairline borders */
+
+    /* ----- Surfaces ----- */
+    --surface-hero: #f8b300;               /* dramatic orange hero */
+    --surface-canvas: #ffffff;             /* primary content */
+    --surface-elevated: #ffffff;           /* cards, panels */
+    --surface-data-chip: rgba(248, 179, 0, 0.04);
+
+    /* ----- Legacy compatibility tokens (mapped to new system) ----- */
+    --bg-primary: #ffffff;
+    --bg-secondary: #ffffff;
+    --bg-card: #ffffff;
+    --bg-card-solid: #ffffff;
+    --text-primary: #1a1a1a;
+    --text-secondary: #6b7184;
+    --text-muted: #7c8293;
     --accent: #f8b300;
-    --accent-hover: #d99b00;
-    --accent-muted: rgba(248, 179, 0, 0.1);
-    --accent-border: rgba(248, 179, 0, 0.2);
-    --border: rgba(248, 179, 0, 0.1);
-    --matrix-opacity: 0.15;
-    --glass-bg: rgba(10, 10, 10, 0.8);
-    --glass-border: rgba(248, 179, 0, 0.2);
+    --accent-hover: #c98f00;
+    --accent-muted: rgba(248, 179, 0, 0.08);
+    --accent-border: rgba(248, 179, 0, 0.18);
+    --border: rgba(26, 26, 26, 0.08);
+    --matrix-opacity: 0.04;
+    --glass-bg: rgba(255, 255, 255, 0.92);
+    --glass-border: rgba(248, 179, 0, 0.18);
     --nav-bg: #f8b300;
+
+    /* ----- Typography scale (Antimetal) ----- */
+    --text-caption: 13px;
+    --leading-caption: 1;
+    --tracking-caption: -0.21px;
+    --text-body: 16px;
+    --leading-body: 1.5;
+    --tracking-body: -0.16px;
+    --text-subheading: 18px;
+    --leading-subheading: 1.33;
+    --tracking-subheading: -0.09px;
+    --text-heading-sm: 22px;
+    --leading-heading-sm: 1.29;
+    --tracking-heading-sm: -0.22px;
+    --text-heading: 28px;
+    --leading-heading: 1.17;
+    --tracking-heading: -0.14px;
+    --text-heading-lg: 40px;
+    --leading-heading-lg: 1.05;
+    --tracking-heading-lg: -0.4px;
+    --text-display: 48px;
+    --leading-display: 1.04;
+    --tracking-display: -0.48px;
+
+    /* ----- Spacing ----- */
+    --spacing-unit: 4px;
+    --spacing-4: 4px;
+    --spacing-8: 8px;
+    --spacing-12: 12px;
+    --spacing-16: 16px;
+    --spacing-20: 20px;
+    --spacing-24: 24px;
+    --spacing-28: 28px;
+    --spacing-32: 32px;
+    --spacing-56: 56px;
+    --spacing-60: 60px;
+    --spacing-72: 72px;
+    --spacing-96: 96px;
+
+    /* ----- Layout ----- */
+    --page-max-width: 1200px;
+    --section-gap: 80px;
+    --card-padding: 20px;
+    --element-gap: 8px;
+
+    /* ----- Border Radius ----- */
+    --radius-cards: 20px;
+    --radius-badges: 16px;
+    --radius-inputs: 0px;
+    --radius-buttons: 9999px;
+    --radius-pill-large: 60px;
+    --radius-cards-small: 6px;
+    --radius-cards-medium: 16px;
+
+    /* ----- Shadows (warm-tinted: rgba(101,69,0,...)) ----- */
+    --shadow-md:
+      rgba(101, 69, 0, 0.08) 0px 6px 16px -3px,
+      rgba(101, 69, 0, 0.04) 0px 0px 0px 1px;
+    --shadow-xl:
+      rgba(101, 69, 0, 0.03) 0px 56px 72px -16px,
+      rgba(101, 69, 0, 0.03) 0px 32px 32px -16px,
+      rgba(101, 69, 0, 0.04) 0px 6px 12px -3px,
+      rgba(101, 69, 0, 0.04) 0px 0px 0px 1px;
+    --shadow-card:
+      rgba(101, 69, 0, 0.03) 0px 56px 72px -16px,
+      rgba(101, 69, 0, 0.03) 0px 32px 32px -16px,
+      rgba(101, 69, 0, 0.04) 0px 6px 12px -3px,
+      rgba(101, 69, 0, 0.04) 0px 0px 0px 1px;
+    --shadow-badge:
+      rgba(101, 69, 0, 0.08) 0px 6px 16px -3px,
+      rgba(101, 69, 0, 0.04) 0px 0px 0px 1px;
+    --shadow-cta-light:
+      rgba(255, 255, 255, 0.72) 0px 1px 1px 0px inset,
+      rgba(101, 69, 0, 0.06) 0px 8px 16px 0px,
+      rgba(101, 69, 0, 0.08) 0px 4px 12px 0px,
+      rgba(101, 69, 0, 0.10) 0px 1px 2px 0px,
+      rgba(101, 69, 0, 0.12) 0px 0px 0px 1px;
+    --shadow-cta-on-orange:
+      rgba(101, 69, 0, 0.32) 0px 1px 3px 0px,
+      rgba(101, 69, 0, 0.12) 0px 0.5px 0.5px 0px,
+      rgba(101, 69, 0, 0.44) 0px 12px 24px -12px,
+      rgba(255, 255, 255, 0.18) 0px 8px 16px 0px inset,
+      rgba(255, 255, 255, 0.48) 0px 0.5px 0.5px 0px inset;
+    --shadow-ghost-on-orange:
+      rgba(255, 255, 255, 0.10) 0px 0px 16px 8px inset,
+      rgba(255, 255, 255, 0.10) 0px 0px 8px 4px inset,
+      rgba(255, 255, 255, 0.10) 0px 0px 4px 2px inset,
+      rgba(255, 255, 255, 0.16) 0px 0px 2px 1px inset;
+    --shadow-announcement:
+      rgba(255, 255, 255, 0.88) 0px 1px 1px 0px inset,
+      rgba(101, 69, 0, 0.04) 0px 48px 72px -12px,
+      rgba(101, 69, 0, 0.03) 0px 28px 40px 0px,
+      rgba(101, 69, 0, 0.02) 0px 4px 12px 0px,
+      rgba(101, 69, 0, 0.06) 0px 0px 0px 1px;
+    --gradient-color: #f8b300;
+    --sparkles-color: #f8b300;
   }
 
-  /* Light theme */
-  html.theme-light {
-    --bg-primary: #fafaf8;
-    --bg-secondary: #f5f5f4;
-    --bg-card: rgba(245, 245, 244, 0.9);
-    --bg-card-solid: #f5f5f4;
-    --text-primary: #1a1a1a;
-    --text-secondary: #4a4a4a;
-    --text-muted: #6b6b6b;
-    --accent: #f8b300;
-    --accent-hover: #d99b00;
-    --accent-muted: rgba(248, 179, 0, 0.1);
-    --accent-border: rgba(248, 179, 0, 0.2);
-    --border: rgba(28, 25, 23, 0.12);
-    --matrix-opacity: 0.04;
-    --glass-bg: rgba(255, 255, 255, 0.8);
-    --glass-border: rgba(248, 179, 0, 0.15);
-    --nav-bg: #f8b300;
+  /* Dark theme is preserved as a defensive fallback for legacy classes,
+     but is no longer the default. Toggle via html.theme-dark if needed. */
+  html.theme-dark {
+    --bg-primary: #0a0a0a;
+    --bg-secondary: rgba(0, 0, 0, 0.9);
+    --bg-card: rgba(20, 20, 20, 0.85);
+    --bg-card-solid: #141414;
+    --text-primary: #ffffff;
+    --text-secondary: rgba(255, 255, 255, 0.7);
+    --text-muted: rgba(255, 255, 255, 0.45);
+    --border: rgba(248, 179, 0, 0.12);
+    --glass-bg: rgba(20, 20, 20, 0.85);
+    --matrix-opacity: 0.18;
   }
 
   body {
-    background-color: var(--bg-primary);
-    color: var(--accent);
-    font-family: var(--font-mondwest), sans-serif;
+    background-color: var(--surface-canvas);
+    color: var(--color-midnight-navy);
+    font-family: var(--font-host-grotesk), var(--font-inter),
+      ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+      "Segoe UI", Roboto, sans-serif;
+    font-feature-settings: "ss01", "cv11";
+    letter-spacing: -0.011em;
     transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  /* Display headlines — KMR Waldenburg as primary face, with serif fallbacks.
+     Force-override Tailwind's font-mono / font-mondwest utilities on
+     h1/h2 so section headings render as Waldenburg by default. */
+  h1, h2, .font-display {
+    font-family: var(--font-waldenburg), var(--font-fraunces),
+      var(--font-mondwest), ui-serif, Georgia, "Times New Roman", serif !important;
+    font-feature-settings: "ss01", "ss02", "ss03";
+    letter-spacing: -0.005em;
+    font-weight: 400;
   }
 
   * {
     border-color: var(--border);
   }
+  .dark {
+    --gradient-color: #8350e8;
+    --sparkles-color: #f8b300;
+  }
 }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  .text-balance { text-wrap: balance; }
+
+  /* Antimetal-style elevated card */
+  .ap-card {
+    background: var(--surface-elevated);
+    border-radius: var(--radius-cards);
+    box-shadow: var(--shadow-card);
   }
 
-  .glass-card {
-    background: var(--glass-bg);
-    backdrop-filter: blur(12px);
-    border: 1px solid var(--glass-border);
-    border-radius: 0.75rem;
+  /* Antimetal-style floating badge */
+  .ap-badge {
+    background: rgba(255, 255, 255, 0.96);
+    border-radius: var(--radius-badges);
+    box-shadow: var(--shadow-badge);
+    color: var(--color-midnight-navy);
+    padding: 8px 14px;
+    font-size: 14px;
+    letter-spacing: -0.014em;
   }
 
+  /* Primary CTA: white fill + orange text on orange surfaces */
+  .ap-btn-primary {
+    background: #ffffff;
+    color: var(--color-aperture);
+    border-radius: var(--radius-buttons);
+    padding: 0 24px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 480;
+    font-size: 15px;
+    letter-spacing: -0.015em;
+    box-shadow: var(--shadow-cta-on-orange);
+    transition: transform 0.18s ease, box-shadow 0.18s ease,
+      background-color 0.18s ease;
+  }
+  .ap-btn-primary:hover { transform: translateY(-1px); }
+
+  /* Light-surface CTA: orange fill + white text (used on white sections) */
+  .ap-btn-orange {
+    background: var(--color-aperture);
+    color: #ffffff;
+    border-radius: var(--radius-buttons);
+    padding: 0 24px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 480;
+    font-size: 15px;
+    letter-spacing: -0.015em;
+    box-shadow: var(--shadow-cta-light);
+    transition: transform 0.18s ease, box-shadow 0.18s ease,
+      background-color 0.18s ease;
+  }
+  .ap-btn-orange:hover { background: var(--color-aperture-dark); }
+
+  /* Ghost button on orange hero */
+  .ap-btn-ghost-orange {
+    background: rgba(0, 0, 0, 0);
+    color: #ffffff;
+    border-radius: var(--radius-buttons);
+    padding: 0 16px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 450;
+    font-size: 15px;
+    letter-spacing: -0.015em;
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.55) inset,
+      var(--shadow-ghost-on-orange);
+    transition: background-color 0.18s ease;
+  }
+  .ap-btn-ghost-orange:hover { background: rgba(255, 255, 255, 0.08); }
+
+  /* Ghost button on white surface */
+  .ap-btn-ghost-light {
+    background: transparent;
+    color: var(--color-midnight-navy);
+    border-radius: var(--radius-buttons);
+    padding: 8px 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 450;
+    font-size: 15px;
+    letter-spacing: -0.015em;
+    box-shadow:
+      rgba(255, 255, 255, 0.72) 0px 1px 1px 0px inset,
+      rgba(101, 69, 0, 0.04) 0px 0px 0px 1px,
+      rgba(101, 69, 0, 0.06) 0px 8px 16px 0px;
+    transition: background-color 0.18s ease;
+  }
+  .ap-btn-ghost-light:hover { background: rgba(248, 179, 0, 0.05); }
+
+  /* Sharp-corner input (Antimetal: inputs are 0px radius by design) */
+  .ap-input {
+    background: transparent;
+    color: var(--color-midnight-navy);
+    border: 1px solid var(--color-midnight-navy);
+    border-radius: var(--radius-inputs);
+    padding: 12px 16px;
+    font-size: 15px;
+    letter-spacing: -0.015em;
+  }
+  .ap-input::placeholder { color: var(--color-slate-ink); }
+
+  /* Section surfaces */
+  .ap-surface-hero {
+    background: var(--surface-hero);
+    color: #ffffff;
+  }
+  .ap-surface-canvas {
+    background: var(--surface-canvas);
+    color: var(--color-midnight-navy);
+  }
+
+  /* Subtle warm glow (Antimetal radial accent, re-tinted) */
   .amber-glow {
     box-shadow: 0 0 30px rgba(248, 179, 0, 0.15);
+  }
+
+  /* Glass card (legacy class — re-skinned to Antimetal Pure Surface) */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(101, 69, 0, 0.06);
+    border-radius: var(--radius-cards);
+    box-shadow: var(--shadow-card);
   }
 
   .scan-line {
@@ -80,121 +355,207 @@
       0deg,
       transparent,
       transparent 2px,
-      rgba(248, 179, 0, 0.03) 2px,
-      rgba(248, 179, 0, 0.03) 4px
+      rgba(248, 179, 0, 0.04) 2px,
+      rgba(248, 179, 0, 0.04) 4px
     );
     pointer-events: none;
   }
 }
 
-/* Light mode overrides for hardcoded dark colors */
-html.theme-light {
-  & body { background-color: #fafaf8; }
+/* =========================================================================
+   Legacy class re-skinning
+   The codebase ships many hard-coded utility values like `bg-[#000000]`,
+   `text-amber-400`, `bg-amber-400`, etc. We re-skin them at the CSS layer
+   so we don't have to edit 47 tsx files.
+   ========================================================================= */
 
-  /* All bg-[#000000] elements */
-  & .bg-\[\#000000\] { background-color: #fafaf8 !important; }
-
-  /* Card backgrounds */
-  & .bg-\[rgba\(10\,10\,10\,0\.8\)\] { background-color: rgba(245, 245, 244, 0.95) !important; }
-  & .bg-\[rgba\(0\,0\,0\,0\.9\)\] { background-color: rgba(245, 245, 244, 0.95) !important; }
-
-  /* Nav backgrounds */
-  & .bg-\[\#000000\]\/80 { background-color: rgba(250, 250, 248, 0.9) !important; }
-  & .bg-\[\#000000\]\/95 { background-color: rgba(250, 250, 248, 0.95) !important; }
-  & .bg-\[rgba\(0\,0\,0\,0\.95\)\] { background-color: rgba(250, 250, 248, 0.95) !important; }
-
-  /* Code blocks */
-  & .bg-\[\#0a0a0a\] { background-color: #f5f5f4 !important; }
-
-  /* Text colors - WCAG AA compliant (min 4.5:1 contrast on #fafaf8) */
-  /* #1a1a1a = 16.5:1, #4a4a4a = 7.7:1, #6b6b6b = 4.6:1 */
-  & .text-amber-100 { color: #1a1a1a !important; }
-  & .text-amber-100\/80 { color: #333333 !important; }
-  & .text-amber-100\/70 { color: #4a4a4a !important; }
-  & .text-amber-100\/60 { color: #555555 !important; }
-  & .text-amber-100\/50 { color: #6b6b6b !important; }
-  & .text-amber-100\/40 { color: #6b6b6b !important; }
-  & .text-amber-100\/30 { color: #767676 !important; }
-  & .text-amber-100\/20 { color: #767676 !important; }
-  & .text-amber-100\/10 { color: #8a8a8a !important; }
-
-  /* Amber/accent text - #9a6700 has 5.0:1 contrast on white (WCAG AA) */
-  & .text-amber-400 { color: #9a6700 !important; }
-  & .text-amber-400\/80 { color: rgba(154, 103, 0, 0.85) !important; }
-  & .text-amber-400\/60 { color: rgba(154, 103, 0, 0.7) !important; }
-  & .text-amber-400\/50 { color: #6b6b6b !important; }
-  & .text-amber-400\/40 { color: #767676 !important; }
-  & .text-amber-200 { color: #7a5200 !important; }
-
-  /* Background accent tints */
-  & .bg-amber-400\/10 { background-color: rgba(248, 179, 0, 0.08) !important; }
-  & .bg-amber-400\/5 { background-color: rgba(248, 179, 0, 0.04) !important; }
-  & .bg-amber-400\/\[0\.02\] { background-color: rgba(248, 179, 0, 0.02) !important; }
-  & .bg-amber-500 { background-color: #f8b300 !important; }
-  & .bg-amber-400 { background-color: #f8b300 !important; }
-
-  /* Borders */
-  & .border-amber-400\/20 { border-color: rgba(248, 179, 0, 0.18) !important; }
-  & .border-amber-400\/10 { border-color: rgba(248, 179, 0, 0.1) !important; }
-  & .border-amber-400\/30 { border-color: rgba(248, 179, 0, 0.25) !important; }
-  & .border-amber-400\/40 { border-color: rgba(248, 179, 0, 0.3) !important; }
-
-  /* Purple MPP accents */
-  & .border-purple-400\/20 { border-color: rgba(147, 51, 234, 0.15) !important; }
-  & .border-purple-400\/10 { border-color: rgba(147, 51, 234, 0.1) !important; }
-  & .bg-purple-400\/5 { background-color: rgba(147, 51, 234, 0.04) !important; }
-  & .bg-purple-400\/10 { background-color: rgba(147, 51, 234, 0.08) !important; }
-  & .bg-purple-500 { background-color: #7c3aed !important; }
-
-  /* Green accents */
-  & .bg-green-400\/5 { background-color: rgba(34, 197, 94, 0.04) !important; }
-  & .bg-green-400\/10 { background-color: rgba(34, 197, 94, 0.08) !important; }
-  & .border-green-400\/10 { border-color: rgba(34, 197, 94, 0.1) !important; }
-  & .border-green-400\/20 { border-color: rgba(34, 197, 94, 0.15) !important; }
-
-  /* Red accents */
-  & .bg-red-400\/10 { background-color: rgba(248, 113, 113, 0.08) !important; }
-  & .border-red-400\/20 { border-color: rgba(248, 113, 113, 0.15) !important; }
-
-  /* Divide colors */
-  & .divide-amber-400\/10 > :not(:first-child) { border-color: rgba(248, 179, 0, 0.08) !important; }
-  & .divide-amber-400\/5 > :not(:first-child) { border-color: rgba(248, 179, 0, 0.04) !important; }
-
-  /* Hover states */
-  & .hover\:bg-amber-400\/5:hover { background-color: rgba(248, 179, 0, 0.04) !important; }
-  & .hover\:bg-amber-400\/10:hover { background-color: rgba(248, 179, 0, 0.08) !important; }
-  & .hover\:bg-amber-400:hover { background-color: #d99b00 !important; }
-  & .hover\:bg-amber-300:hover { background-color: #f8b300 !important; }
-  & .hover\:text-amber-400:hover { color: #7a5200 !important; }
-  & .hover\:text-amber-300:hover { color: #9a6700 !important; }
-  & .hover\:text-amber-100:hover { color: #1a1a1a !important; }
-
-  /* Matrix rain opacity */
-  & canvas { opacity: var(--matrix-opacity) !important; }
-
-  /* Box shadows for cards */
-  & .glass-card {
-    background: rgba(255, 255, 255, 0.8) !important;
-    border-color: rgba(248, 179, 0, 0.12) !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-  }
-
-  /* Input backgrounds */
-  & input, & textarea, & select {
-    background-color: rgba(255, 255, 255, 0.6) !important;
-    color: #1a1a1a !important;
-  }
-  & input::placeholder, & textarea::placeholder {
-    color: #8a8a8a !important;
-  }
-
-  /* Pre/code blocks */
-  & pre {
-    background-color: #f5f5f4 !important;
-    color: #7a5200 !important;
-  }
-
-  /* Scrollbar */
-  & ::-webkit-scrollbar-track { background: #f5f5f4; }
-  & ::-webkit-scrollbar-thumb { background: rgba(248, 179, 0, 0.25); }
+/* Dark canvas references → white canvas */
+.bg-\[\#000000\],
+.bg-\[\#0a0a0a\],
+.bg-black {
+  background-color: #ffffff !important;
+  color: var(--color-midnight-navy);
 }
+.bg-\[\#000000\]\/80,
+.bg-\[\#000000\]\/95,
+.bg-\[rgba\(0\,0\,0\,0\.95\)\] {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(12px);
+}
+.bg-\[rgba\(10\,10\,10\,0\.8\)\],
+.bg-\[rgba\(0\,0\,0\,0\.9\)\] {
+  background-color: rgba(255, 255, 255, 0.96) !important;
+  box-shadow: var(--shadow-card);
+}
+
+/* Amber text → midnight ink (so amber-400 text on the new white canvas
+   is no longer the same color as the surface) */
+.text-amber-100,
+.text-amber-200,
+.text-amber-100\/80,
+.text-amber-100\/70,
+.text-amber-100\/60,
+.text-amber-100\/50,
+.text-amber-100\/40,
+.text-amber-100\/30,
+.text-amber-100\/20,
+.text-amber-100\/10 { color: var(--color-midnight-navy) !important; }
+
+/* Section headings & body text — Antimetal: dark ink on white, accent
+   color is reserved for interactive moments. We map amber-400 (originally
+   the brand color used as text on the dark canvas) to midnight ink. */
+.text-amber-400 { color: var(--color-midnight-navy) !important; }
+.text-amber-400\/80 { color: var(--color-midnight-navy) !important; opacity: 0.85; }
+.text-amber-400\/70 { color: var(--color-storm-gray) !important; }
+.text-amber-400\/60 { color: var(--color-slate-ink) !important; }
+.text-amber-400\/50 { color: var(--color-slate-ink) !important; }
+.text-amber-400\/40 { color: var(--color-ash-medium) !important; }
+.text-amber-400\/30 { color: var(--color-ash-medium) !important; }
+.text-amber-300 { color: var(--color-aperture-dark) !important; }
+
+/* Amber backgrounds: keep the brand color where used as fill,
+   but soften the alpha tints to warm beige */
+.bg-amber-400,
+.bg-amber-500 { background-color: var(--color-aperture) !important; }
+.bg-amber-400\/10 { background-color: rgba(248, 179, 0, 0.10) !important; }
+.bg-amber-400\/5 { background-color: rgba(248, 179, 0, 0.05) !important; }
+.bg-amber-400\/\[0\.02\] { background-color: rgba(248, 179, 0, 0.03) !important; }
+
+/* Amber borders → fog border (Antimetal hairline) */
+.border-amber-400\/10,
+.border-amber-400\/20,
+.border-amber-400\/30,
+.border-amber-400\/40 {
+  border-color: rgba(101, 69, 0, 0.10) !important;
+}
+
+/* Hover states */
+.hover\:bg-amber-400:hover { background-color: var(--color-aperture-dark) !important; }
+.hover\:bg-amber-300:hover { background-color: var(--color-aperture) !important; }
+.hover\:bg-amber-400\/5:hover { background-color: rgba(248, 179, 0, 0.05) !important; }
+.hover\:bg-amber-400\/10:hover { background-color: rgba(248, 179, 0, 0.10) !important; }
+.hover\:text-amber-400:hover { color: var(--color-aperture-dark) !important; }
+.hover\:text-amber-300:hover { color: var(--color-aperture) !important; }
+.hover\:text-amber-100:hover { color: var(--color-midnight-navy) !important; }
+
+/* Purple MPP / green / red accents — softened to fit warm palette */
+.border-purple-400\/10 { border-color: rgba(124, 58, 237, 0.10) !important; }
+.border-purple-400\/20 { border-color: rgba(124, 58, 237, 0.16) !important; }
+.bg-purple-400\/5 { background-color: rgba(124, 58, 237, 0.04) !important; }
+.bg-purple-400\/10 { background-color: rgba(124, 58, 237, 0.08) !important; }
+.bg-purple-500 { background-color: #7c3aed !important; }
+
+.bg-green-400\/5 { background-color: rgba(34, 197, 94, 0.04) !important; }
+.bg-green-400\/10 { background-color: rgba(34, 197, 94, 0.08) !important; }
+.border-green-400\/10 { border-color: rgba(34, 197, 94, 0.10) !important; }
+.border-green-400\/20 { border-color: rgba(34, 197, 94, 0.18) !important; }
+
+.bg-red-400\/10 { background-color: rgba(248, 113, 113, 0.08) !important; }
+.border-red-400\/20 { border-color: rgba(248, 113, 113, 0.18) !important; }
+
+/* Divide colors */
+.divide-amber-400\/10 > :not(:first-child) { border-color: rgba(101, 69, 0, 0.08) !important; }
+.divide-amber-400\/5  > :not(:first-child) { border-color: rgba(101, 69, 0, 0.04) !important; }
+
+/* Inputs — text is always solid black ink */
+input, textarea, select {
+  background-color: rgba(255, 255, 255, 0.96);
+  color: #000000 !important;
+  caret-color: #000000;
+}
+input::placeholder, textarea::placeholder { color: var(--color-ash-medium); }
+input, textarea, select {
+  /* Defensive: many forms ship with `text-amber-*` etc; force black. */
+  -webkit-text-fill-color: #000000;
+}
+
+/* Pre/code blocks */
+pre {
+  background-color: #f8f9fc !important;
+  color: var(--color-midnight-navy) !important;
+  border-radius: var(--radius-cards-small);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar-track { background: #f8f9fc; }
+::-webkit-scrollbar-thumb { background: rgba(248, 179, 0, 0.35); border-radius: 9999px; }
+
+/* (Legacy MatrixRain canvas dimming removed — PixelBlast hero canvas
+   needs full opacity. If MatrixRain is ever re-enabled, target it
+   specifically with its own selector instead of `canvas`.) */
+
+/* InfiniteSlider keyframes — drives the partner-logo marquee. */
+@keyframes __infinite_slider_translate {
+  from { transform: translateX(0); }
+  to   { transform: translateX(calc(-50% - var(--slider-gap, 48px) / 2)); }
+}
+.__infinite_slider_track {
+  animation: __infinite_slider_translate var(--slider-duration, 30s) linear infinite;
+  animation-direction: var(--slider-direction, normal);
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .__infinite_slider_track {
+    animation: none;
+  }
+}
+
+/* =========================================================================
+   No-orange-text rule.
+   All text on the site is solid black (#000000) by default. The only
+   exceptions are the contents of the .ap-btn-* pill buttons, where the
+   button itself defines its color. We use :where() to keep specificity
+   low, but we mark with !important to override Tailwind utilities.
+   ========================================================================= */
+
+body,
+body p, body span, body div, body li, body td, body th,
+body a, body label, body small, body strong, body em,
+body h1, body h2, body h3, body h4, body h5, body h6 {
+  color: #000000;
+}
+
+/* Re-skin every Tailwind/utility text class that previously rendered as
+   amber/orange so it lands on solid black. */
+.text-aperture,
+.text-aperture-dark,
+.text-amber-100, .text-amber-100\/80, .text-amber-100\/70, .text-amber-100\/60,
+.text-amber-100\/50, .text-amber-100\/40, .text-amber-100\/30,
+.text-amber-200, .text-amber-300, .text-amber-400,
+.text-amber-400\/80, .text-amber-400\/70, .text-amber-400\/60,
+.text-amber-400\/50, .text-amber-400\/40, .text-amber-400\/30,
+.text-amber-500, .text-amber-600,
+.text-orange-300, .text-orange-400, .text-orange-500, .text-orange-600,
+.text-yellow-300, .text-yellow-400, .text-yellow-500 {
+  color: #000000 !important;
+}
+
+/* Buttons keep their own color — re-assert white inside ap-btn-orange and
+   ap-btn-primary / ap-btn-ghost-orange (these sit on orange surfaces). */
+.ap-btn-orange,
+.ap-btn-orange * { color: #ffffff !important; -webkit-text-fill-color: #ffffff; }
+.ap-btn-primary,
+.ap-btn-primary * { color: var(--color-aperture) !important; -webkit-text-fill-color: var(--color-aperture); }
+.ap-btn-ghost-orange,
+.ap-btn-ghost-orange * { color: #ffffff !important; -webkit-text-fill-color: #ffffff; }
+
+/* =========================================================================
+   Antimetal-style global radius adjustments
+   The codebase uses Tailwind's default rounded-lg / rounded-xl widely.
+   Antimetal:
+     - all interactive pills (buttons) -> 9999px
+     - cards, panels, modals          -> 20px
+     - small chips                    -> 6px
+   We selectively re-skin where it produces a clearly Antimetal feel.
+   ========================================================================= */
+
+/* Cards, panels — bump rounded-2xl up to Antimetal 20px (already 16px in
+   Tailwind default, close but not identical) */
+.rounded-2xl { border-radius: var(--radius-cards) !important; }
+
+/* Modal & large surfaces */
+.rounded-3xl { border-radius: 28px !important; }
+
+/* Small data chips (code snippets, inline metadata) */
+.rounded { border-radius: var(--radius-cards-small) !important; }
+

@@ -12,22 +12,18 @@ export function CTASection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="relative bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-2xl p-12 sm:p-16 text-center overflow-hidden"
+          className="ap-card relative p-12 sm:p-16 text-center overflow-hidden"
         >
-          {/* Background glow */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.06)_0%,transparent_70%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(248,179,0,0.06)_0%,transparent_70%)]" />
 
           <div className="relative z-10">
-            <h2 className="font-mono text-2xl sm:text-3xl md:text-4xl font-bold text-amber-400 mb-4">
+            <h2 className="font-display text-[32px] sm:text-[40px] md:text-[48px] font-normal text-ink mb-4 leading-[1.05] tracking-[-0.01em]">
               Start building compliant AI agents today
             </h2>
-            <p className="font-mono text-sm text-amber-400/40 mb-8 max-w-md mx-auto">
+            <p className="text-[16px] text-ink-slate mb-8 max-w-md mx-auto tracking-tighter">
               Deploy privacy-preserving payment compliance in minutes, not months
             </p>
-            <Link
-              href="/auth/signup"
-              className="inline-block font-mono text-sm px-8 py-3 bg-amber-400 text-[#000000] rounded-lg font-semibold hover:bg-amber-300 transition-colors duration-200 shadow-[0_0_30px_rgba(245,158,11,0.2)]"
-            >
+            <Link href="/auth/signup" className="ap-btn-orange">
               Get Started
             </Link>
           </div>

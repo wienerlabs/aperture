@@ -35,7 +35,9 @@ import {
   ChevronUp,
   Zap,
   RefreshCw,
+  Wallet,
 } from 'lucide-react';
+import { MetricCard } from './overview/MetricCard';
 
 interface AIPCapability {
   readonly id: string;
@@ -488,236 +490,294 @@ export function AIPAgentsTab() {
 
   if (!operatorId) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-amber-100/60">
-        <Bot className="w-12 h-12 mb-4" />
-        <p className="text-lg">Connect your wallet to access AIP Agents</p>
+      <div className="ap-card p-12 flex flex-col items-center text-center gap-3">
+        <span className="inline-flex h-12 w-12 items-center justify-center rounded-pill bg-aperture/15 text-aperture-dark">
+          <Wallet className="h-6 w-6" />
+        </span>
+        <h2 className="font-display text-[24px] tracking-[-0.012em] text-black">
+          Connect a wallet to access AIP Agents
+        </h2>
+        <p className="text-[14px] text-black/55 tracking-tighter max-w-md">
+          Agent Internet Protocol routes capability calls through Aperture&apos;s
+          compliance verifier. Connect to discover and pay agents.
+        </p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-amber-100">AIP Agents</h2>
-          <p className="text-amber-100/60 text-sm mt-1">
-            Agent Internet Protocol -- compliance-verified agent payments
-          </p>
-        </div>
-        <button
-          onClick={fetchAgents}
-          disabled={loading}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium
-            text-amber-100/60 hover:text-amber-400 hover:bg-amber-400/10 border border-amber-400/10
-            disabled:opacity-50 transition-colors"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
-      </div>
+      {/* Hero ribbon */}
+      <section
+        className="relative overflow-hidden rounded-[24px] border border-black/8 bg-white p-6 sm:p-8"
+        style={{ boxShadow: 'var(--shadow-card)' }}
+      >
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              'radial-gradient(ellipse 50% 80% at 95% 10%, rgba(248,179,0,0.18) 0%, rgba(248,179,0,0) 65%)',
+          }}
+        />
+        <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+          <div className="flex flex-col gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-pill bg-aperture/15 px-2.5 py-1 text-[11px] font-medium tracking-tighter text-aperture-dark w-fit">
+              <Bot className="h-3 w-3" />
+              Agent Internet Protocol
+            </span>
+            <h1 className="font-display text-[36px] sm:text-[44px] leading-[1.04] tracking-[-0.012em] text-black">
+              Pay agents.
+              <br />
+              Compliance verified first.
+            </h1>
+            <p className="text-[14px] text-black/55 tracking-tighter max-w-2xl">
+              Discover registered AIP agents on Solana Devnet and call their priced
+              capabilities. Every call is gated by a ZK compliance proof before any
+              token leaves your wallet.
+            </p>
+          </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Bot className="w-4 h-4 text-amber-400" />
-            <span className="text-xs text-amber-100/60">Registered Agents</span>
-          </div>
-          <p className="text-xl font-bold text-amber-100 font-mono">{agents.length}</p>
+          <button
+            onClick={fetchAgents}
+            disabled={loading}
+            className="ap-btn-ghost-light inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
         </div>
-        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-green-400/20 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Globe className="w-4 h-4 text-green-400" />
-            <span className="text-xs text-amber-100/60">Live Agents</span>
-          </div>
-          <p className="text-xl font-bold text-amber-100 font-mono">{liveCount}</p>
-        </div>
-        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-blue-400/20 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Zap className="w-4 h-4 text-blue-400" />
-            <span className="text-xs text-amber-100/60">Total Capabilities</span>
-          </div>
-          <p className="text-xl font-bold text-amber-100 font-mono">{totalCapabilities}</p>
-        </div>
-        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Monitor className="w-4 h-4 text-amber-400" />
-            <span className="text-xs text-amber-100/60">Network</span>
-          </div>
-          <p className="text-sm font-bold text-amber-400 font-mono">Solana Devnet</p>
-        </div>
-      </div>
+      </section>
+
+      {/* Stats row */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard
+          label="Registered Agents"
+          value={agents.length.toLocaleString()}
+          icon={Bot}
+          hint="Live AIP registry on Devnet"
+        />
+        <MetricCard
+          label="Live Agents"
+          value={liveCount.toLocaleString()}
+          icon={Globe}
+          hint="Reachable HTTP endpoints"
+        />
+        <MetricCard
+          label="Capabilities"
+          value={totalCapabilities.toLocaleString()}
+          icon={Zap}
+          hint="Priced endpoints across all agents"
+        />
+        <MetricCard
+          label="Network"
+          value="Devnet"
+          icon={Monitor}
+          hint="Solana cluster"
+        />
+      </section>
 
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-100/50" />
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-black/45" />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search agents by name, DID, or capability..."
-          className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-[rgba(10,10,10,0.8)] border border-amber-400/20
-            text-amber-100 text-sm placeholder:text-amber-100/60
-            focus:outline-none focus:border-amber-400/40 transition-colors"
+          placeholder="Search agents by name, DID, or capability…"
+          className="w-full pl-10 pr-4 py-2.5 bg-white border border-black/12 hover:border-aperture/40 focus:border-aperture text-[14px] text-black placeholder:text-black/35 focus:outline-none transition-colors"
         />
       </div>
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-3 p-4 rounded-lg bg-red-400/10 border border-red-400/20 text-red-400">
-          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-          <p className="text-sm">{error}</p>
-          <button onClick={() => setError(null)} className="ml-auto" aria-label="Dismiss error">
-            <X className="w-4 h-4" />
+        <div className="ap-card p-4 flex items-center gap-3" style={{ borderColor: '#fca5a5' }}>
+          <AlertTriangle className="h-4 w-4 flex-shrink-0 text-red-600" />
+          <p className="text-[13px] text-red-700 tracking-tighter">{error}</p>
+          <button
+            onClick={() => setError(null)}
+            className="ml-auto flex-shrink-0 text-black/45 hover:text-black"
+            aria-label="Dismiss error"
+          >
+            <X className="h-4 w-4" />
           </button>
         </div>
       )}
 
-      {/* Task Execution Panel */}
+      {/* Task Execution Panel — animated proving stepper */}
       {executing && provingStatus && (
-        <div className="p-4 rounded-lg bg-amber-400/10 border border-amber-400/20 text-amber-400">
+        <div className="ap-card p-5 flex flex-col gap-4">
           <div className="flex items-center gap-3">
-            <Loader2 className="w-5 h-5 animate-spin flex-shrink-0" />
+            <Loader2 className="h-5 w-5 animate-spin shrink-0 text-aperture-dark" />
             <div className="flex-1">
-              <p className="text-sm font-medium">{provingStatus}</p>
-              <p className="text-xs text-amber-100/60 mt-0.5">
+              <p className="text-[14px] font-medium tracking-tighter text-black">
+                {provingStatus}
+              </p>
+              <p className="text-[12px] text-black/55 tracking-tighter mt-0.5">
                 Compliance verification before agent payment
               </p>
             </div>
-            <span className="font-mono text-lg text-amber-400/80">{formatElapsed(elapsedSec)}</span>
+            <span className="font-mono text-[16px] text-aperture-dark">
+              {formatElapsed(elapsedSec)}
+            </span>
           </div>
-          <div className="flex items-center gap-2 mt-3">
-            {['Checking policy', 'Generating ZK proof', 'Recording proof', 'Verifying on Solana', 'Sending task'].map((step) => {
-              const keywords = ['checking', 'generating', 'recording', 'verifying', 'sending'];
-              const stepIndex = keywords.findIndex(k => step.toLowerCase().includes(k));
-              const currentIndex = keywords.findIndex(k => provingStatus.toLowerCase().includes(k));
+          <ol className="flex items-center gap-2 flex-wrap">
+            {[
+              'Checking policy',
+              'Generating ZK proof',
+              'Recording proof',
+              'Verifying on Solana',
+              'Sending task',
+            ].map((step) => {
+              const keywords = [
+                'checking',
+                'generating',
+                'recording',
+                'verifying',
+                'sending',
+              ];
+              const stepIndex = keywords.findIndex((k) =>
+                step.toLowerCase().includes(k),
+              );
+              const currentIndex = keywords.findIndex((k) =>
+                provingStatus.toLowerCase().includes(k),
+              );
               const isDone = stepIndex < currentIndex;
               const isCurrent = stepIndex === currentIndex;
               return (
-                <div key={step} className="flex items-center gap-1">
+                <li
+                  key={step}
+                  className={`inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-[11px] font-medium tracking-tighter ${
+                    isDone
+                      ? 'bg-green-500/10 text-green-700'
+                      : isCurrent
+                        ? 'bg-aperture/15 text-aperture-dark'
+                        : 'bg-black/5 text-black/55'
+                  }`}
+                >
                   {isDone ? (
-                    <CheckCircle className="w-3 h-3 text-green-400" />
+                    <CheckCircle className="h-3 w-3" />
                   ) : isCurrent ? (
-                    <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
+                    <Loader2 className="h-3 w-3 animate-spin" />
                   ) : (
-                    <div className="w-3 h-3 rounded-full border border-amber-400/30" />
+                    <span className="h-2 w-2 rounded-pill bg-black/15" />
                   )}
-                  <span className={`text-xs ${isDone ? 'text-green-400' : isCurrent ? 'text-amber-400' : 'text-amber-100/50'}`}>
-                    {step}
-                  </span>
-                </div>
+                  {step}
+                </li>
               );
             })}
-          </div>
+          </ol>
         </div>
       )}
 
       {/* Task Result */}
       {taskResult && (
-        <div className={`rounded-xl p-5 border ${
-          taskResult.blocked
-            ? 'bg-red-400/5 border-red-400/20'
-            : 'bg-[rgba(10,10,10,0.8)] border-green-400/20'
-        }`}>
-          <div className="flex items-center gap-2 mb-4">
+        <div
+          className={`rounded-[20px] border bg-white p-5 sm:p-6 ${
+            taskResult.blocked ? 'border-red-500/30' : 'border-green-500/25'
+          }`}
+          style={{ boxShadow: 'var(--shadow-card)' }}
+        >
+          <header className="flex items-center gap-2 mb-4 flex-wrap">
             {taskResult.blocked ? (
-              <ShieldX className="w-5 h-5 text-red-400" />
+              <ShieldX className="h-5 w-5 text-red-600" />
             ) : (
-              <ShieldCheck className="w-5 h-5 text-green-400" />
+              <ShieldCheck className="h-5 w-5 text-green-600" />
             )}
-            <span className={`text-sm font-semibold ${taskResult.blocked ? 'text-red-400' : 'text-green-400'}`}>
+            <span
+              className={`font-display text-[18px] tracking-[-0.005em] ${
+                taskResult.blocked ? 'text-red-700' : 'text-green-700'
+              }`}
+            >
               {taskResult.blocked ? 'Payment Blocked' : 'Compliance Verified'}
             </span>
-            <span className="text-xs text-amber-100/60">
+            <span className="text-[12px] text-black/55 tracking-tighter">
               {taskResult.agentName} / {taskResult.capability}
             </span>
             <button
               onClick={() => setTaskResult(null)}
-              className="ml-auto text-amber-100/50 hover:text-amber-100/60"
+              className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-pill text-black/55 hover:bg-black/5 hover:text-black transition-colors"
               aria-label="Dismiss result"
             >
-              <X className="w-4 h-4" />
+              <X className="h-4 w-4" />
             </button>
-          </div>
+          </header>
 
           {taskResult.blockReason && (
-            <div className="p-3 rounded-lg bg-red-400/10 text-red-400 text-sm mb-4">
+            <div className="rounded-[12px] border border-red-500/25 bg-red-500/5 p-3 text-[13px] text-red-700 mb-4">
               {taskResult.blockReason}
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3 text-xs">
+          <dl className="grid grid-cols-2 gap-3">
             {taskResult.proofHash && (
-              <div className="col-span-2">
-                <span className="text-amber-100/60">ZK Proof Hash</span>
-                <p className="text-amber-400 font-mono mt-0.5 break-all">{taskResult.proofHash}</p>
-              </div>
+              <ResultCell
+                label="ZK Proof Hash"
+                value={taskResult.proofHash}
+                mono
+                fullWidth
+              />
             )}
             {taskResult.txSignature && (
-              <div>
-                <span className="text-amber-100/60">Solana Transaction</span>
-                <a
-                  href={config.txExplorerUrl(taskResult.txSignature)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-amber-400 hover:text-amber-300 font-mono mt-0.5"
-                >
-                  {taskResult.txSignature.slice(0, 20)}...
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
+              <ResultCell
+                label="Solana Transaction"
+                value={`${taskResult.txSignature.slice(0, 20)}…`}
+                href={config.txExplorerUrl(taskResult.txSignature)}
+                mono
+              />
             )}
             {taskResult.provingTimeMs !== null && (
-              <div>
-                <span className="text-amber-100/60">Proving Time</span>
-                <p className="text-amber-100 font-mono mt-0.5">{formatProvingTime(taskResult.provingTimeMs)}</p>
-              </div>
+              <ResultCell
+                label="Proving Time"
+                value={formatProvingTime(taskResult.provingTimeMs)}
+                mono
+              />
             )}
             {taskResult.amountRangeMin !== null && taskResult.amountRangeMax !== null && (
-              <div>
-                <span className="text-amber-100/60">Amount Range (ZK)</span>
-                <p className="text-amber-100 font-mono mt-0.5">
-                  {(taskResult.amountRangeMin / 1_000_000).toFixed(2)} - {(taskResult.amountRangeMax / 1_000_000).toFixed(2)} USDC
+              <ResultCell
+                label="Amount Range (ZK)"
+                value={`${(taskResult.amountRangeMin / 1_000_000).toFixed(2)} – ${(
+                  taskResult.amountRangeMax / 1_000_000
+                ).toFixed(2)} USDC`}
+                mono
+              />
+            )}
+            {taskResult.response && (
+              <div className="col-span-2 rounded-[12px] border border-black/8 bg-[rgba(248,179,0,0.03)] px-3 py-2.5">
+                <span className="text-[11px] uppercase tracking-[0.08em] text-black/55 block mb-1">
+                  Agent Response
+                </span>
+                <p className="text-[13px] text-black tracking-tighter whitespace-pre-wrap">
+                  {taskResult.response}
                 </p>
               </div>
             )}
-            {taskResult.response && (
-              <div className="col-span-2">
-                <span className="text-amber-100/60">Agent Response</span>
-                <div className="mt-1 p-3 rounded-lg bg-amber-400/5 border border-amber-400/10">
-                  <p className="text-amber-100 text-sm whitespace-pre-wrap">{taskResult.response}</p>
-                </div>
-              </div>
-            )}
-          </div>
+          </dl>
 
           {/* Audit Link */}
           {!taskResult.blocked && taskResult.proofId && (
-            <div className="flex items-center gap-3 mt-4 pt-4 border-t border-amber-400/10">
+            <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-black/8">
               <button
                 onClick={() => {
                   const url = `${window.location.origin}/audit/${taskResult.proofId}`;
                   navigator.clipboard.writeText(url);
                 }}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium
-                  bg-amber-400/10 text-amber-400 hover:bg-amber-400/20 border border-amber-400/20 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-pill border border-black/8 bg-white px-3 py-1.5 text-[12px] font-medium tracking-tighter text-black hover:border-aperture/40 transition-colors"
               >
-                <Copy className="w-3 h-3" />
-                Share Audit Link
+                <Copy className="h-3 w-3" />
+                Share audit link
               </button>
               <a
                 href={`/audit/${taskResult.proofId}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium
-                  text-amber-100/60 hover:text-amber-400 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-pill border border-black/8 bg-white px-3 py-1.5 text-[12px] font-medium tracking-tighter text-aperture-dark hover:border-aperture/40 transition-colors"
               >
-                <ExternalLink className="w-3 h-3" />
-                View Audit Page
+                <ExternalLink className="h-3 w-3" />
+                View audit page
               </a>
               {taskResult.paymentId && (
-                <span className="text-xs text-amber-100/60 font-mono ml-auto">
+                <span className="text-[11px] text-black/55 font-mono ml-auto">
                   {taskResult.paymentId}
                 </span>
               )}
@@ -728,19 +788,27 @@ export function AIPAgentsTab() {
 
       {/* Loading */}
       {loading && (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
+        <div className="ap-card p-12 flex items-center justify-center">
+          <Loader2 className="h-7 w-7 text-aperture animate-spin" />
         </div>
       )}
 
       {/* Empty state */}
       {!loading && agents.length === 0 && !error && (
-        <div className="flex flex-col items-center justify-center py-20 text-amber-100/60">
-          <Bot className="w-12 h-12 mb-4" />
-          <p className="text-lg">No AIP agents found on Solana Devnet</p>
-          <p className="text-sm mt-1">
-            AIP Registry: {truncateAddress(AIP_REGISTRY_PROGRAM_ID, 8)}
+        <div className="ap-card p-12 flex flex-col items-center text-center gap-3">
+          <span className="inline-flex h-12 w-12 items-center justify-center rounded-pill bg-aperture/15 text-aperture-dark">
+            <Bot className="h-6 w-6" />
+          </span>
+          <h3 className="font-display text-[22px] tracking-[-0.005em] text-black">
+            No AIP agents found
+          </h3>
+          <p className="text-[14px] text-black/55 tracking-tighter max-w-md">
+            The AIP registry on Solana Devnet hasn&apos;t returned any agents yet.
+            Refresh in a moment, or register an agent via the AIP SDK.
           </p>
+          <span className="text-[11px] font-mono text-black/45 mt-1">
+            Registry · {truncateAddress(AIP_REGISTRY_PROGRAM_ID, 8)}
+          </span>
         </div>
       )}
 
@@ -753,53 +821,73 @@ export function AIPAgentsTab() {
             const isSelected = selectedAgent?.did === agent.did;
 
             return (
-              <div
+              <article
                 key={agent.did}
-                className={`bg-[rgba(10,10,10,0.8)] backdrop-blur-md border rounded-xl transition-all ${
-                  isSelected ? 'border-amber-400/40 ring-1 ring-amber-400/20' : 'border-amber-400/20'
+                className={`ap-card transition-all overflow-hidden ${
+                  isSelected ? 'ring-2 ring-aperture/30' : ''
                 }`}
               >
                 {/* Agent Header */}
-                <div className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-2.5 h-2.5 rounded-full ${reachable ? 'bg-green-400 animate-pulse' : 'bg-amber-400/40'}`} />
-                      <div>
-                        <h3 className="text-sm font-semibold text-amber-100">{agent.name}</h3>
-                        <p className="text-xs text-amber-100/50 font-mono mt-0.5">
+                <div className="p-5">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <span className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-pill bg-aperture/12 text-aperture-dark">
+                        <Bot className="h-4 w-4" />
+                        {reachable && (
+                          <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-pill bg-green-500 ring-2 ring-white animate-pulse" />
+                        )}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-display text-[18px] tracking-[-0.005em] text-black">
+                            {agent.name}
+                          </h3>
+                          <span
+                            className={`inline-flex items-center rounded-pill px-2 py-0.5 text-[11px] font-medium tracking-tighter ${
+                              reachable
+                                ? 'bg-green-500/10 text-green-700'
+                                : 'bg-aperture/15 text-aperture-dark'
+                            }`}
+                          >
+                            {reachable ? 'Live' : 'Dev only'}
+                          </span>
+                          <span className="inline-flex items-center rounded-pill bg-black/5 px-2 py-0.5 text-[11px] font-mono text-black/65">
+                            v{agent.version}
+                          </span>
+                        </div>
+                        <p className="text-[11px] font-mono text-black/55 mt-0.5 truncate">
                           {truncateAddress(agent.did, 12)}
                         </p>
                       </div>
-                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                        reachable
-                          ? 'bg-green-400/10 text-green-400'
-                          : 'bg-amber-400/10 text-amber-400/60'
-                      }`}>
-                        {reachable ? 'LIVE' : 'DEV'}
-                      </span>
-                      <span className="px-2 py-0.5 rounded bg-blue-400/10 text-blue-400 text-xs">
-                        v{agent.version}
-                      </span>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {/* Capabilities as pills */}
-                      <div className="hidden md:flex items-center gap-1">
-                        {agent.capabilities.map((cap) => (
+                      <div className="hidden md:flex items-center gap-1.5">
+                        {agent.capabilities.slice(0, 3).map((cap) => (
                           <span
                             key={cap.id}
-                            className="px-2 py-0.5 rounded bg-amber-400/5 text-amber-100/60 text-xs"
+                            className="inline-flex items-center gap-1 rounded-pill bg-[rgba(248,179,0,0.06)] px-2 py-0.5 text-[11px] font-mono text-black/65"
                           >
-                            {cap.id} <span className="text-amber-400">${cap.pricing.amount}</span>
+                            {cap.id}{' '}
+                            <span className="text-aperture-dark">${cap.pricing.amount}</span>
                           </span>
                         ))}
+                        {agent.capabilities.length > 3 && (
+                          <span className="text-[11px] text-black/55 tracking-tighter">
+                            +{agent.capabilities.length - 3}
+                          </span>
+                        )}
                       </div>
                       <button
                         onClick={() => setExpandedAgent(isExpanded ? null : agent.did)}
-                        className="p-1.5 rounded-lg hover:bg-amber-400/10 text-amber-100/60 hover:text-amber-400 transition-colors"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-pill text-black/55 hover:text-black hover:bg-black/5 transition-colors"
                         aria-label={isExpanded ? 'Collapse' : 'Expand'}
                       >
-                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        {isExpanded ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -807,86 +895,77 @@ export function AIPAgentsTab() {
 
                 {/* Expanded: Details + Task Form */}
                 {isExpanded && (
-                  <div className="px-4 pb-4 border-t border-amber-400/10 pt-4 space-y-4">
+                  <div className="px-5 pb-5 border-t border-black/8 pt-4 flex flex-col gap-5 bg-[rgba(248,179,0,0.02)]">
                     {/* Agent Details */}
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
-                      <div>
-                        <span className="text-amber-100/60">DID</span>
-                        <p className="text-amber-100 font-mono mt-0.5 break-all">{agent.did}</p>
-                      </div>
-                      <div>
-                        <span className="text-amber-100/60">Endpoint</span>
-                        <p className="text-amber-100 font-mono mt-0.5 break-all">{agent.endpoint}</p>
-                      </div>
-                      <div>
-                        <span className="text-amber-100/60">Authority</span>
-                        <p className="text-amber-100 font-mono mt-0.5">
-                          <a
-                            href={config.explorerUrl(agent.authority)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-amber-400 hover:text-amber-300"
-                          >
-                            {truncateAddress(agent.authority, 6)}
-                            <ExternalLink className="w-3 h-3 inline ml-1" />
-                          </a>
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-amber-100/60">On-Chain Account</span>
-                        <p className="text-amber-100 font-mono mt-0.5">
-                          <a
-                            href={config.explorerUrl(agent.publicKey)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-amber-400 hover:text-amber-300"
-                          >
-                            {truncateAddress(agent.publicKey, 6)}
-                            <ExternalLink className="w-3 h-3 inline ml-1" />
-                          </a>
-                        </p>
-                      </div>
-                    </div>
+                    <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                      <DetailCell label="DID" value={truncateAddress(agent.did, 8)} mono />
+                      <DetailCell label="Endpoint" value={agent.endpoint} mono />
+                      <DetailCell
+                        label="Authority"
+                        value={truncateAddress(agent.authority, 6)}
+                        href={config.explorerUrl(agent.authority)}
+                        mono
+                      />
+                      <DetailCell
+                        label="On-chain"
+                        value={truncateAddress(agent.publicKey, 6)}
+                        href={config.explorerUrl(agent.publicKey)}
+                        mono
+                      />
+                    </dl>
 
                     {/* Capabilities */}
-                    <div>
-                      <span className="text-xs text-amber-100/60 block mb-2">Capabilities</span>
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[11px] uppercase tracking-[0.08em] text-black/55">
+                        Capabilities
+                      </span>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {agent.capabilities.map((cap) => (
-                          <button
-                            key={cap.id}
-                            onClick={() => {
-                              setSelectedAgent(agent);
-                              setSelectedCapability(cap.id);
-                            }}
-                            className={`p-3 rounded-lg border text-left transition-all ${
-                              selectedAgent?.did === agent.did && selectedCapability === cap.id
-                                ? 'border-amber-400/40 bg-amber-400/10'
-                                : 'border-amber-400/10 bg-amber-400/5 hover:border-amber-400/30'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-semibold text-amber-100">{cap.id}</span>
-                              <span className="flex items-center gap-1 text-xs text-amber-400 font-mono">
-                                <DollarSign className="w-3 h-3" />
-                                {cap.pricing.amount} {cap.pricing.token}
-                              </span>
-                            </div>
-                            {cap.description && (
-                              <p className="text-xs text-amber-100/60 mt-1">{cap.description}</p>
-                            )}
-                          </button>
-                        ))}
+                        {agent.capabilities.map((cap) => {
+                          const active =
+                            selectedAgent?.did === agent.did &&
+                            selectedCapability === cap.id;
+                          return (
+                            <button
+                              key={cap.id}
+                              onClick={() => {
+                                setSelectedAgent(agent);
+                                setSelectedCapability(cap.id);
+                              }}
+                              className={`group flex flex-col gap-1.5 rounded-[14px] border px-3 py-2.5 text-left transition-all ${
+                                active
+                                  ? 'border-aperture/45 bg-[rgba(248,179,0,0.08)]'
+                                  : 'border-black/8 bg-white hover:border-aperture/40'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-[13px] font-medium tracking-tighter text-black">
+                                  {cap.id}
+                                </span>
+                                <span className="inline-flex items-center gap-0.5 rounded-pill bg-aperture/12 px-2 py-0.5 text-[11px] font-mono text-aperture-dark">
+                                  <DollarSign className="h-3 w-3" />
+                                  {cap.pricing.amount} {cap.pricing.token}
+                                </span>
+                              </div>
+                              {cap.description && (
+                                <p className="text-[12px] text-black/55 tracking-tighter">
+                                  {cap.description}
+                                </p>
+                              )}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
 
                     {/* Task Input */}
                     {selectedAgent?.did === agent.did && selectedCapability && (
-                      <div className="space-y-3 p-4 rounded-lg bg-amber-400/5 border border-amber-400/10">
-                        <div className="flex items-center gap-2">
-                          <Send className="w-4 h-4 text-amber-400" />
-                          <span className="text-sm font-semibold text-amber-100">Execute Task</span>
-                          <span className="text-xs text-amber-100/50">
+                      <div className="rounded-[16px] border border-aperture/30 bg-white p-4 flex flex-col gap-3">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Send className="h-4 w-4 text-aperture-dark" />
+                          <span className="font-display text-[16px] tracking-[-0.005em] text-black">
+                            Execute Task
+                          </span>
+                          <span className="text-[12px] text-black/55 tracking-tighter">
                             {selectedCapability} on {agent.name}
                           </span>
                         </div>
@@ -894,38 +973,34 @@ export function AIPAgentsTab() {
                         <textarea
                           value={taskInput}
                           onChange={(e) => setTaskInput(e.target.value)}
-                          placeholder="Enter your task input..."
+                          placeholder="Enter your task input…"
                           rows={3}
-                          className="w-full px-3 py-2 rounded-lg bg-[rgba(0,0,0,0.8)] border border-amber-400/20
-                            text-amber-100 text-sm placeholder:text-amber-100/60
-                            focus:outline-none focus:border-amber-400/40 resize-none transition-colors"
+                          className="w-full px-3 py-2.5 bg-white border border-black/12 hover:border-aperture/40 focus:border-aperture text-[14px] text-black placeholder:text-black/35 focus:outline-none resize-none transition-colors"
                         />
 
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-xs text-amber-100/50">
-                            <ShieldCheck className="w-3.5 h-3.5" />
-                            <span>ZK compliance proof will be generated before payment</span>
+                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                          <div className="flex items-center gap-2 text-[12px] text-black/55 tracking-tighter">
+                            <ShieldCheck className="h-3.5 w-3.5 text-aperture-dark" />
+                            <span>ZK compliance proof generated before payment.</span>
                           </div>
                           <button
                             onClick={executeTask}
                             disabled={executing || !taskInput.trim()}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold
-                              bg-amber-500 text-black hover:bg-amber-400
-                              disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="ap-btn-orange inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {executing ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
-                              <Send className="w-4 h-4" />
+                              <Send className="h-4 w-4" />
                             )}
-                            {executing ? 'Verifying...' : 'Execute with Compliance'}
+                            {executing ? 'Verifying…' : 'Execute with Compliance'}
                           </button>
                         </div>
                       </div>
                     )}
                   </div>
                 )}
-              </div>
+              </article>
             );
           })}
         </div>
@@ -933,73 +1008,83 @@ export function AIPAgentsTab() {
 
       {/* AIP Task History */}
       {aipProofs.length > 0 && (
-        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl overflow-hidden">
-          <div className="flex items-center justify-between p-4 border-b border-amber-400/10">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-amber-400" />
-              <h3 className="text-sm font-semibold text-amber-100">AIP Task History</h3>
-              <span className="text-xs text-amber-100/50">{aipProofs.length} records</span>
+        <section className="ap-card overflow-hidden">
+          <header className="px-5 py-4 flex items-center justify-between gap-3 border-b border-black/8">
+            <div className="flex items-center gap-2.5">
+              <ShieldCheck className="h-4 w-4 text-aperture-dark" />
+              <h3 className="font-display text-[18px] tracking-[-0.005em] text-black">
+                AIP Task History
+              </h3>
             </div>
-          </div>
+            <span className="inline-flex items-center rounded-pill bg-aperture/12 px-2.5 py-1 text-[11px] font-medium tracking-tighter text-aperture-dark">
+              {aipProofs.length} records
+            </span>
+          </header>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-amber-400/10">
-                  <th className="text-left px-4 py-3 text-xs font-medium text-amber-100/50 uppercase">Payment ID</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-amber-100/50 uppercase">Proof Hash</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-amber-100/50 uppercase">Amount</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-amber-100/50 uppercase">Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-amber-100/50 uppercase">Date</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-amber-100/50 uppercase">TX</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-amber-100/50 uppercase">Audit</th>
+                <tr className="bg-[rgba(248,179,0,0.04)]">
+                  {['Payment', 'Proof Hash', 'Amount', 'Status', 'Date', 'Tx', 'Audit'].map(
+                    (label) => (
+                      <th
+                        key={label}
+                        className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-[0.08em] text-black/55"
+                      >
+                        {label}
+                      </th>
+                    ),
+                  )}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-amber-400/10">
+              <tbody className="divide-y divide-black/8">
                 {aipProofs.map((proof) => (
-                  <tr key={proof.id} className="hover:bg-amber-400/5 transition-colors">
-                    <td className="px-4 py-3 text-xs font-mono text-amber-100">
+                  <tr
+                    key={proof.id}
+                    className="hover:bg-[rgba(248,179,0,0.04)] transition-colors"
+                  >
+                    <td className="px-4 py-3 text-[12px] font-mono text-black">
                       {truncateAddress(proof.payment_id, 8)}
                     </td>
-                    <td className="px-4 py-3 text-xs font-mono text-amber-400">
+                    <td className="px-4 py-3 text-[12px] font-mono text-aperture-dark">
                       {truncateAddress(proof.proof_hash, 6)}
                     </td>
-                    <td className="px-4 py-3 text-xs font-mono text-amber-100">
-                      {proof.amount_range_min.toFixed(2)} - {proof.amount_range_max.toFixed(2)}
+                    <td className="px-4 py-3 text-[12px] font-mono text-black">
+                      {proof.amount_range_min.toFixed(2)} – {proof.amount_range_max.toFixed(2)}
                     </td>
                     <td className="px-4 py-3">
                       {proof.is_compliant ? (
-                        <span className="flex items-center gap-1 text-green-400 text-xs">
-                          <CheckCircle className="w-3 h-3" /> Compliant
+                        <span className="inline-flex items-center gap-1 rounded-pill bg-green-500/10 px-2 py-0.5 text-[11px] font-medium tracking-tighter text-green-700">
+                          <CheckCircle className="h-3 w-3" /> Compliant
                         </span>
                       ) : (
-                        <span className="flex items-center gap-1 text-red-400 text-xs">
-                          <AlertTriangle className="w-3 h-3" /> Violation
+                        <span className="inline-flex items-center gap-1 rounded-pill bg-red-500/12 px-2 py-0.5 text-[11px] font-medium tracking-tighter text-red-700">
+                          <AlertTriangle className="h-3 w-3" /> Violation
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-xs text-amber-100/60">
+                    <td className="px-4 py-3 text-[12px] text-black/65 tracking-tighter">
                       {new Date(proof.verified_at).toLocaleDateString()}
                     </td>
-                    <td className="px-4 py-3 text-xs">
+                    <td className="px-4 py-3 text-[12px]">
                       {proof.tx_signature ? (
                         <a
                           href={config.txExplorerUrl(proof.tx_signature)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-amber-400 hover:text-amber-300"
+                          className="inline-flex items-center gap-1 text-aperture-dark hover:text-black transition-colors"
                         >
-                          <ExternalLink className="w-3.5 h-3.5" />
+                          <ExternalLink className="h-3.5 w-3.5" />
                         </a>
                       ) : (
-                        <span className="text-amber-100/60">-</span>
+                        <span className="text-black/35">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-xs">
+                    <td className="px-4 py-3 text-[12px]">
                       <a
                         href={`/audit/${proof.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-amber-400 hover:text-amber-300 text-xs"
+                        className="text-aperture-dark hover:text-black transition-colors"
                       >
                         View
                       </a>
@@ -1009,23 +1094,97 @@ export function AIPAgentsTab() {
               </tbody>
             </table>
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Registry Info */}
-      <div className="flex items-center justify-center gap-2 text-xs text-amber-100/60 pt-4">
-        <span>AIP Registry:</span>
+      {/* Registry footer */}
+      <div className="flex flex-wrap items-center justify-center gap-2 text-[12px] tracking-tighter text-black/55 pt-4">
+        <span className="uppercase tracking-[0.08em] text-[11px]">AIP Registry</span>
         <a
           href={config.explorerUrl(AIP_REGISTRY_PROGRAM_ID)}
           target="_blank"
           rel="noopener noreferrer"
-          className="font-mono text-amber-400/40 hover:text-amber-400 transition-colors"
+          className="inline-flex items-center gap-1 font-mono text-aperture-dark hover:text-black transition-colors"
         >
-          {AIP_REGISTRY_PROGRAM_ID}
-          <ExternalLink className="w-3 h-3 inline ml-1" />
+          {truncateAddress(AIP_REGISTRY_PROGRAM_ID, 6)}
+          <ExternalLink className="h-3 w-3" />
         </a>
-        <span className="text-amber-100/10">|</span>
-        <span>Data source: Solana Devnet on-chain</span>
+        <span className="text-black/30">·</span>
+        <span>Solana Devnet on-chain</span>
+      </div>
+    </div>
+  );
+}
+
+function ResultCell({
+  label,
+  value,
+  href,
+  mono,
+  fullWidth,
+}: {
+  label: string;
+  value: string;
+  href?: string;
+  mono?: boolean;
+  fullWidth?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-[12px] border border-black/8 bg-[rgba(248,179,0,0.03)] px-3 py-2.5 ${
+        fullWidth ? 'col-span-2' : ''
+      }`}
+    >
+      <div className="text-[11px] uppercase tracking-[0.08em] text-black/55">{label}</div>
+      <div className={`mt-0.5 text-[13px] tracking-tighter break-all text-black ${mono ? 'font-mono' : ''}`}>
+        {href ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-aperture-dark hover:text-black transition-colors"
+          >
+            {value}
+            <ExternalLink className="h-3 w-3 shrink-0" />
+          </a>
+        ) : (
+          value
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DetailCell({
+  label,
+  value,
+  href,
+  mono,
+}: {
+  label: string;
+  value: string;
+  href?: string;
+  mono?: boolean;
+}) {
+  return (
+    <div className="rounded-[12px] border border-black/8 bg-white px-3 py-2.5">
+      <div className="text-[11px] uppercase tracking-[0.08em] text-black/55">{label}</div>
+      <div
+        className={`mt-0.5 text-[12px] tracking-tighter break-all text-black ${mono ? 'font-mono' : ''}`}
+      >
+        {href ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-aperture-dark hover:text-black transition-colors"
+          >
+            {value}
+            <ExternalLink className="h-3 w-3 shrink-0" />
+          </a>
+        ) : (
+          value
+        )}
       </div>
     </div>
   );

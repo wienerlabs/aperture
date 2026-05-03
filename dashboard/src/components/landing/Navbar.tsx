@@ -116,22 +116,24 @@ export function Navbar() {
       initial={{ y: -80 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.5, ease: 'easeOut' }}
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-[#f8b300] ${
-        scrolled ? 'shadow-md' : ''
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        scrolled
+          ? 'bg-white/85 backdrop-blur-md border-b border-black/8 shadow-[0_1px_0_rgba(0,0,0,0.04)]'
+          : 'bg-white/70 backdrop-blur-sm border-b border-black/5'
       }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-page mx-auto px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Left - Logo */}
           <Link href="/" className="flex-shrink-0">
-            <ApertureLogo variant="light" />
+            <ApertureLogo />
           </Link>
 
           {/* Center - Nav Links (desktop) */}
           <div className="hidden md:flex items-center gap-8">
             <Link
               href={isAuthenticated ? '/dashboard' : '/auth/signin'}
-              className="text-sm text-black font-semibold hover:text-black/70 transition-colors duration-200"
+              className="text-[15px] text-black font-medium tracking-tighter hover:text-black/70 transition-colors duration-200"
             >
               Dashboard
             </Link>
@@ -140,7 +142,7 @@ export function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="text-sm text-black font-semibold hover:text-black/70 transition-colors duration-200"
+                  className="text-[15px] text-black font-medium tracking-tighter hover:text-black/70 transition-colors duration-200"
                 >
                   {link.label}
                 </Link>
@@ -148,7 +150,7 @@ export function Navbar() {
                 <button
                   key={link.href}
                   onClick={() => smoothScrollTo(link.href)}
-                  className="text-sm text-black font-semibold hover:text-black/70 transition-colors duration-200"
+                  className="text-[15px] text-black font-medium tracking-tighter hover:text-black/70 transition-colors duration-200"
                 >
                   {link.label}
                 </button>
@@ -167,7 +169,7 @@ export function Navbar() {
                 onClick={() => setMoreOpen((prev) => !prev)}
                 aria-haspopup="menu"
                 aria-expanded={moreOpen}
-                className="inline-flex items-center gap-1 text-sm text-black font-semibold hover:text-black/70 transition-colors duration-200"
+                className="inline-flex items-center gap-1 text-[15px] text-black font-medium tracking-tighter hover:text-black/70 transition-colors duration-200"
               >
                 More
                 <ChevronDown
@@ -183,7 +185,7 @@ export function Navbar() {
                     exit={{ opacity: 0, y: -6 }}
                     transition={{ duration: 0.15, ease: 'easeOut' }}
                     role="menu"
-                    className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-56 rounded-lg bg-[#000000] border border-amber-400/20 shadow-xl py-2"
+                    className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-56 rounded-card bg-white shadow-ap-card py-2"
                   >
                     {moreMenuItems.map((item) => {
                       if (item.disabled || item.href === null) {
@@ -191,11 +193,11 @@ export function Navbar() {
                           <div
                             key={item.label}
                             aria-disabled="true"
-                            className="flex items-center justify-between px-4 py-2 text-sm text-amber-400/40 cursor-not-allowed select-none"
+                            className="flex items-center justify-between px-4 py-2 text-sm text-ink-ash cursor-not-allowed select-none"
                           >
                             <span>{item.label}</span>
                             {item.comingSoon && (
-                              <span className="ml-2 text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/10 border border-amber-400/20 text-amber-400/70">
+                              <span className="ml-2 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-card-sm bg-aperture/10 text-aperture-dark">
                                 Soon
                               </span>
                             )}
@@ -208,7 +210,7 @@ export function Navbar() {
                           href={item.href!}
                           role="menuitem"
                           onClick={() => setMoreOpen(false)}
-                          className="block px-4 py-2 text-sm text-amber-200 hover:bg-amber-400/10 hover:text-amber-400 transition-colors"
+                          className="block px-4 py-2 text-[15px] tracking-tighter text-ink hover:bg-aperture/8 hover:text-aperture-dark transition-colors"
                         >
                           {item.label}
                         </Link>
@@ -221,18 +223,15 @@ export function Navbar() {
           </div>
 
           {/* Right - Auth (desktop) */}
-          <div className="hidden md:flex items-center gap-4">
-            <ThemeToggle className="!text-black hover:!text-black/70 hover:!bg-black/10" />
-            <Link
-              href="/auth/signin"
-              className="text-sm px-4 py-2 bg-black text-[#f8b300] rounded-lg font-semibold hover:bg-black/80 transition-colors duration-200"
-            >
+          <div className="hidden md:flex items-center gap-3">
+            <ThemeToggle className="!text-black hover:!text-black/70 hover:!bg-black/5" />
+            <Link href="/auth/signin" className="ap-btn-ghost-light">
               Sign In
             </Link>
             <button
               onClick={handleConnectWallet}
               disabled={walletAuthRunning}
-              className="text-sm px-4 py-2 bg-black text-[#f8b300] rounded-lg font-semibold hover:bg-black/80 transition-colors duration-200 disabled:opacity-60"
+              className="ap-btn-orange disabled:opacity-60"
             >
               {walletAuthRunning
                 ? 'Signing…'
@@ -263,13 +262,13 @@ export function Navbar() {
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.3, ease: 'easeInOut' }}
-            className="md:hidden overflow-hidden bg-[#f8b300] border-t border-black/10"
+            className="md:hidden overflow-hidden bg-white border-t border-black/8 shadow-ap-md"
           >
             <div className="px-4 py-6 flex flex-col gap-4">
               <Link
                 href={isAuthenticated ? '/dashboard' : '/auth/signin'}
                 onClick={() => setMobileOpen(false)}
-                className="text-sm text-black font-semibold hover:text-black/70 transition-colors text-left py-2"
+                className="text-[15px] text-black font-medium tracking-tighter hover:text-black/70 transition-colors text-left py-2"
               >
                 Dashboard
               </Link>
@@ -279,7 +278,7 @@ export function Navbar() {
                     key={link.href}
                     href={link.href}
                     onClick={() => setMobileOpen(false)}
-                    className="text-sm text-black font-semibold hover:text-black/70 transition-colors text-left py-2"
+                    className="text-[15px] text-black font-medium tracking-tighter hover:text-black/70 transition-colors text-left py-2"
                   >
                     {link.label}
                   </Link>
@@ -287,7 +286,7 @@ export function Navbar() {
                   <button
                     key={link.href}
                     onClick={() => { smoothScrollTo(link.href); setMobileOpen(false); }}
-                    className="text-sm text-black font-semibold hover:text-black/70 transition-colors text-left py-2"
+                    className="text-[15px] text-black font-medium tracking-tighter hover:text-black/70 transition-colors text-left py-2"
                   >
                     {link.label}
                   </button>
@@ -300,7 +299,7 @@ export function Navbar() {
                   type="button"
                   onClick={() => setMobileMoreOpen((prev) => !prev)}
                   aria-expanded={mobileMoreOpen}
-                  className="flex items-center justify-between text-sm text-black font-semibold hover:text-black/70 transition-colors text-left py-2"
+                  className="flex items-center justify-between text-[15px] text-black font-medium tracking-tighter hover:text-black/70 transition-colors text-left py-2"
                 >
                   <span>More</span>
                   <ChevronDown
@@ -315,7 +314,7 @@ export function Navbar() {
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
                       transition={{ duration: 0.2 }}
-                      className="overflow-hidden pl-4 border-l border-black/15 mt-1 flex flex-col gap-2"
+                      className="overflow-hidden pl-4 border-l border-black/12 mt-1 flex flex-col gap-2"
                     >
                       {moreMenuItems.map((item) => {
                         if (item.disabled || item.href === null) {
@@ -323,11 +322,11 @@ export function Navbar() {
                             <div
                               key={item.label}
                               aria-disabled="true"
-                              className="flex items-center justify-between py-2 text-sm text-black/40 cursor-not-allowed select-none"
+                              className="flex items-center justify-between py-2 text-[14px] text-black/45 cursor-not-allowed select-none"
                             >
                               <span>{item.label}</span>
                               {item.comingSoon && (
-                                <span className="ml-2 text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/10 border border-black/20 text-black/60">
+                                <span className="ml-2 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-card-sm bg-black/8 text-black/65">
                                   Soon
                                 </span>
                               )}
@@ -350,10 +349,10 @@ export function Navbar() {
                 </AnimatePresence>
               </div>
 
-              <div className="border-t border-black/10 pt-4 flex flex-col gap-3">
+              <div className="border-t border-black/8 pt-4 flex flex-col gap-3">
                 <Link
                   href="/auth/signin"
-                  className="text-sm px-4 py-2 bg-black text-[#f8b300] rounded-lg font-semibold text-center hover:bg-black/80 transition-colors"
+                  className="ap-btn-ghost-light w-full"
                   onClick={() => setMobileOpen(false)}
                 >
                   Sign In
@@ -361,7 +360,7 @@ export function Navbar() {
                 <button
                   onClick={() => { handleConnectWallet(); setMobileOpen(false); }}
                   disabled={walletAuthRunning}
-                  className="text-sm px-4 py-2 bg-black text-[#f8b300] rounded-lg font-semibold text-center hover:bg-black/80 transition-colors disabled:opacity-60"
+                  className="ap-btn-orange w-full disabled:opacity-60"
                 >
                   {walletAuthRunning
                     ? 'Signing…'

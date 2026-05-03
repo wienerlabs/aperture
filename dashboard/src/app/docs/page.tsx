@@ -267,14 +267,13 @@ open http://localhost:3000`}</Code>
           {/* Authentication */}
           <H2 id="authentication">Authentication</H2>
           <P>
-            Aperture supports three authentication methods via NextAuth. All methods create a JWT session
+            Aperture supports two authentication methods via NextAuth. Both methods create a JWT session
             that persists across the dashboard.
           </P>
           <div className="space-y-3 mb-6">
             {[
               { method: 'Wallet Signing', desc: 'Connect Phantom or Solflare, sign a message. Signature is verified by the policy-service using ed25519.' },
               { method: 'Email / Password', desc: 'Traditional credentials. User accounts are stored in the policy-service database.' },
-              { method: 'Google OAuth', desc: 'Requires GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env. Redirects to Google for authentication.' },
             ].map(({ method, desc }) => (
               <div key={method} className="bg-[rgba(10,10,10,0.8)] border border-amber-400/10 rounded-lg p-4">
                 <span className="text-sm font-semibold text-amber-100">{method}</span>

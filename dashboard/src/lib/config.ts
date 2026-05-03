@@ -7,6 +7,12 @@ export const config = {
   agentServiceUrl: process.env.NEXT_PUBLIC_AGENT_SERVICE_URL ?? 'http://localhost:3004',
   solanaRpcUrl: process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? 'https://api.devnet.solana.com',
   solanaNetwork: process.env.NEXT_PUBLIC_SOLANA_NETWORK ?? 'devnet',
+  /// Treasury wallet that receives x402 payments. Pinned to a known Devnet
+  /// address so the dashboard can preview tx flows without operator config;
+  /// production deployments override via NEXT_PUBLIC_PUBLISHER_WALLET.
+  publisherWallet:
+    process.env.NEXT_PUBLIC_PUBLISHER_WALLET ??
+    'GRyQkYHeqEYT9KmANxAA9mtw6iJoqCtxVNCNRQD8PrMq',
   tokens: {
     // aUSDC: Aperture's Token-2022 mint with the compliance transfer hook.
     // Mint address is unchanged from the original vUSDC deployment; only

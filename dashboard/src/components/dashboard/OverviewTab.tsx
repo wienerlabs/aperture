@@ -1,16 +1,41 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useOperatorId } from '@/hooks/useOperatorId';
 import { useWallet } from '@solana/wallet-adapter-react';
 import {
-  Shield, FileText, BarChart3, CheckCircle, ExternalLink, Copy,
-  Upload, Download, Loader2,
+  Shield,
+  FileText,
+  CheckCircle,
+  Loader2,
+  Sparkles,
+  Coins,
 } from 'lucide-react';
-import { complianceApi, policyApi, type ProofRecord, type Attestation, type Policy } from '@/lib/api';
-import { config } from '@/lib/config';
-import { truncateAddress, formatDate, formatAmount } from '@/lib/utils';
-import { getProofRecordCostComparison, lamportsToSol, isLightProtocolConfigured } from '@/lib/light-protocol';
+import {
+  complianceApi,
+  policyApi,
+  type ProofRecord,
+  type Attestation,
+  type Policy,
+} from '@/lib/api';
+import { config as apertureConfig } from '@/lib/config';
+import { truncateAddress, formatAmount } from '@/lib/utils';
+// truncateAddress is also used inside the tx callback below.
+import {
+  getProofRecordCostComparison,
+  lamportsToSol,
+  isLightProtocolConfigured,
+} from '@/lib/light-protocol';
+import { useTxModal } from '@/components/providers/TxModalProvider';
+import {
+  makeFromParticipant,
+  makeToParticipant,
+} from '@/components/shared/TxModal';
+import { MetricCard } from './overview/MetricCard';
+import { ProofTrendCard } from './overview/ProofTrendCard';
+import { NetworkStatusCard } from './overview/NetworkStatusCard';
+import { QuickActionsCard } from './overview/QuickActionsCard';
+import { RecentProofsCard } from './overview/RecentProofsCard';
 
 interface OverviewData {
   readonly proofs: readonly ProofRecord[];
@@ -22,34 +47,20 @@ interface OverviewData {
 
 const REFRESH_INTERVAL_MS = 5_000;
 
-export function OverviewTab({ onNavigate }: { onNavigate: (tab: string) => void }) {
+export function OverviewTab({
+  onNavigate,
+}: {
+  onNavigate: (tab: string) => void;
+}) {
   const operatorId = useOperatorId();
   const { publicKey } = useWallet();
+  const tx = useTxModal();
+
   const [data, setData] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [copiedAudit, setCopiedAudit] = useState(false);
-  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
-  const [generatingCard, setGeneratingCard] = useState(false);
-  const cardRef = useRef<HTMLDivElement>(null);
+  const [demoBusy, setDemoBusy] = useState(false);
 
   const walletAddress = publicKey?.toBase58() ?? operatorId ?? '';
-
-  // Load profile photo from localStorage
-  // Also persist last known wallet so photo survives sign-out/sign-in
-  useEffect(() => {
-    if (walletAddress) {
-      localStorage.setItem('aperture_last_wallet', walletAddress);
-      const saved = localStorage.getItem(`aperture_profile_${walletAddress}`);
-      if (saved) setProfilePhoto(saved);
-    } else {
-      // Wallet not connected yet, try last known wallet
-      const lastWallet = localStorage.getItem('aperture_last_wallet');
-      if (lastWallet) {
-        const saved = localStorage.getItem(`aperture_profile_${lastWallet}`);
-        if (saved) setProfilePhoto(saved);
-      }
-    }
-  }, [walletAddress]);
 
   const fetchData = useCallback(
     async (showSpinner = false) => {
@@ -57,7 +68,7 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: string) => void 
       if (showSpinner) setLoading(true);
       try {
         const [proofsRes, attestationsRes, policiesRes] = await Promise.all([
-          complianceApi.listProofsByOperator(operatorId, 1, 5),
+          complianceApi.listProofsByOperator(operatorId, 1, 50),
           complianceApi.listAttestations(operatorId, 1, 5),
           policyApi.list(operatorId, 1, 5),
         ]);
@@ -69,12 +80,12 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: string) => void 
           policies: policiesRes.data,
         });
       } catch {
-        // Silently handle -- individual sections show empty states
+        // Silent — empty states handle the no-data case.
       } finally {
         if (showSpinner) setLoading(false);
       }
     },
-    [operatorId]
+    [operatorId],
   );
 
   useEffect(() => {
@@ -83,432 +94,344 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: string) => void 
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !walletAddress) return;
-    if (file.size > 2 * 1024 * 1024) { alert('Max 2MB'); return; }
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { alert('JPG, PNG, or WebP only'); return; }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      setProfilePhoto(dataUrl);
-      localStorage.setItem(`aperture_profile_${walletAddress}`, dataUrl);
-    };
-    reader.readAsDataURL(file);
-  }
+  const compliantProofs = useMemo(
+    () => (data?.proofs ?? []).filter((p) => p.is_compliant).length,
+    [data],
+  );
+  const complianceRate = useMemo(() => {
+    if (!data || data.proofs.length === 0) return 100;
+    return Math.round((compliantProofs / data.proofs.length) * 100);
+  }, [data, compliantProofs]);
 
-  function generateIdenticon(address: string): string {
-    // Simple deterministic color blocks from address bytes
-    const canvas = document.createElement('canvas');
-    canvas.width = 64; canvas.height = 64;
-    const ctx = canvas.getContext('2d')!;
-    for (let i = 0; i < 16; i++) {
-      const charCode = address.charCodeAt(i % address.length);
-      const hue = (charCode * 37 + i * 53) % 360;
-      ctx.fillStyle = `hsl(${hue}, 60%, 50%)`;
-      ctx.fillRect((i % 4) * 16, Math.floor(i / 4) * 16, 16, 16);
-    }
-    return canvas.toDataURL();
-  }
+  const proofsToday = useMemo(() => {
+    if (!data) return 0;
+    const todayIso = new Date().toISOString().slice(0, 10);
+    return data.proofs.filter(
+      (p) => p.created_at && new Date(p.created_at).toISOString().slice(0, 10) === todayIso,
+    ).length;
+  }, [data]);
 
-  const avatarSrc = profilePhoto ?? (walletAddress ? generateIdenticon(walletAddress) : '');
-
-  function getCardDataUrl(): Promise<string> {
-    return new Promise(async (resolve) => {
-      if (!cardRef.current) { resolve(''); return; }
-      const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(cardRef.current, { backgroundColor: '#000000', scale: 2 });
-      resolve(canvas.toDataURL('image/png'));
-    });
-  }
-
-  async function shareOnX() {
-    const totalProofs = data?.totalProofs ?? 0;
-    const text = encodeURIComponent(
-      `Just proved compliance without revealing anything.\n\n` +
-      `ZK Proofs: ${totalProofs}\n` +
-      `Policy Violations: 0\n` +
-      `Sanctions: Clean\n` +
-      `Compliance Rate: 100%\n\n` +
-      `Powered by Aperture -- ZK compliance for AI agents\n` +
-      `x402 + MPP + Circom/Groth16 + Light Protocol`
-    );
-    // Generate card image and copy to clipboard for easy paste
-    try {
-      const dataUrl = await getCardDataUrl();
-      if (dataUrl) {
-        const res = await fetch(dataUrl);
-        const blob = await res.blob();
-        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-      }
-    } catch {
-      // Clipboard image not supported in all browsers
-    }
-    window.open(`https://x.com/intent/tweet?text=${text}`, '_blank');
-  }
-
-  async function generateComplianceCard() {
-    if (!cardRef.current) return;
-    setGeneratingCard(true);
-    try {
-      const dataUrl = await getCardDataUrl();
-      const link = document.createElement('a');
-      link.download = `aperture-compliance-${Date.now()}.png`;
-      link.href = dataUrl;
-      link.click();
-    } finally {
-      setGeneratingCard(false);
-    }
-  }
-
-  async function copyAuditLink(id: string) {
-    const url = `${window.location.origin}/audit/${id}`;
-    await navigator.clipboard.writeText(url).catch(() => {});
-    setCopiedAudit(true);
-    setTimeout(() => setCopiedAudit(false), 2000);
-  }
-
-  const compliantProofs = data?.proofs.filter(p => p.is_compliant).length ?? 0;
-  const complianceRate = data && data.totalProofs > 0
-    ? Math.round((compliantProofs / Math.min(data.totalProofs, data.proofs.length)) * 100)
-    : 0;
   const cost = getProofRecordCostComparison();
-  const latestAttestation = data?.attestations[0] ?? null;
-  const activePolicy = data?.policies.find(p => p.is_active) ?? null;
+  const totalProofs = data?.totalProofs ?? 0;
+  const compressedSavingsLamports =
+    (cost.regularAccountRentLamports - cost.compressedTokenCostLamports) * totalProofs;
+  const activePolicy = data?.policies.find((p) => p.is_active) ?? null;
+
+  /** Open the modal in pending state with a realistic x402 payment shape,
+   *  then route the user to Payments where the real signer is wired up. The
+   *  modal animation persists across the navigation because TxModal lives at
+   *  the Providers root, not inside the tab tree. */
+  const runX402Demo = useCallback(() => {
+    if (demoBusy) return;
+    if (!operatorId || !publicKey) {
+      tx.show({
+        status: 'error',
+        from: { symbol: '—', amountLabel: '—', accountLabel: 'Connect wallet first' },
+        to: { symbol: '—', amountLabel: '—', accountLabel: '—' },
+        errorMessage: 'Connect a wallet to run the x402 demo.',
+      });
+      return;
+    }
+
+    setDemoBusy(true);
+
+    const tokenSymbol = 'USDC';
+    const amountLamports = 1_000_000n; // 1 USDC (6 decimals)
+
+    tx.show({
+      status: 'pending',
+      from: makeFromParticipant({
+        walletPubkey: publicKey.toBase58(),
+        tokenSymbol,
+        amountLamports,
+      }),
+      to: makeToParticipant({
+        treasuryPubkey: apertureConfig.publisherWallet,
+        tokenSymbol,
+        amountLamports,
+        resourceLabel: 'x402 Compliance Report',
+      }),
+      footnote: 'Routing to Payments tab for signer…',
+    });
+
+    setTimeout(() => {
+      onNavigate('payments');
+      setDemoBusy(false);
+    }, 1500);
+  }, [demoBusy, operatorId, publicKey, tx, onNavigate]);
+
+  const runMppDemo = useCallback(() => {
+    onNavigate('payments');
+  }, [onNavigate]);
+
+  const goToPolicies = useCallback(() => onNavigate('policies'), [onNavigate]);
 
   if (!operatorId) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-amber-100/40">
-        <BarChart3 className="w-12 h-12 mb-4" />
-        <p className="text-lg">Connect your wallet to view overview</p>
+      <div className="ap-card p-12 flex flex-col items-center text-center gap-3">
+        <Shield className="h-10 w-10 text-aperture-dark" />
+        <h2 className="font-display text-[24px] tracking-[-0.012em] text-black">
+          Connect a wallet to view your overview
+        </h2>
+        <p className="text-[14px] text-black/55 tracking-tighter max-w-md">
+          Aperture surfaces ZK proof history, compliance metrics, and Solana network status
+          per operator. Sign in or connect a wallet to get started.
+        </p>
       </div>
     );
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
+      <div className="ap-card p-12 flex items-center justify-center">
+        <Loader2 className="h-7 w-7 text-aperture animate-spin" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Profile + Share */}
+      {/* Hero ribbon */}
+      <section
+        className="relative overflow-hidden rounded-[24px] border border-black/8 bg-white p-6 sm:p-8"
+        style={{ boxShadow: 'var(--shadow-card)' }}
+      >
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              'radial-gradient(ellipse 50% 80% at 95% 10%, rgba(248,179,0,0.18) 0%, rgba(248,179,0,0) 65%)',
+          }}
+        />
+        <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+          <div className="flex flex-col gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-pill bg-aperture/15 px-2.5 py-1 text-[11px] font-medium tracking-tighter text-aperture-dark w-fit">
+              <Sparkles className="h-3 w-3" />
+              Operator Overview
+            </span>
+            <h1 className="font-display text-[36px] sm:text-[44px] leading-[1.04] tracking-[-0.012em] text-black">
+              Welcome back, {truncateAddress(walletAddress, 4)}
+            </h1>
+            <p className="text-[14px] text-black/55 tracking-tighter max-w-xl">
+              {totalProofs} proofs verified · {complianceRate}% compliant ·{' '}
+              {data?.policies.length ?? 0} polic
+              {(data?.policies.length ?? 0) === 1 ? 'y' : 'ies'} on file
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:items-end gap-2">
+            <button
+              type="button"
+              onClick={runX402Demo}
+              disabled={demoBusy}
+              className="ap-btn-orange disabled:opacity-60"
+            >
+              {demoBusy ? 'Running…' : 'Run x402 Demo'}
+            </button>
+            <span className="text-[11px] text-black/45 tracking-tighter">
+              Triggers an atomic verify+transfer on Devnet
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* Metrics row */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard
+          label="Total Proofs"
+          value={totalProofs.toLocaleString()}
+          icon={FileText}
+          delta={proofsToday}
+          deltaSuffix=" today"
+          hint="ZK proofs verified on-chain"
+        />
+        <MetricCard
+          label="Compliance Rate"
+          value={`${complianceRate}%`}
+          icon={CheckCircle}
+          hint={`${compliantProofs} of ${data?.proofs.length ?? 0} sampled`}
+        />
+        <MetricCard
+          label="Policy Violations"
+          value="0"
+          icon={Shield}
+          hint="Lifetime — proofs only sign when compliant"
+        />
+        <MetricCard
+          label="Compression Savings"
+          value={`${lamportsToSol(compressedSavingsLamports)} SOL`}
+          icon={Coins}
+          hint={`Light Protocol · ${cost.savingsMultiplier}× cheaper`}
+        />
+      </section>
+
+      {/* Two-column body */}
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 flex flex-col gap-6">
+          <ProofTrendCard proofs={data?.proofs ?? []} />
+          <RecentProofsCard
+            proofs={(data?.proofs ?? []).slice(0, 5)}
+            onViewAll={() => onNavigate('compliance')}
+          />
+        </div>
+
+        <div className="flex flex-col gap-6">
+          <QuickActionsCard
+            onCreatePolicy={goToPolicies}
+            onTestX402={runX402Demo}
+            onTestMpp={runMppDemo}
+            busy={demoBusy}
+          />
+          <NetworkStatusCard />
+        </div>
+      </section>
+
+      {/* Active policy + Light Protocol footer */}
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ActivePolicySummary policy={activePolicy} onView={goToPolicies} />
+        <LightProtocolStatus
+          totalProofs={totalProofs}
+          regularLamports={cost.regularAccountRentLamports * totalProofs}
+          compressedLamports={cost.compressedTokenCostLamports * totalProofs}
+        />
+      </section>
+    </div>
+  );
+}
+
+function ActivePolicySummary({
+  policy,
+  onView,
+}: {
+  policy: Policy | null;
+  onView: () => void;
+}) {
+  if (!policy) {
+    return (
+      <div className="ap-card p-5 flex flex-col gap-3">
+        <h3 className="font-display text-[18px] tracking-[-0.005em] text-black">
+          Active Policy
+        </h3>
+        <p className="text-[13px] text-black/55 tracking-tighter">
+          You don&apos;t have an active policy yet. Create one to start enforcing limits and
+          token whitelists for AI agents.
+        </p>
+        <button
+          type="button"
+          onClick={onView}
+          className="ap-btn-orange w-fit"
+        >
+          Create Policy
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="ap-card p-5 flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="relative group">
-            <img
-              src={avatarSrc}
-              alt="Profile"
-              className="w-12 h-12 rounded-full border-2 border-amber-400/30 object-cover"
-            />
-            <label className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
-              <Upload className="w-4 h-4 text-amber-400" />
-              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoUpload} className="hidden" />
-            </label>
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-amber-100">Overview</h2>
-            <p className="text-amber-100/40 text-sm font-mono">{truncateAddress(walletAddress, 6)}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={shareOnX}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-amber-400/10 text-amber-400 border border-amber-400/20 hover:bg-amber-400/20 transition-colors"
-          >
-            Share on X
-          </button>
-          <button
-            onClick={generateComplianceCard}
-            disabled={generatingCard}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-amber-500 text-black hover:bg-amber-400 disabled:opacity-50 transition-colors"
-          >
-            {generatingCard ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            Generate Card
-          </button>
-        </div>
+        <h3 className="font-display text-[18px] tracking-[-0.005em] text-black">
+          Active Policy
+        </h3>
+        <span className="inline-flex items-center gap-1 rounded-pill bg-aperture/15 px-2.5 py-1 text-[11px] font-medium tracking-tighter text-aperture-dark">
+          ✓ {policy.name}
+        </span>
       </div>
 
-      {/* 1. Metrics Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'Total Proofs', value: String(data?.totalProofs ?? 0), icon: FileText },
-          { label: 'Compliance Rate', value: `${complianceRate}%`, icon: CheckCircle },
-          { label: 'Policy Violations', value: '0', icon: Shield },
-          { label: 'Total Attestations', value: String(data?.totalAttestations ?? 0), icon: BarChart3 },
-        ].map(({ label, value, icon: Icon }) => (
-          <div key={label} className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-5">
-            <div className="flex items-center gap-2 mb-2">
-              <Icon className="w-4 h-4 text-amber-400/60" />
-              <span className="text-xs text-amber-100/40">{label}</span>
-            </div>
-            <p className="text-2xl font-bold font-mono text-amber-100">{value}</p>
-          </div>
+      <dl className="grid grid-cols-2 gap-3">
+        <Cell label="Max Daily Spend" value={formatAmount(policy.max_daily_spend)} />
+        <Cell label="Max Per Tx" value={formatAmount(policy.max_per_transaction)} />
+      </dl>
+
+      <div className="flex flex-wrap gap-1.5">
+        {policy.token_whitelist.map((mint) => (
+          <span
+            key={mint}
+            className="inline-flex items-center rounded-pill bg-[rgba(248,179,0,0.10)] px-2 py-0.5 text-[11px] font-mono text-aperture-dark"
+          >
+            {mintLabel(mint)}
+          </span>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 2. Recent Transactions */}
-        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-amber-100 mb-4">Recent Proofs</h3>
-          {data && data.proofs.length > 0 ? (
-            <div className="space-y-3">
-              {data.proofs.map(p => (
-                <div key={p.id} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="font-mono text-amber-100/60">{truncateAddress(p.payment_id, 6)}</span>
-                    <span className="font-mono text-amber-400">{truncateAddress(p.proof_hash, 6)}</span>
-                    <span className="text-amber-100/40">{formatAmount(p.amount_range_min)}-{formatAmount(p.amount_range_max)}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`px-1.5 py-0.5 rounded-full text-xs ${p.is_compliant ? 'bg-green-400/10 text-green-400' : 'bg-red-400/10 text-red-400'}`}>
-                      {p.is_compliant ? 'Yes' : 'No'}
-                    </span>
-                    {p.tx_signature && (
-                      <a href={config.txExplorerUrl(p.tx_signature)} target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:text-amber-300">
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-amber-100/50">No proofs yet</p>
-          )}
-        </div>
+      <button
+        type="button"
+        onClick={onView}
+        className="ap-btn-ghost-light w-fit"
+      >
+        Manage policies
+      </button>
+    </div>
+  );
+}
 
-        {/* 3. ZK Compression Cost Savings */}
-        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-amber-100 mb-4">ZK Compression Savings</h3>
-          {(() => {
-            const total = data?.totalProofs ?? 0;
-            const regularTotal = cost.regularAccountRentLamports * total;
-            const compressedTotal = cost.compressedTokenCostLamports * total;
-            return (
-              <div className="space-y-3">
-                <div className="flex justify-between text-xs">
-                  <span className="text-amber-100/40">Regular PDA Cost</span>
-                  <span className="text-red-400 font-mono">{lamportsToSol(regularTotal)} SOL</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-amber-100/40">Compressed Cost</span>
-                  <span className="text-green-400 font-mono">{lamportsToSol(compressedTotal)} SOL</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-amber-100/40">Total Saved</span>
-                  <span className="text-amber-400 font-mono">{lamportsToSol(regularTotal - compressedTotal)} SOL ({cost.savingsMultiplier}x)</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-amber-100/50 pt-1">
-                  <div className={`w-2 h-2 rounded-full ${isLightProtocolConfigured() ? 'bg-green-400' : 'bg-amber-400/30'}`} />
-                  {isLightProtocolConfigured() ? 'Light Protocol active' : 'Light Protocol available'}
-                </div>
-              </div>
-            );
-          })()}
-        </div>
-
-        {/* 4. Latest Attestation */}
-        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-amber-100 mb-4">Latest Attestation</h3>
-          {latestAttestation ? (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <span className="text-amber-100/40">Period</span>
-                  <p className="text-amber-100">{formatDate(latestAttestation.period_start)} - {formatDate(latestAttestation.period_end)}</p>
-                </div>
-                <div>
-                  <span className="text-amber-100/40">Total Payments</span>
-                  <p className="text-amber-100 font-mono">{latestAttestation.total_payments}</p>
-                </div>
-                <div>
-                  <span className="text-amber-100/40">Amount Range</span>
-                  <p className="text-amber-100 font-mono">{formatAmount(latestAttestation.total_amount_range_min)} - {formatAmount(latestAttestation.total_amount_range_max)}</p>
-                </div>
-                <div>
-                  <span className="text-amber-100/40">Policy Violations</span>
-                  <p className="text-green-400 font-mono">0</p>
-                </div>
-              </div>
-              <div>
-                <span className="text-xs text-amber-100/40">Proof Hash</span>
-                <p className="text-xs text-amber-400 font-mono break-all mt-0.5">{latestAttestation.batch_proof_hash}</p>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => copyAuditLink(latestAttestation.id)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs text-amber-100/60 hover:text-amber-100 border border-amber-400/20 hover:bg-amber-400/10 transition-colors">
-                  {copiedAudit ? <><CheckCircle className="w-3 h-3 text-green-400" /><span className="text-green-400">Copied</span></> : <><Copy className="w-3 h-3" />Share Audit Link</>}
-                </button>
-                {latestAttestation.tx_signature && (
-                  <a href={config.txExplorerUrl(latestAttestation.tx_signature)} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs text-amber-400 border border-amber-400/20 hover:bg-amber-400/10 transition-colors">
-                    <ExternalLink className="w-3 h-3" />View on Solana
-                  </a>
-                )}
-              </div>
-            </div>
-          ) : (
-            <p className="text-xs text-amber-100/50">No attestations yet</p>
-          )}
-        </div>
-
-        {/* 5. Active Policy */}
-        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-amber-100 mb-4">Active Policy</h3>
-          {activePolicy ? (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-amber-100">{activePolicy.name}</span>
-                <span className="px-1.5 py-0.5 rounded-full bg-amber-400/10 text-amber-400 text-xs">Active</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <span className="text-amber-100/40">Max Daily Spend</span>
-                  <p className="text-amber-100 font-mono">{formatAmount(activePolicy.max_daily_spend)}</p>
-                </div>
-                <div>
-                  <span className="text-amber-100/40">Max Per Transaction</span>
-                  <p className="text-amber-100 font-mono">{formatAmount(activePolicy.max_per_transaction)}</p>
-                </div>
-              </div>
-              <div className="flex gap-1.5">
-                {activePolicy.token_whitelist.map((t) => {
-                  const label =
-                    config.tokens.aUSDC && t === config.tokens.aUSDC
-                      ? 'aUSDC'
-                      : config.tokens.usdc && t === config.tokens.usdc
-                        ? 'USDC'
-                        : config.tokens.usdt && t === config.tokens.usdt
-                          ? 'USDT'
-                          : truncateAddress(t, 4);
-                  return (
-                    <span key={t} className="px-2 py-0.5 rounded bg-amber-400/10 text-amber-400 text-xs font-mono">
-                      {label}
-                    </span>
-                  );
-                })}
-              </div>
-              <button onClick={() => onNavigate('policies')}
-                className="text-xs text-amber-400 hover:text-amber-300 transition-colors">
-                View All Policies
-              </button>
-            </div>
-          ) : (
-            <p className="text-xs text-amber-100/50">No active policies</p>
-          )}
-        </div>
+function LightProtocolStatus({
+  totalProofs,
+  regularLamports,
+  compressedLamports,
+}: {
+  totalProofs: number;
+  regularLamports: number;
+  compressedLamports: number;
+}) {
+  const active = isLightProtocolConfigured();
+  return (
+    <div className="ap-card p-5 flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-display text-[18px] tracking-[-0.005em] text-black">
+          Light Protocol
+        </h3>
+        <span
+          className="inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-[11px] font-medium tracking-tighter"
+          style={{
+            color: active ? '#16a34a' : '#7c8293',
+            background: active ? 'rgba(22, 163, 74, 0.12)' : 'rgba(124, 130, 147, 0.10)',
+          }}
+        >
+          <span
+            className="h-1.5 w-1.5 rounded-pill"
+            style={{ background: active ? '#16a34a' : '#7c8293' }}
+          />
+          {active ? 'Compressed storage active' : 'Available — unconfigured'}
+        </span>
       </div>
 
-      {/* Compliance Card (hidden, used for PNG generation) */}
-      <div className="fixed -left-[9999px]" aria-hidden="true">
-        <div ref={cardRef} style={{
-          width: 900, height: 450,
-          background: 'linear-gradient(145deg, #c9b896, #a89070, #c9b896)',
-          padding: 8,
-          display: 'flex',
-          gap: 8,
-          fontFamily: '"Courier New", Courier, monospace',
-          borderRadius: 16,
-        }}>
-          {/* LEFT PANEL -- Branding */}
-          <div style={{
-            flex: 1.1,
-            background: '#000000',
-            borderRadius: 12,
-            position: 'relative',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            padding: 32,
-          }}>
-            {/* Matrix background */}
-            <div style={{ position: 'absolute', inset: 0, opacity: 0.04, fontSize: 9, lineHeight: '11px', color: '#fbbf24', overflow: 'hidden', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-              {Array.from({ length: 1200 }, (_, i) => String.fromCharCode(48 + (i * 7 + 13) % 74)).join('')}
-            </div>
-            {/* Top -- colosseum URL */}
-            <div style={{ position: 'relative', zIndex: 1 }}>
-              <div style={{ fontSize: 11, color: 'rgba(251,191,36,0.4)', fontStyle: 'italic' }}>colosseum.com/frontier</div>
-            </div>
-            {/* Center -- Big text */}
-            <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ fontSize: 13, color: 'rgba(251,191,36,0.5)', letterSpacing: 8, marginBottom: 12, textAlign: 'center' }}>ZK COMPLIANCE</div>
-              <div style={{ fontSize: 56, fontWeight: 900, color: '#fbbf24', letterSpacing: 8, lineHeight: 1, textAlign: 'center' }}>Aperture</div>
-              <div style={{ fontSize: 11, color: 'rgba(251,191,36,0.4)', marginTop: 14, letterSpacing: 4, textAlign: 'center' }}>PRIVACY LAYER FOR AI AGENTS</div>
-            </div>
-            {/* Bottom -- Powered by */}
-            <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                <span style={{ fontSize: 10, color: 'rgba(251,191,36,0.5)', fontWeight: 'bold' }}>GROTH16</span>
-                <span style={{ fontSize: 10, color: 'rgba(251,191,36,0.3)' }}>|</span>
-                <span style={{ fontSize: 10, color: 'rgba(251,191,36,0.5)', fontWeight: 'bold' }}>SOLANA</span>
-              </div>
-              <span style={{ fontSize: 10, color: 'rgba(251,191,36,0.5)', fontWeight: 'bold' }}>x402 + LIGHT</span>
-            </div>
-          </div>
+      <dl className="grid grid-cols-3 gap-3">
+        <Cell label="Regular PDA" value={`${lamportsToSol(regularLamports)} SOL`} />
+        <Cell label="Compressed" value={`${lamportsToSol(compressedLamports)} SOL`} />
+        <Cell
+          label="Saved"
+          value={`${lamportsToSol(regularLamports - compressedLamports)} SOL`}
+        />
+      </dl>
 
-          {/* RIGHT PANEL -- Profile */}
-          <div style={{
-            flex: 0.9,
-            background: '#f5f0e8',
-            borderRadius: 12,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: 28,
-          }}>
-            {/* Profile photo */}
-            <div style={{
-              width: 160, height: 160,
-              borderRadius: 12,
-              border: '4px solid #000000',
-              overflow: 'hidden',
-              background: '#ddd',
-            }}>
-              {avatarSrc && <img src={avatarSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-            </div>
+      <p className="text-[12px] text-black/55 tracking-tighter">
+        Compressed attestation tokens reduce per-proof storage by{' '}
+        <span className="text-black font-medium">
+          {getProofRecordCostComparison().savingsMultiplier}×
+        </span>
+        . Estimate based on {totalProofs.toLocaleString()} historical proofs.
+      </p>
+    </div>
+  );
+}
 
-            {/* Info */}
-            <div style={{ textAlign: 'center', width: '100%' }}>
-              <div style={{ fontSize: 18, fontWeight: 900, color: '#1a1200', letterSpacing: 2, marginBottom: 6 }}>
-                {truncateAddress(walletAddress, 6).toUpperCase()}
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 12, fontSize: 10, color: '#6b5c3a' }}>
-                <span>Proofs: {data?.totalProofs ?? 0}</span>
-                <span>|</span>
-                <span>Violations: 0</span>
-              </div>
-              <div style={{ fontSize: 11, color: '#6b5c3a', marginTop: 6 }}>
-                Compliance: <span style={{ color: '#1a1200', fontWeight: 'bold' }}>100%</span>
-              </div>
-            </div>
-
-            {/* Bottom row -- date + COMPLIANT */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-              <div style={{ fontSize: 11, color: '#8a7a5a', letterSpacing: 1 }}>
-                {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()}
-              </div>
-              <div style={{
-                padding: '6px 16px',
-                background: '#1a1200',
-                color: '#fbbf24',
-                fontSize: 11,
-                fontWeight: 900,
-                borderRadius: 8,
-                letterSpacing: 3,
-                lineHeight: '16px',
-              }}>
-                COMPLIANT
-              </div>
-            </div>
-          </div>
-        </div>
+function Cell({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[12px] border border-black/8 bg-white px-3 py-2.5">
+      <div className="text-[11px] uppercase tracking-[0.08em] text-black/55">{label}</div>
+      <div className="text-[14px] font-medium text-black tracking-tighter mt-0.5 truncate">
+        {value}
       </div>
     </div>
   );
+}
+
+function mintLabel(mint: string): string {
+  const t = apertureConfig.tokens;
+  if (t.aUSDC && mint === t.aUSDC) return 'aUSDC';
+  if (t.usdc && mint === t.usdc) return 'USDC';
+  if (t.usdt && mint === t.usdt) return 'USDT';
+  return truncateAddress(mint, 4);
 }

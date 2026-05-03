@@ -5,26 +5,33 @@ import { useOperatorId } from '@/hooks/useOperatorId';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useConnection } from '@solana/wallet-adapter-react';
 import { Transaction } from '@solana/web3.js';
-import { config } from '@/lib/config';
 import {
   BarChart3,
   Plus,
-  ExternalLink,
-  Copy,
   Loader2,
   AlertTriangle,
   X,
   CheckCircle,
-  Shield,
+  Stamp,
+  Wallet,
 } from 'lucide-react';
 import {
   complianceApi,
   type Attestation,
   type BatchAttestationOutput,
 } from '@/lib/api';
-import { formatDate, formatAmount, truncateAddress } from '@/lib/utils';
-import { buildVerifyBatchAttestationIx, hexToBytes32, sha256Bytes } from '@/lib/anchor-instructions';
-
+import { formatAmount } from '@/lib/utils';
+import {
+  buildVerifyBatchAttestationIx,
+  hexToBytes32,
+  sha256Bytes,
+} from '@/lib/anchor-instructions';
+import { ApInput } from './policies/ApField';
+import { ComplianceStatsRow } from './compliance/ComplianceStatsRow';
+import { MerkleTreeViewer } from './compliance/MerkleTreeViewer';
+import { AttestationCard } from './compliance/AttestationCard';
+import { AuditTrailTimeline } from './compliance/AuditTrailTimeline';
+import { ProofIntegrityCard } from './compliance/ProofIntegrityCard';
 
 interface AttestationFormData {
   readonly period_start: string;
@@ -37,7 +44,6 @@ const INITIAL_FORM_DATA: AttestationFormData = {
 };
 
 const REFRESH_INTERVAL_MS = 5_000;
-
 
 export function ComplianceTab() {
   const operatorId = useOperatorId();
@@ -62,8 +68,9 @@ export function ComplianceTab() {
         setAttestations(response.data);
         setError(null);
       } catch (err: unknown) {
-        // Only surface errors during the initial load; silent failure on background polls
-        // avoids flashing transient network errors while the user is mid-flow.
+        // Only surface errors during the initial load; silent failure on
+        // background polls avoids flashing transient network errors while
+        // the user is mid-flow.
         if (showSpinner) {
           const message =
             err instanceof Error ? err.message : 'Failed to fetch attestations';
@@ -73,7 +80,7 @@ export function ComplianceTab() {
         if (showSpinner) setLoading(false);
       }
     },
-    [operatorId]
+    [operatorId],
   );
 
   useEffect(() => {
@@ -84,7 +91,7 @@ export function ComplianceTab() {
 
   function updateFormField<K extends keyof AttestationFormData>(
     field: K,
-    value: AttestationFormData[K]
+    value: AttestationFormData[K],
   ): void {
     setFormData((prev) => ({ ...prev, [field]: value }));
   }
@@ -110,17 +117,24 @@ export function ComplianceTab() {
       if (response.data) {
         setBatchResult(response.data);
 
-        // Verify attestation on-chain via real Verifier program (verify_batch_attestation)
+        // Verify attestation on-chain via real Verifier program
+        // (verify_batch_attestation)
         if (publicKey && sendTransaction) {
           const batchHashBytes = hexToBytes32(response.data.proof_hash);
           const batchImageId = [0, 0, 0, 0, 0, 0, 0, 0];
 
-          const periodStartTs = BigInt(Math.floor(new Date(response.data.period_start).getTime() / 1000));
-          const periodEndTs = BigInt(Math.floor(new Date(response.data.period_end).getTime() / 1000));
+          const periodStartTs = BigInt(
+            Math.floor(new Date(response.data.period_start).getTime() / 1000),
+          );
+          const periodEndTs = BigInt(
+            Math.floor(new Date(response.data.period_end).getTime() / 1000),
+          );
 
-          // verify_batch.rs requires receipt_data == "batch:{hex}:{total}:{start}:{end}"
-          // so that sha256(receipt_data) == journal_digest == compute_batch_digest(...).
-          // Must match the format the agent uses (services/agent-service/src/agent-loop.ts).
+          // verify_batch.rs requires receipt_data ==
+          //   "batch:{hex}:{total}:{start}:{end}"
+          // so that sha256(receipt_data) == journal_digest ==
+          // compute_batch_digest(...). Must match the format the agent uses
+          // in services/agent-service/src/agent-loop.ts.
           const batchHashHex = response.data.proof_hash.startsWith('0x')
             ? response.data.proof_hash.slice(2)
             : response.data.proof_hash;
@@ -137,7 +151,7 @@ export function ComplianceTab() {
             response.data.total_payments,
             periodStartTs,
             periodEndTs,
-            receiptBytes
+            receiptBytes,
           );
 
           const tx = new Transaction().add(verifyBatchIx);
@@ -147,7 +161,6 @@ export function ComplianceTab() {
 
           const sig = await sendTransaction(tx, connection);
           await connection.confirmTransaction(sig, 'confirmed');
-          // Save tx_signature to backend
           await complianceApi.updateTxSignature(response.data!.id, sig);
         }
       }
@@ -168,275 +181,292 @@ export function ComplianceTab() {
       setCopiedId(attestationId);
       setTimeout(() => setCopiedId(null), 2000);
     } catch {
-      // Clipboard API may not be available in all contexts
+      /* clipboard API may be unavailable in some contexts */
     }
   }
 
   if (!operatorId) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-amber-100/40">
-        <BarChart3 className="w-12 h-12 mb-4" />
-        <p className="text-lg">Connect your wallet to view compliance data</p>
+      <div className="ap-card p-12 flex flex-col items-center text-center gap-3">
+        <span className="inline-flex h-12 w-12 items-center justify-center rounded-pill bg-aperture/15 text-aperture-dark">
+          <Wallet className="h-6 w-6" />
+        </span>
+        <h2 className="font-display text-[24px] tracking-[-0.012em] text-black">
+          Connect a wallet to view compliance data
+        </h2>
+        <p className="text-[14px] text-black/55 tracking-tighter max-w-md">
+          Each operator&apos;s batch attestations and audit trail are namespaced to its
+          wallet pubkey. Connect to load and anchor your compliance proofs.
+        </p>
       </div>
     );
   }
 
+  const latestAttestation = attestations[0] ?? null;
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-amber-100">Compliance</h2>
-          <p className="text-amber-100/40 text-sm mt-1">
-            Batch attestations and cryptographic compliance proofs
-          </p>
-        </div>
-        <button
-          onClick={() => {
-            resetForm();
-            setShowForm(true);
+      {/* Hero ribbon */}
+      <section
+        className="relative overflow-hidden rounded-[24px] border border-black/8 bg-white p-6 sm:p-8"
+        style={{ boxShadow: 'var(--shadow-card)' }}
+      >
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              'radial-gradient(ellipse 50% 80% at 95% 10%, rgba(248,179,0,0.18) 0%, rgba(248,179,0,0) 65%)',
           }}
-          className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-lg px-6 py-2 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Create Batch Attestation
-        </button>
-      </div>
+        />
+        <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+          <div className="flex flex-col gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-pill bg-aperture/15 px-2.5 py-1 text-[11px] font-medium tracking-tighter text-aperture-dark w-fit">
+              <Stamp className="h-3 w-3" />
+              Compliance &amp; Attestations
+            </span>
+            <h1 className="font-display text-[36px] sm:text-[44px] leading-[1.04] tracking-[-0.012em] text-black">
+              Anchor your batches.
+              <br />
+              Reveal nothing.
+            </h1>
+            <p className="text-[14px] text-black/55 tracking-tighter max-w-2xl">
+              Generate Merkle-rooted batch attestations across any period. Every root
+              lands on Solana via verify_batch_attestation, so an external auditor can
+              reproduce your compliance posture without seeing the underlying rules.
+            </p>
+          </div>
 
-      {/* Error */}
+          <div className="flex flex-col sm:items-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                resetForm();
+                setShowForm(true);
+              }}
+              className="ap-btn-orange inline-flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Create Batch Attestation
+            </button>
+            <span className="text-[11px] text-black/45 tracking-tighter">
+              Signs verify_batch_attestation against the verifier program
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* Stats */}
+      <ComplianceStatsRow attestations={attestations} />
+
+      {/* Top-level error */}
       {error && (
-        <div className="flex items-center gap-3 p-4 rounded-lg bg-red-400/10 border border-red-400/20 text-red-400">
-          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-          <p className="text-sm">{error}</p>
+        <div className="ap-card p-4 flex items-start gap-3" style={{ borderColor: '#fca5a5' }}>
+          <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5 text-red-600" />
+          <p className="text-[13px] text-red-700 tracking-tighter flex-1">{error}</p>
           <button
             onClick={() => setError(null)}
-            className="ml-auto"
+            className="ml-auto flex-shrink-0 text-black/45 hover:text-black"
             aria-label="Dismiss error"
           >
-            <X className="w-4 h-4" />
+            <X className="h-4 w-4" />
           </button>
         </div>
       )}
 
-      {/* Create Form */}
+      {/* Create form */}
       {showForm && (
-        <div className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-amber-100">
-              Create Batch Attestation
-            </h3>
+        <section className="ap-card p-6 sm:p-7">
+          <header className="flex items-start justify-between gap-3 mb-6">
+            <div>
+              <h3 className="font-display text-[22px] tracking-[-0.005em] text-black">
+                Create Batch Attestation
+              </h3>
+              <p className="text-[12px] text-black/55 tracking-tighter mt-1">
+                Aggregates every proof in the period into a Merkle root, signs the
+                verifier instruction, and records a transaction on Devnet.
+              </p>
+            </div>
             <button
               onClick={resetForm}
-              className="text-amber-100/40 hover:text-amber-100"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-pill text-black/55 hover:bg-black/5 hover:text-black transition-colors"
               aria-label="Close form"
             >
-              <X className="w-5 h-5" />
+              <X className="h-4 w-4" />
             </button>
-          </div>
+          </header>
 
           {!batchResult ? (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-amber-100/60 mb-1.5">
-                    Period Start
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={formData.period_start}
-                    onChange={(e) => updateFormField('period_start', e.target.value)}
-                    className="w-full bg-transparent border border-amber-400/20 focus:border-amber-400 rounded-lg px-4 py-2 text-amber-100 outline-none transition-colors [color-scheme:dark]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-amber-100/60 mb-1.5">
-                    Period End
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={formData.period_end}
-                    onChange={(e) => updateFormField('period_end', e.target.value)}
-                    className="w-full bg-transparent border border-amber-400/20 focus:border-amber-400 rounded-lg px-4 py-2 text-amber-100 outline-none transition-colors [color-scheme:dark]"
-                  />
-                </div>
+                <ApInput
+                  label="Period Start"
+                  type="date"
+                  required
+                  value={formData.period_start}
+                  onChange={(e) => updateFormField('period_start', e.target.value)}
+                  helper="Inclusive lower bound — UTC midnight."
+                />
+                <ApInput
+                  label="Period End"
+                  type="date"
+                  required
+                  value={formData.period_end}
+                  onChange={(e) => updateFormField('period_end', e.target.value)}
+                  helper="Exclusive upper bound — UTC midnight of the next day."
+                />
               </div>
 
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="flex justify-end gap-3 pt-3 border-t border-black/8">
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="px-4 py-2 rounded-lg text-sm text-amber-100/60 hover:text-amber-100 border border-amber-400/20 hover:border-amber-400/40 transition-colors"
+                  className="ap-btn-ghost-light"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold rounded-lg px-6 py-2 transition-colors"
+                  className="ap-btn-orange inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
                   Generate Attestation
                 </button>
               </div>
             </form>
           ) : (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-amber-400 mb-4">
-                <CheckCircle className="w-5 h-5" />
-                <span className="font-medium">Batch attestation created successfully</span>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2 text-aperture-dark">
+                <CheckCircle className="h-5 w-5" />
+                <span className="text-[14px] font-medium tracking-tighter text-black">
+                  Batch attestation created &amp; anchored
+                </span>
               </div>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span className="text-amber-100/40">Total Payments</span>
-                  <p className="text-amber-100 font-mono">{batchResult.total_payments}</p>
-                </div>
-                <div>
-                  <span className="text-amber-100/40">Amount Range</span>
-                  <p className="text-amber-100 font-mono">
-                    {formatAmount(batchResult.total_amount_range.min)} -{' '}
-                    {formatAmount(batchResult.total_amount_range.max)}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-amber-100/40">Policy Violations</span>
-                  <p className="text-amber-100 font-mono">{batchResult.policy_violations}</p>
-                </div>
-                <div>
-                  <span className="text-amber-100/40">Proof Hash</span>
-                  <p className="text-amber-400 font-mono text-xs break-all">
-                    {batchResult.proof_hash}
-                  </p>
-                </div>
-              </div>
-              <div className="flex justify-end pt-2">
-                <button
-                  onClick={resetForm}
-                  className="px-4 py-2 rounded-lg text-sm bg-amber-500 hover:bg-amber-400 text-black font-bold transition-colors"
-                >
+              <dl className="grid grid-cols-2 gap-3">
+                <ResultCell label="Total Payments" value={String(batchResult.total_payments)} mono />
+                <ResultCell
+                  label="Amount Range"
+                  value={`${formatAmount(batchResult.total_amount_range.min)} – ${formatAmount(
+                    batchResult.total_amount_range.max,
+                  )}`}
+                  mono
+                />
+                <ResultCell
+                  label="Policy Violations"
+                  value={String(batchResult.policy_violations)}
+                  mono
+                  accent={batchResult.policy_violations === 0 ? 'green' : 'red'}
+                />
+                <ResultCell
+                  label="Proof Hash"
+                  value={batchResult.proof_hash}
+                  mono
+                  fullWidth
+                />
+              </dl>
+              <div className="flex justify-end pt-3 border-t border-black/8">
+                <button onClick={resetForm} className="ap-btn-orange">
                   Done
                 </button>
               </div>
             </div>
           )}
-        </div>
+        </section>
       )}
 
       {/* Loading */}
       {loading && (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
+        <div className="ap-card p-12 flex items-center justify-center">
+          <Loader2 className="h-7 w-7 text-aperture animate-spin" />
         </div>
       )}
 
       {/* Empty state */}
       {!loading && attestations.length === 0 && !error && (
-        <div className="flex flex-col items-center justify-center py-20 text-amber-100/40">
-          <BarChart3 className="w-12 h-12 mb-4" />
-          <p className="text-lg">No attestations created yet</p>
-          <p className="text-sm mt-1">
-            Create a batch attestation to generate cryptographic compliance proofs
+        <div className="ap-card p-12 flex flex-col items-center text-center gap-3">
+          <span className="inline-flex h-12 w-12 items-center justify-center rounded-pill bg-aperture/15 text-aperture-dark">
+            <BarChart3 className="h-6 w-6" />
+          </span>
+          <h3 className="font-display text-[22px] tracking-[-0.005em] text-black">
+            No attestations yet
+          </h3>
+          <p className="text-[14px] text-black/55 tracking-tighter max-w-md">
+            Create your first batch attestation to fold every proof in a period into a
+            single Merkle root and anchor it on Solana.
           </p>
+          <button
+            type="button"
+            onClick={() => {
+              resetForm();
+              setShowForm(true);
+            }}
+            className="ap-btn-orange inline-flex items-center gap-2 mt-2"
+          >
+            <Plus className="h-4 w-4" />
+            Create your first attestation
+          </button>
         </div>
       )}
+
+      {/* Cryptographic context — Merkle viewer + integrity card */}
+      {!loading && attestations.length > 0 && (
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <MerkleTreeViewer rootHash={latestAttestation!.batch_proof_hash} />
+          </div>
+          <div className="lg:col-span-1">
+            <AuditTrailTimeline attestations={attestations} />
+          </div>
+        </section>
+      )}
+
+      {!loading && attestations.length > 0 && <ProofIntegrityCard />}
 
       {/* Attestation cards */}
       {!loading && attestations.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {attestations.map((attestation) => (
-            <div
+            <AttestationCard
               key={attestation.id}
-              className="bg-[rgba(10,10,10,0.8)] backdrop-blur-md border border-amber-400/20 rounded-xl p-6"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Shield className="w-4 h-4 text-amber-400" />
-                    <h3 className="text-sm font-semibold text-amber-100">
-                      Batch Attestation
-                    </h3>
-                    <span className="px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-400 text-xs font-medium">
-                      {attestation.status}
-                    </span>
-                  </div>
-                  <p className="text-xs text-amber-100/40 font-mono">
-                    {truncateAddress(attestation.id, 8)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-sm mb-4">
-                <div>
-                  <span className="text-amber-100/40">Period</span>
-                  <p className="text-amber-100">
-                    {formatDate(attestation.period_start)} - {formatDate(attestation.period_end)}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-amber-100/40">Total Payments</span>
-                  <p className="text-amber-100 font-mono">{attestation.total_payments}</p>
-                </div>
-                <div>
-                  <span className="text-amber-100/40">Amount Range</span>
-                  <p className="text-amber-100 font-mono">
-                    {formatAmount(attestation.total_amount_range_min)} -{' '}
-                    {formatAmount(attestation.total_amount_range_max)}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-amber-100/40">Policy Violations</span>
-                  <p className="text-amber-100 font-mono">{attestation.policy_violations}</p>
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <span className="text-xs text-amber-100/40">Batch Proof Hash</span>
-                <p className="text-xs text-amber-400 font-mono break-all mt-0.5">
-                  {attestation.batch_proof_hash}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2 pt-3 border-t border-amber-400/10">
-                {attestation.tx_signature ? (
-                  <a
-                    href={config.txExplorerUrl(attestation.tx_signature)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
-                      text-amber-400 hover:bg-amber-400/10 border border-amber-400/20 transition-colors"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    View on Solana
-                  </a>
-                ) : (
-                  <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-amber-400/30 border border-amber-400/10">
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    Off-chain
-                  </span>
-                )}
-                <button
-                  onClick={() => copyAuditLink(attestation.id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
-                    text-amber-100/60 hover:text-amber-100 hover:bg-amber-400/10 border border-amber-400/20 transition-colors"
-                >
-                  {copiedId === attestation.id ? (
-                    <>
-                      <CheckCircle className="w-3.5 h-3.5 text-green-400" />
-                      <span className="text-green-400">Copied</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      Share Audit Link
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
+              attestation={attestation}
+              onShareAudit={copyAuditLink}
+              copied={copiedId === attestation.id}
+            />
           ))}
-        </div>
+        </section>
       )}
+    </div>
+  );
+}
+
+function ResultCell({
+  label,
+  value,
+  mono,
+  accent,
+  fullWidth,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  accent?: 'green' | 'red';
+  fullWidth?: boolean;
+}) {
+  const tone =
+    accent === 'green' ? 'text-green-700' : accent === 'red' ? 'text-red-700' : 'text-black';
+  return (
+    <div
+      className={`rounded-[12px] border border-black/8 bg-white px-3 py-2.5 ${
+        fullWidth ? 'col-span-2' : ''
+      }`}
+    >
+      <div className="text-[11px] uppercase tracking-[0.08em] text-black/55">{label}</div>
+      <div
+        className={`mt-0.5 text-[13px] tracking-tighter break-all ${tone} ${mono ? 'font-mono' : ''}`}
+      >
+        {value}
+      </div>
     </div>
   );
 }

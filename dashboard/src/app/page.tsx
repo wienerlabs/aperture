@@ -1,4 +1,3 @@
-import { MatrixRain } from '@/components/shared/MatrixRain';
 import { Navbar } from '@/components/landing/Navbar';
 import { HeroSection } from '@/components/landing/HeroSection';
 import { BrandsSection } from '@/components/landing/BrandsSection';
@@ -13,8 +12,7 @@ import { Footer } from '@/components/landing/Footer';
 
 export default function Home() {
   return (
-    <main className="relative min-h-screen bg-[#000000]">
-      <MatrixRain />
+    <main className="relative min-h-screen bg-white">
       <Navbar />
       <HeroSection />
       <BrandsSection />
