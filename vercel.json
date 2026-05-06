@@ -1,0 +1,6 @@
+{
+  "buildCommand": "cd dashboard && npm install --legacy-peer-deps && npx next build",
+  "outputDirectory": "dashboard/.next",
+  "installCommand": "echo 'skip root install'",
+  "framework": "nextjs"
+}

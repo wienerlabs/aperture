@@ -93,6 +93,13 @@ services:
       LIGHT_RPC_URL: ${LIGHT_RPC_URL}
       COMPRESSED_ATTESTATION_MINT: ${COMPRESSED_ATTESTATION_MINT}
       LIGHT_PAYER_PRIVATE_KEY: ${LIGHT_PAYER_PRIVATE_KEY}
+      # Helius credentials power the compliance-api unattested-payment
+      # watcher (parsed token transfer history for operator wallets).
+      HELIUS_API_KEY: ${HELIUS_API_KEY:-}
+      HELIUS_NETWORK: ${HELIUS_NETWORK:-devnet}
+      COMPLIANCE_WATCHER_INTERVAL_MS: ${COMPLIANCE_WATCHER_INTERVAL_MS:-15000}
+      COMPLIANCE_WATCHER_MINTS: ${COMPLIANCE_WATCHER_MINTS:-}
+      SOLANA_RPC_URL: ${SOLANA_RPC_URL:-https://api.devnet.solana.com}
       LOG_LEVEL: info
       NODE_ENV: production
     depends_on:

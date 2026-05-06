@@ -129,6 +129,81 @@ export const complianceApi = {
     ),
 };
 
+export type UnattestedSource = 'solana' | 'stripe';
+export type UnattestedStatus = 'open' | 'justified' | 'dismissed';
+
+export interface UnattestedPayment {
+  id: string;
+  operator_id: string;
+  source: UnattestedSource;
+  identifier: string;
+  amount_raw: string;
+  asset: string;
+  counterparty: string | null;
+  block_time: string | null;
+  detected_at: string;
+  reason: string;
+  status: UnattestedStatus;
+  justification_note: string | null;
+  resolved_by: string | null;
+  resolved_at: string | null;
+  raw_event: unknown;
+}
+
+export interface UnattestedSummary {
+  open: number;
+  justified: number;
+  dismissed: number;
+  total: number;
+}
+
+export const unattestedApi = {
+  list: (params: {
+    operator_id?: string;
+    status?: UnattestedStatus | 'all';
+    source?: UnattestedSource;
+    page?: number;
+    limit?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params.operator_id) qs.set('operator_id', params.operator_id);
+    if (params.status) qs.set('status', params.status);
+    if (params.source) qs.set('source', params.source);
+    if (params.page) qs.set('page', String(params.page));
+    if (params.limit) qs.set('limit', String(params.limit));
+    return request<PaginatedResponse<UnattestedPayment>>(
+      config.complianceApiUrl,
+      `/api/v1/unattested-payments?${qs.toString()}`,
+    );
+  },
+  summary: (operatorId: string) =>
+    request<ApiResponse<UnattestedSummary>>(
+      config.complianceApiUrl,
+      `/api/v1/unattested-payments/operator/${operatorId}/summary`,
+    ),
+  resolve: (
+    id: string,
+    body: { status: 'justified' | 'dismissed'; resolved_by: string; note?: string },
+  ) =>
+    request<ApiResponse<UnattestedPayment>>(
+      config.complianceApiUrl,
+      `/api/v1/unattested-payments/${id}/resolve`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      },
+    ),
+  reconcile: () =>
+    request<ApiResponse<{
+      solana: { operators_scanned: number };
+      stripe: { candidates_scanned: number; unattested_inserted: number };
+    }>>(
+      config.complianceApiUrl,
+      '/api/v1/unattested-payments/reconcile',
+      { method: 'POST' },
+    ),
+};
+
 export type OnChainStatus = 'pending' | 'registered' | 'failed';
 
 export interface Policy {

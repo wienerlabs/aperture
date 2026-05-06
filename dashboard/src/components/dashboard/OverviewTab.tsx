@@ -14,9 +14,11 @@ import {
 import {
   complianceApi,
   policyApi,
+  unattestedApi,
   type ProofRecord,
   type Attestation,
   type Policy,
+  type UnattestedSummary,
 } from '@/lib/api';
 import { config as apertureConfig } from '@/lib/config';
 import { truncateAddress, formatAmount } from '@/lib/utils';
@@ -43,6 +45,7 @@ interface OverviewData {
   readonly attestations: readonly Attestation[];
   readonly totalAttestations: number;
   readonly policies: readonly Policy[];
+  readonly unattested: UnattestedSummary;
 }
 
 const REFRESH_INTERVAL_MS = 5_000;
@@ -67,10 +70,15 @@ export function OverviewTab({
       if (!operatorId) return;
       if (showSpinner) setLoading(true);
       try {
-        const [proofsRes, attestationsRes, policiesRes] = await Promise.all([
+        const [proofsRes, attestationsRes, policiesRes, unattestedRes] = await Promise.all([
           complianceApi.listProofsByOperator(operatorId, 1, 50),
           complianceApi.listAttestations(operatorId, 1, 5),
           policyApi.list(operatorId, 1, 5),
+          unattestedApi.summary(operatorId).catch(() => ({
+            data: { open: 0, justified: 0, dismissed: 0, total: 0 } as UnattestedSummary,
+            error: null,
+            success: true,
+          })),
         ]);
         setData({
           proofs: proofsRes.data,
@@ -78,6 +86,7 @@ export function OverviewTab({
           attestations: attestationsRes.data,
           totalAttestations: attestationsRes.pagination.total,
           policies: policiesRes.data,
+          unattested: unattestedRes.data ?? { open: 0, justified: 0, dismissed: 0, total: 0 },
         });
       } catch {
         // Silent - empty states handle the no-data case.
@@ -104,8 +113,10 @@ export function OverviewTab({
       (acc, a) => acc + (a.policy_violations ?? 0),
       0,
     );
-    return fromProofs + fromAttestations;
+    const openUnattested = data?.unattested.open ?? 0;
+    return fromProofs + fromAttestations + openUnattested;
   }, [data]);
+  const unattestedOpen = data?.unattested.open ?? 0;
   const complianceRate = useMemo(() => {
     if (!data || data.proofs.length === 0) return 100;
     return Math.round((compliantProofs / data.proofs.length) * 100);
@@ -264,7 +275,11 @@ export function OverviewTab({
           label="Policy Violations"
           value={policyViolations.toLocaleString()}
           icon={Shield}
-          hint="Non-compliant proofs + attestation flags"
+          hint={
+            unattestedOpen > 0
+              ? `${unattestedOpen} unattested · review in Compliance`
+              : 'Non-compliant proofs + attestation flags'
+          }
         />
         <MetricCard
           label="Compression Savings"

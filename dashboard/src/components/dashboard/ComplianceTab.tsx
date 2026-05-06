@@ -19,6 +19,7 @@ import {
   complianceApi,
   type Attestation,
   type BatchAttestationOutput,
+  type ProofRecord,
 } from '@/lib/api';
 import { formatAmount } from '@/lib/utils';
 import {
@@ -32,6 +33,7 @@ import { MerkleTreeViewer } from './compliance/MerkleTreeViewer';
 import { AttestationCard } from './compliance/AttestationCard';
 import { AuditTrailTimeline } from './compliance/AuditTrailTimeline';
 import { ProofIntegrityCard } from './compliance/ProofIntegrityCard';
+import { DetectedPaymentsCard } from './compliance/DetectedPaymentsCard';
 
 interface AttestationFormData {
   readonly period_start: string;
@@ -51,6 +53,7 @@ export function ComplianceTab() {
   const { connection } = useConnection();
 
   const [attestations, setAttestations] = useState<readonly Attestation[]>([]);
+  const [proofs, setProofs] = useState<readonly ProofRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -64,8 +67,12 @@ export function ComplianceTab() {
       if (!operatorId) return;
       if (showSpinner) setLoading(true);
       try {
-        const response = await complianceApi.listAttestations(operatorId);
-        setAttestations(response.data);
+        const [attestationsRes, proofsRes] = await Promise.all([
+          complianceApi.listAttestations(operatorId),
+          complianceApi.listProofsByOperator(operatorId, 1, 100),
+        ]);
+        setAttestations(attestationsRes.data);
+        setProofs(proofsRes.data);
         setError(null);
       } catch (err: unknown) {
         // Only surface errors during the initial load; silent failure on
@@ -258,6 +265,9 @@ export function ComplianceTab() {
 
       {/* Stats */}
       <ComplianceStatsRow attestations={attestations} />
+
+      {/* Detected payments (attested + unattested) */}
+      <DetectedPaymentsCard operatorId={operatorId} attestedProofs={proofs} />
 
       {/* Top-level error */}
       {error && (
