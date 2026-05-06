@@ -63,11 +63,13 @@ const agentConfig: AgentConfig = {
   // unset.
   stripeCustomerId: process.env.STRIPE_CUSTOMER_ID ?? null,
   stripePaymentMethodId: process.env.STRIPE_PAYMENT_METHOD_ID ?? null,
-  // MPP cycle is opt-in: it requires Stripe webhook delivery into the
-  // compliance-api, which a vanilla local deploy does not have. Operators
-  // running `stripe listen` or a public webhook endpoint can flip this to
-  // true to re-enable the cycle.
-  mppEnabled: (process.env.AGENT_MPP_ENABLED ?? 'false').toLowerCase() === 'true',
+  // The MPP cycle no longer needs Stripe webhook delivery: the
+  // compliance-api's verified-payment/sync endpoint pulls the PaymentIntent
+  // straight from Stripe with STRIPE_SECRET_KEY when the webhook has not
+  // landed. Default true so deploys without a `stripe listen` sidecar still
+  // run the cycle. Operators that explicitly want to gate it can set
+  // AGENT_MPP_ENABLED=false.
+  mppEnabled: (process.env.AGENT_MPP_ENABLED ?? 'true').toLowerCase() === 'true',
   // Devnet ALT created by scripts/setup-x402-alt.ts (hosts the x402 program
   // IDs so the verify+transfer V0 tx fits the 1232-byte limit). Override via
   // X402_LOOKUP_TABLE for mainnet deployments.

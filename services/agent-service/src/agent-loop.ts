@@ -289,17 +289,19 @@ export class AgentLoop {
       if (!this.running) return;
 
       if (!this.config.mppEnabled) {
-        log(
-          'Skipping MPP flow - AGENT_MPP_ENABLED is not set. Enable it once a Stripe webhook (stripe listen / public endpoint) is reachable so verified_payment_intent rows can land.',
-        );
+        const msg =
+          'MPP cycle skipped: AGENT_MPP_ENABLED=false. Set it to true on the agent-service env to re-enable.';
+        log(msg);
+        this.pushActivity('mpp', msg, false);
       } else {
         const stripeCreds = await this.resolveStripeCredentials();
         if (stripeCreds) {
           await this.runMppFlow(policy, stripeCreds);
         } else {
-          log(
-            'Skipping MPP flow - no saved Stripe credentials for this operator (configure from dashboard Settings -> Agent Stripe Configuration).',
-          );
+          const msg =
+            'MPP cycle skipped: no Stripe customer + payment method on this operator. Save them from dashboard Settings -> Agent Stripe Configuration, or set STRIPE_CUSTOMER_ID + STRIPE_PAYMENT_METHOD_ID on the agent-service env.';
+          log(msg);
+          this.pushActivity('mpp', msg, false);
         }
       }
       if (!this.running) return;
