@@ -80,7 +80,7 @@ export function OverviewTab({
           policies: policiesRes.data,
         });
       } catch {
-        // Silent — empty states handle the no-data case.
+        // Silent - empty states handle the no-data case.
       } finally {
         if (showSpinner) setLoading(false);
       }
@@ -98,6 +98,14 @@ export function OverviewTab({
     () => (data?.proofs ?? []).filter((p) => p.is_compliant).length,
     [data],
   );
+  const policyViolations = useMemo(() => {
+    const fromProofs = (data?.proofs ?? []).filter((p) => !p.is_compliant).length;
+    const fromAttestations = (data?.attestations ?? []).reduce(
+      (acc, a) => acc + (a.policy_violations ?? 0),
+      0,
+    );
+    return fromProofs + fromAttestations;
+  }, [data]);
   const complianceRate = useMemo(() => {
     if (!data || data.proofs.length === 0) return 100;
     return Math.round((compliantProofs / data.proofs.length) * 100);
@@ -126,8 +134,8 @@ export function OverviewTab({
     if (!operatorId || !publicKey) {
       tx.show({
         status: 'error',
-        from: { symbol: '—', amountLabel: '—', accountLabel: 'Connect wallet first' },
-        to: { symbol: '—', amountLabel: '—', accountLabel: '—' },
+        from: { symbol: '-', amountLabel: '-', accountLabel: 'Connect wallet first' },
+        to: { symbol: '-', amountLabel: '-', accountLabel: '-' },
         errorMessage: 'Connect a wallet to run the x402 demo.',
       });
       return;
@@ -254,9 +262,9 @@ export function OverviewTab({
         />
         <MetricCard
           label="Policy Violations"
-          value="0"
+          value={policyViolations.toLocaleString()}
           icon={Shield}
-          hint="Lifetime — proofs only sign when compliant"
+          hint="Non-compliant proofs + attestation flags"
         />
         <MetricCard
           label="Compression Savings"
@@ -393,7 +401,7 @@ function LightProtocolStatus({
             className="h-1.5 w-1.5 rounded-pill"
             style={{ background: active ? '#16a34a' : '#7c8293' }}
           />
-          {active ? 'Compressed storage active' : 'Available — unconfigured'}
+          {active ? 'Compressed storage active' : 'Available - unconfigured'}
         </span>
       </div>
 

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * MerkleTreeViewer — pure-SVG visual of the policy Merkle tree referenced in
+ * MerkleTreeViewer - pure-SVG visual of the policy Merkle tree referenced in
  * the README. Renders root → 2 inner nodes → 4 leaves and labels each leaf
  * with the rule type. Each node short-hashes the byte string so the layout
  * stays readable at any width. Click-to-copy on every node.
@@ -12,7 +12,7 @@ import { Copy, Check, GitBranch } from 'lucide-react';
 import { truncateAddress } from '@/lib/utils';
 
 interface MerkleTreeViewerProps {
-  /** Root hex hash of the Merkle tree — typically batch_proof_hash. */
+  /** Root hex hash of the Merkle tree - typically batch_proof_hash. */
   readonly rootHash: string;
   /** Optional; one entry per ruleset leaf. Up to 4 are rendered. */
   readonly leaves?: readonly { label: string; hash: string }[];
@@ -30,7 +30,7 @@ export function MerkleTreeViewer({ rootHash, leaves }: MerkleTreeViewerProps) {
 
   const data = useMemo(() => {
     const final = (leaves && leaves.length > 0 ? leaves : DEFAULT_LEAVES).slice(0, 4);
-    while (final.length < 4) final.push({ label: '—', hash: '0x00…' });
+    while (final.length < 4) final.push({ label: '-', hash: '0x00…' });
     return final;
   }, [leaves]);
 

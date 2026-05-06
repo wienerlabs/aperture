@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 
-// PixelBlast renders a WebGL canvas — must be client-only.
+// PixelBlast renders a WebGL canvas - must be client-only.
 const PixelBlast = dynamic(() => import('@/components/PixelBlast'), {
   ssr: false,
 });
@@ -13,7 +13,7 @@ const PixelBlast = dynamic(() => import('@/components/PixelBlast'), {
 export function HeroSection() {
   return (
     <section className="relative z-10 min-h-screen flex flex-col items-center justify-center overflow-hidden bg-white text-ink">
-      {/* PixelBlast animated backdrop — orange pixels on the white hero */}
+      {/* PixelBlast animated backdrop - orange pixels on the white hero */}
       <div className="absolute inset-0 z-0 pointer-events-none" aria-hidden>
         <PixelBlast
           variant="square"
@@ -32,12 +32,12 @@ export function HeroSection() {
         />
       </div>
 
-      {/* Subtle behind-text vignette only — keeps headline crisp without
+      {/* Subtle behind-text vignette only - keeps headline crisp without
           fading the pattern at the edges. */}
       <div className="absolute inset-0 z-[1] bg-[radial-gradient(ellipse_50%_40%_at_center,rgba(255,255,255,0.55)_0%,rgba(255,255,255,0.18)_55%,rgba(255,255,255,0)_85%)] pointer-events-none" />
 
       <div className="relative z-10 max-w-page mx-auto px-6 lg:px-8 text-center">
-        {/* Announcement pill — Antimetal pattern on white surface */}
+        {/* Announcement pill - Antimetal pattern on white surface */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -76,9 +76,9 @@ export function HeroSection() {
           transition={{ duration: 0.8, delay: 0.4, ease: 'easeOut' }}
           className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4"
         >
-          {/* Primary CTA: orange fill + white text — highest contrast on white */}
-          <Link href="/auth/signup" className="ap-btn-orange">
-            Get Started
+          {/* Primary CTA: orange fill + white text - highest contrast on white */}
+          <Link href="/auth/signin" className="ap-btn-orange">
+            Connect Wallet
           </Link>
           {/* Ghost CTA on white surface */}
           <Link href="/docs" className="ap-btn-ghost-light">

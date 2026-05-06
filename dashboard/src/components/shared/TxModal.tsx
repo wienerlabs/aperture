@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Aperture TX modal — based on @dorianbaffier's CurrencyTransfer card from
+ * Aperture TX modal - based on @dorianbaffier's CurrencyTransfer card from
  * kokonutui.com (MIT). Repainted to match the Aperture design system:
  *  - White card surface, Antimetal feature-card shadow, 20px radius
  *  - Brand orange (#f8b300) accent everywhere; no green/emerald
@@ -59,9 +59,9 @@ export interface TxModalProps {
   readonly title?: string;
   /** Optional subtitle override. By default we render the txId. */
   readonly subtitle?: string;
-  /** Sender side — agent / user wallet. */
+  /** Sender side - agent / user wallet. */
   readonly from: TxParticipant;
-  /** Receiver side — treasury / paywalled resource. */
+  /** Receiver side - treasury / paywalled resource. */
   readonly to: TxParticipant;
   /** Solana transaction signature (base58). When set the explorer link is shown. */
   readonly txSignature?: string | null;

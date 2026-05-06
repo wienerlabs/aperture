@@ -23,8 +23,8 @@ export function CTASection() {
             <p className="text-[16px] text-ink-slate mb-8 max-w-md mx-auto tracking-tighter">
               Deploy privacy-preserving payment compliance in minutes, not months
             </p>
-            <Link href="/auth/signup" className="ap-btn-orange">
-              Get Started
+            <Link href="/auth/signin" className="ap-btn-orange">
+              Connect Wallet
             </Link>
           </div>
         </motion.div>

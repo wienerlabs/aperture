@@ -1,9 +1,9 @@
 'use client';
 
 /**
- * CompressionSavingsCard — replaces the legacy red/green/amber cost grid
+ * CompressionSavingsCard - replaces the legacy red/green/amber cost grid
  * with three Antimetal data cells + an aperture-tinted savings call-out.
- * Same numbers, computed by getProofRecordCostComparison() — purely visual.
+ * Same numbers, computed by getProofRecordCostComparison() - purely visual.
  */
 
 import { Sparkles } from 'lucide-react';
@@ -46,9 +46,7 @@ export function CompressionSavingsCard({ totalProofs }: { totalProofs: number })
         </span>
         <ProtocolBadge protocol="light" showLabel />
         <span className="text-black/55">
-          {active
-            ? '— proof records can store as compressed tokens.'
-            : '— configure NEXT_PUBLIC_LIGHT_RPC_URL to activate.'}
+          Proof records can store as compressed tokens.
         </span>
       </div>
     </div>

@@ -57,7 +57,7 @@ export const policyApi = {
   // The dashboard fetches the canonical on-chain payload from the
   // policy-service and signs it with the connected wallet. The legacy
   // POST /api/v1/onchain/register endpoint, which accepted a base58 keypair
-  // in the body, is gone — there is no path that ever takes a private key.
+  // in the body, is gone - there is no path that ever takes a private key.
   getOnchainPayload: (policyId: string) =>
     request<ApiResponse<OnchainPayload>>(
       config.policyServiceUrl,

@@ -7,7 +7,7 @@ import { InfiniteSlider } from '@/components/ui/infinite-slider';
 import { ProgressiveBlur } from '@/components/ui/progressive-blur';
 
 /**
- * Partner logo strip — adapted from the lepikhinb/sparkles 21st.dev demo,
+ * Partner logo strip - adapted from the lepikhinb/sparkles 21st.dev demo,
  * recoloured to the Aperture orange/black palette and wired against the
  * actual integrations called out in the README:
  *   Solana, Helius, Circom, Light Protocol, Coinbase, Squads, Stripe, Anchor
@@ -15,7 +15,7 @@ import { ProgressiveBlur } from '@/components/ui/progressive-blur';
  * Image-based brands use `filter: brightness(0)` so the colourful source
  * SVGs render as a uniform monochrome wordmark on the white canvas. The two
  * brands without ready-made logos in /public/brands (Circom, Anchor) ship as
- * lightweight typographic wordmarks instead — which keeps the strip honest
+ * lightweight typographic wordmarks instead - which keeps the strip honest
  * about what's actually integrated, without inventing fake assets.
  */
 
@@ -81,7 +81,7 @@ export function BrandsSection() {
         </div>
       </div>
 
-      {/* Sparkles plinth — subtle orange particles fading from the curved
+      {/* Sparkles plinth - subtle orange particles fading from the curved
           horizon below the marquee. Mimics the "trusted by" effect from
           21st.dev/r/lepikhinb but in Aperture's palette. */}
       <div className="relative -mt-16 h-72 w-full overflow-hidden [mask-image:radial-gradient(50%_60%_at_50%_50%,white,transparent)]">

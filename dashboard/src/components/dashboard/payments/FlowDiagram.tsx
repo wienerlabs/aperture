@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * FlowDiagram — visualises the protocol-specific payment lifecycle as a
+ * FlowDiagram - visualises the protocol-specific payment lifecycle as a
  * 4-step horizontal stepper. We render two variants:
  *   - "x402"  : 402 challenge -> ZK proof -> atomic verify+transfer -> retry
  *   - "mpp"   : 402 challenge -> Stripe charge -> ed25519 attestation -> on-chain

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * CollapsibleSection — Antimetal-styled accordion used by Transfer Hook
+ * CollapsibleSection - Antimetal-styled accordion used by Transfer Hook
  * Test and ZK Compression Cost Savings panels. White card surface, ink
  * label, optional chevron rotates on open.
  */

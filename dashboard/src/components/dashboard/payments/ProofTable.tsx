@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * ProofTable — Antimetal-styled replacement for the legacy dark-theme proofs
+ * ProofTable - Antimetal-styled replacement for the legacy dark-theme proofs
  * grid. Same data, same expandable hash UX, but rendered as a white surface
  * with hairline rows and subtle hover, plus pill-shaped status badges and an
- * ExternalLink icon for the Solana tx — keeping the Payments tab visually
+ * ExternalLink icon for the Solana tx - keeping the Payments tab visually
  * consistent with Overview / Policies.
  */
 
@@ -147,7 +147,7 @@ export function ProofTable({ proofs }: { proofs: readonly ProofRecord[] }) {
                       View
                     </a>
                   ) : (
-                    <span className="text-black/35">—</span>
+                    <span className="text-black/35">-</span>
                   )}
                 </td>
               </tr>

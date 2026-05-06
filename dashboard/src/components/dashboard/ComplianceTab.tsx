@@ -305,7 +305,7 @@ export function ComplianceTab() {
                   required
                   value={formData.period_start}
                   onChange={(e) => updateFormField('period_start', e.target.value)}
-                  helper="Inclusive lower bound — UTC midnight."
+                  helper="Inclusive lower bound - UTC midnight."
                 />
                 <ApInput
                   label="Period End"
@@ -313,7 +313,7 @@ export function ComplianceTab() {
                   required
                   value={formData.period_end}
                   onChange={(e) => updateFormField('period_end', e.target.value)}
-                  helper="Exclusive upper bound — UTC midnight of the next day."
+                  helper="Exclusive upper bound - UTC midnight of the next day."
                 />
               </div>
 
@@ -409,7 +409,7 @@ export function ComplianceTab() {
         </div>
       )}
 
-      {/* Cryptographic context — Merkle viewer + integrity card */}
+      {/* Cryptographic context - Merkle viewer + integrity card */}
       {!loading && attestations.length > 0 && (
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">

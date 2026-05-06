@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * RecentProofsCard — minimal Antimetal table for the latest 5 proofs.
+ * RecentProofsCard - minimal Antimetal table for the latest 5 proofs.
  * Replaces the legacy dark-theme list with a white surface, ink text,
  * and a subtle status pill instead of color-coded blobs.
  */

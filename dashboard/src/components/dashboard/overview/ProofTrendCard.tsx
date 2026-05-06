@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * ProofTrendCard — last-7-days proof volume sparkline.
+ * ProofTrendCard - last-7-days proof volume sparkline.
  * Pure SVG, no chart library. Bars shaded with the brand orange.
  */
 
@@ -37,31 +37,49 @@ export function ProofTrendCard({ proofs }: { proofs: readonly ProofRecordLike[] 
         </span>
       </div>
 
-      <div className="flex items-end gap-2 h-[110px] pt-2">
+      <div className="flex items-end gap-2 pt-2">
         {series.map((d) => {
-          const height = (d.count / max) * 100;
+          // Pixel-based heights are more robust than nested percentage
+          // heights inside flex containers (some browsers compute the
+          // intermediate flex-grown parent as 0px until paint, which left
+          // the bars invisible at zero proofs/day). 140px tall canvas, bar
+          // ranges from 4px (empty day) up to the full canvas at max.
+          const CANVAS_PX = 140;
+          const heightPx =
+            d.count === 0 ? 4 : Math.max(8, Math.round((d.count / max) * CANVAS_PX));
           return (
             <div
               key={d.iso}
               className="flex-1 flex flex-col items-center gap-1.5 group"
               title={`${d.label}: ${d.count} proof${d.count === 1 ? '' : 's'}`}
             >
-              <div className="w-full flex-1 flex items-end">
+              <div
+                className="w-full flex items-end"
+                style={{ height: `${CANVAS_PX}px` }}
+              >
                 <div
                   className="w-full rounded-[4px] transition-all duration-300 group-hover:opacity-90"
                   style={{
-                    height: `${Math.max(4, height)}%`,
+                    height: `${heightPx}px`,
                     background:
                       d.count === 0
-                        ? 'rgba(248, 179, 0, 0.12)'
+                        ? 'rgba(248, 179, 0, 0.18)'
                         : 'linear-gradient(180deg, #f8b300 0%, #c98f00 100%)',
-                    boxShadow: d.count > 0 ? '0 6px 12px -6px rgba(101, 69, 0, 0.45)' : undefined,
+                    boxShadow:
+                      d.count > 0
+                        ? '0 6px 12px -6px rgba(101, 69, 0, 0.45)'
+                        : undefined,
                   }}
                 />
               </div>
               <span className="text-[10px] uppercase tracking-[0.08em] text-black/55">
                 {d.label}
               </span>
+              {d.count > 0 && (
+                <span className="text-[11px] font-mono text-aperture-dark leading-none">
+                  {d.count}
+                </span>
+              )}
             </div>
           );
         })}
@@ -77,6 +95,16 @@ interface DayBucket {
   readonly compliant: number;
 }
 
+function localIsoDate(d: Date): string {
+  // Build a YYYY-MM-DD string from the *local* calendar so timezone offsets
+  // do not push today's proofs into a UTC bucket that lives outside the
+  // 7-day window the chart renders.
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function buildDailySeries(
   proofs: readonly ProofRecordLike[],
   days: number,
@@ -89,7 +117,7 @@ function buildDailySeries(
     const d = new Date(today);
     d.setDate(today.getDate() - i);
     buckets.push({
-      iso: d.toISOString().slice(0, 10),
+      iso: localIsoDate(d),
       label: d.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 3),
       count: 0,
       compliant: 0,
@@ -101,7 +129,7 @@ function buildDailySeries(
 
   for (const p of proofs) {
     if (!p.created_at) continue;
-    const iso = new Date(p.created_at).toISOString().slice(0, 10);
+    const iso = localIsoDate(new Date(p.created_at));
     const idx = indexByIso.get(iso);
     if (idx == null) continue;
     buckets[idx].count += 1;

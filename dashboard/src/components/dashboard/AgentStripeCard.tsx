@@ -32,7 +32,7 @@ interface AgentStripeCardProps {
 
 /**
  * Settings panel that lets the operator save a Stripe card the agent will
- * charge with off_session=true during MPP cycles. Uses Stripe SetupIntent —
+ * charge with off_session=true during MPP cycles. Uses Stripe SetupIntent -
  * no charge is created, only the card is tokenized + attached to the
  * operator's Customer.
  *
@@ -275,7 +275,7 @@ export function AgentStripeCard({ operatorId }: AgentStripeCardProps): React.Rea
       <p className="text-sm text-amber-100/60 mb-4">
         Save a card the agent will charge during MPP cycles. Card is tokenized via
         Stripe SetupIntent (no charge created). Removing the card makes the agent
-        skip MPP automatically — x402 cycles continue.
+        skip MPP automatically - x402 cycles continue.
       </p>
 
       {loading && (
@@ -297,7 +297,7 @@ export function AgentStripeCard({ operatorId }: AgentStripeCardProps): React.Rea
             <div className="flex items-center gap-2 mb-3">
               <CheckCircle className="w-4 h-4 text-green-400" />
               <span className="text-sm font-medium text-green-400">
-                Card saved — agent MPP cycle is enabled
+                Card saved - agent MPP cycle is enabled
               </span>
             </div>
             <div className="grid grid-cols-2 gap-3 text-xs">
@@ -358,7 +358,7 @@ export function AgentStripeCard({ operatorId }: AgentStripeCardProps): React.Rea
           <div className="p-4 rounded-lg bg-amber-400/5 border border-amber-400/20">
             <p className="text-xs text-amber-100/50 mb-2">
               Test mode: <code className="text-amber-400">4242 4242 4242 4242</code>, any future expiry, any CVC, any ZIP.
-              No charge is created — Stripe only verifies and tokenizes the card.
+              No charge is created - Stripe only verifies and tokenizes the card.
             </p>
             <div
               ref={cardMountRef}

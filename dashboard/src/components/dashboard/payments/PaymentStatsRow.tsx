@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * PaymentStatsRow — top-of-page metric row for the Payments tab. Mirrors
+ * PaymentStatsRow - top-of-page metric row for the Payments tab. Mirrors
  * the Overview MetricCard look so the two pages feel coherent, but is tuned
  * for payment-specific KPIs:
  *   - total proof records (lifetime)
@@ -53,13 +53,13 @@ export function PaymentStatsRow({ proofs }: { proofs: readonly ProofRecord[] }) 
       />
       <MetricCard
         label="Active Window"
-        value={stats.total > 0 ? `${Math.min(stats.total, 50)}` : '—'}
+        value={stats.total > 0 ? `${Math.min(stats.total, 50)}` : '-'}
         icon={Activity}
         hint="Records loaded in this view"
       />
       <MetricCard
         label="Last Settlement"
-        value={stats.last ? relativeTime(stats.last) : '—'}
+        value={stats.last ? relativeTime(stats.last) : '-'}
         icon={Timer}
         hint={stats.last ? stats.last.toLocaleString() : 'No proofs yet'}
       />

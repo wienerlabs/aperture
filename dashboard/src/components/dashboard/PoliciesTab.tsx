@@ -218,7 +218,7 @@ export function PoliciesTab() {
    * Pulls the canonical on-chain payload from policy-service, signs the
    * register_policy or update_policy instruction with the connected wallet,
    * and reports the outcome back to the server. Either side ends in a
-   * deterministic on-chain status — never the silent "saved to DB but maybe
+   * deterministic on-chain status - never the silent "saved to DB but maybe
    * also on-chain" half-state the previous flow allowed.
    *
    * Throws on any failure; the caller decides how to surface to the user.
@@ -236,7 +236,7 @@ export function PoliciesTab() {
       throw new Error('Policy onchain payload missing');
     }
     if (payload.operation === 'noop') {
-      // Already registered on-chain with the current commitment — surface the
+      // Already registered on-chain with the current commitment - surface the
       // existing tx so the caller can short-circuit.
       return {
         tx_signature: policy.onchain_tx_signature ?? '',
@@ -268,7 +268,7 @@ export function PoliciesTab() {
       policyPDABase58 = policyPDA.toBase58();
       nextOnchainVersion = 1;
     } else {
-      // 'update' — the on-chain program bumps PolicyAccount.version atomically;
+      // 'update' - the on-chain program bumps PolicyAccount.version atomically;
       // we mirror that so the DB row converges on the new value.
       if (!payload.onchain_pda) {
         throw new Error('Update operation but onchain_pda missing in payload');
@@ -322,7 +322,7 @@ export function PoliciesTab() {
           error_message: message,
         });
       } catch {
-        /* noop — original error is what we surface */
+        /* noop - original error is what we surface */
       }
       throw sendErr;
     }
@@ -344,7 +344,7 @@ export function PoliciesTab() {
     if (!operatorId) return;
 
     if (!publicKey) {
-      setError('Connect your wallet first — every policy must be anchored on Solana.');
+      setError('Connect your wallet first - every policy must be anchored on Solana.');
       openWalletModal(true);
       return;
     }
@@ -493,7 +493,7 @@ export function PoliciesTab() {
           <form onSubmit={handleSubmit} className="flex flex-col gap-7">
             <ApFieldset
               title="Policy Identity"
-              description="Names and short descriptions only — no PII. The on-chain commitment hashes only the rule values, not these labels."
+              description="Names and short descriptions only - no PII. The on-chain commitment hashes only the rule values, not these labels."
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <ApInput
@@ -865,7 +865,7 @@ export function PoliciesTab() {
                         {policy.onchain_status === 'failed'
                           ? 'On-chain anchoring failed'
                           : policy.onchain_pda
-                            ? 'Off-chain edits pending — re-anchor'
+                            ? 'Off-chain edits pending - re-anchor'
                             : 'Not yet anchored on Solana'}
                       </span>
                       <button

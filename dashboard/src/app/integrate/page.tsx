@@ -202,7 +202,7 @@ await fetch(endpoint, {
           },
         },
         {
-          title: 'Transfer vUSDC — hook runs, allow/reject based on ComplianceStatus',
+          title: 'Transfer vUSDC - hook runs, allow/reject based on ComplianceStatus',
           description: 'If the sender has a verified ComplianceStatus PDA (created by verify_payment_proof), the transfer succeeds. Otherwise the hook returns `no compliance status`.',
           code: {
             source: `spl-token transfer ${vusdcMint} 1 <recipient> --url devnet --fund-recipient\n# Hook invocation in TX logs:\n# Program log: Transfer hook check for <wallet>\n# Program log: Hook OK` ,
@@ -230,7 +230,7 @@ await fetch(endpoint, {
     {
       id: 'compressed',
       label: 'Light Protocol ZK Compression',
-      tagline: 'Store attestations as Light Protocol compressed tokens — per-proof rent cost drops from ~0.001462 SOL to ~0.00001 SOL (~146× cheaper). Ideal for high-volume proof archives.',
+      tagline: 'Store attestations as Light Protocol compressed tokens - per-proof rent cost drops from ~0.001462 SOL to ~0.00001 SOL (~146× cheaper). Ideal for high-volume proof archives.',
       prerequisites: [
         'Helius devnet RPC endpoint (LIGHT_RPC_URL)',
         'Payer keypair funded with devnet SOL',
@@ -271,7 +271,7 @@ await fetch(endpoint, {
     {
       id: 'squads',
       label: 'Squads V4 Multisig',
-      tagline: 'Bind a policy to a Squads V4 vault. Policy updates now require multisig approval — the Policy Registry program verifies the caller against the stored vault PDA.',
+      tagline: 'Bind a policy to a Squads V4 vault. Policy updates now require multisig approval - the Policy Registry program verifies the caller against the stored vault PDA.',
       prerequisites: [
         'Squads V4 multisig created via the Squads app (or CLI)',
         'Policy Registry program deployed (NEXT_PUBLIC_POLICY_REGISTRY_PROGRAM)',
@@ -325,7 +325,7 @@ await fetch(endpoint, {
       prerequisites: [
         'circom ≥ 2.2 compiler installed',
         'snarkjs ≥ 0.7 on Node 20+',
-        'Familiarity with circomlib (comparators, Poseidon) — see circuits/payment-prover/payment.circom',
+        'Familiarity with circomlib (comparators, Poseidon) - see circuits/payment-prover/payment.circom',
       ],
       steps: [
         {
@@ -349,7 +349,7 @@ await fetch(endpoint, {
         },
       ],
       verification: {
-        description: 'Run `cargo test -p <your-host-crate>` — the host performs a local receipt.verify() which fails if the journal doesn’t match the image_id.',
+        description: 'Run `cargo test -p <your-host-crate>` - the host performs a local receipt.verify() which fails if the journal doesn’t match the image_id.',
         command: `cargo test --release -p aperture-prover-service`,
       },
       troubleshooting: [
@@ -380,7 +380,7 @@ export default function IntegratePage() {
           <div className="mb-10">
             <h1 className="font-mono text-3xl sm:text-4xl font-bold text-amber-400 mb-2">Integrate</h1>
             <p className="text-sm text-amber-400/75 max-w-2xl leading-relaxed">
-              Step-by-step integration flows for the six Aperture surfaces. Code blocks are sourced directly from the repository — no synthetic examples.
+              Step-by-step integration flows for the six Aperture surfaces. Code blocks are sourced directly from the repository - no synthetic examples.
             </p>
           </div>
           <FlowTabs flows={flows} />

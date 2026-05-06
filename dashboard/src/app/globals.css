@@ -559,3 +559,27 @@ body h1, body h2, body h3, body h4, body h5, body h6 {
 /* Small data chips (code snippets, inline metadata) */
 .rounded { border-radius: var(--radius-cards-small) !important; }
 
+/* =========================================================================
+   Readability bump
+   The dashboard is dense with text-[11px] / text-[12px] / text-[13px]
+   inline overrides that look cramped on standard displays. Lift the
+   bottom of the type ramp up two steps so labels and metadata are
+   comfortably readable while leaving display sizes (>=18px) untouched.
+   ========================================================================= */
+
+body { font-size: 16px; }
+
+.text-\[10px\] { font-size: 12px !important; line-height: 1.45 !important; }
+.text-\[11px\] { font-size: 13px !important; line-height: 1.45 !important; }
+.text-\[12px\] { font-size: 14px !important; line-height: 1.5 !important; }
+.text-\[13px\] { font-size: 15px !important; line-height: 1.5 !important; }
+.text-\[14px\] { font-size: 16px !important; line-height: 1.55 !important; }
+.text-\[15px\] { font-size: 17px !important; line-height: 1.55 !important; }
+.text-\[16px\] { font-size: 18px !important; line-height: 1.5 !important; }
+.text-\[17px\] { font-size: 19px !important; line-height: 1.5 !important; }
+.text-\[18px\] { font-size: 20px !important; line-height: 1.45 !important; }
+
+.text-xs { font-size: 13px !important; line-height: 1.45 !important; }
+.text-sm { font-size: 15px !important; line-height: 1.55 !important; }
+.text-base { font-size: 17px !important; line-height: 1.55 !important; }
+

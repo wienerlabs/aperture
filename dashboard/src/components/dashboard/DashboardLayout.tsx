@@ -16,7 +16,6 @@ import {
   Network,
 } from 'lucide-react';
 import { ApertureLogo } from '../shared/ApertureLogo';
-import { ThemeToggle } from '../shared/ThemeToggle';
 
 
 type TabId = 'overview' | 'policies' | 'payments' | 'compliance' | 'agent' | 'aip' | 'settings';
@@ -141,7 +140,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
 
           <div className="flex items-center gap-4">
-            <ThemeToggle />
             {walletAddress ? (
               <span className="hidden sm:inline-block px-3 py-1 rounded-lg bg-amber-400/10 text-amber-400 text-xs font-mono">
                 {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}

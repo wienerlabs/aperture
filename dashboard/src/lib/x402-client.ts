@@ -8,7 +8,7 @@
  *   4. POST /prove with the actual recipient/amount/mint and the live
  *      Solana clock timestamp
  *   5. Build a single tx with verify_payment_proof_v2 + Token-2022
- *      transferCheckedWithTransferHook — the transfer-hook intercepts and
+ *      transferCheckedWithTransferHook - the transfer-hook intercepts and
  *      CPIs record_payment to atomically advance daily_spent
  *   6. Replay the endpoint with x-402-payment header to unlock the resource
  *
@@ -131,7 +131,7 @@ export async function fetchWithX402<T>(
   const compiled = compiledRes.data;
 
   if (!compiled.allowed_endpoint_categories.includes('x402')) {
-    return fail<T>('Active policy does not allow the "x402" category — edit the policy or anchor a different one.');
+    return fail<T>('Active policy does not allow the "x402" category - edit the policy or anchor a different one.');
   }
   const maxPerTxLamports =
     parseInt(compiled.max_per_transaction_lamports, 10) || 0;
@@ -147,7 +147,7 @@ export async function fetchWithX402<T>(
 
   // ---- 5. Generate ZK proof against the real transfer parameters -----------
   if (!config.proverServiceUrl) {
-    return fail<T>('NEXT_PUBLIC_PROVER_SERVICE_URL not configured — cannot generate the compliance proof.');
+    return fail<T>('NEXT_PUBLIC_PROVER_SERVICE_URL not configured - cannot generate the compliance proof.');
   }
   console.log('[x402] starting prover request', { policyId: policy.id, amountLamports });
   const proveRes = await fetch(`${config.proverServiceUrl}/prove`, {
@@ -178,7 +178,7 @@ export async function fetchWithX402<T>(
   const proofData = await proveRes.json();
   console.log('[x402] prover ok', { isCompliant: proofData.is_compliant });
   if (proofData.is_compliant !== true) {
-    return fail<T>('Prover reported is_compliant=false — payment violates the active policy.');
+    return fail<T>('Prover reported is_compliant=false - payment violates the active policy.');
   }
 
   // ---- 6. Build verify_payment_proof_v2 + Token-2022 transfer in one tx ----
@@ -289,7 +289,7 @@ export async function fetchWithX402<T>(
   // logs instead of the wallet adapter's opaque wrapper. simulateTransaction
   // on a legacy Transaction requires the tx to be signed; the wallet
   // adapter signs only inside sendTransaction, so we wrap the call and
-  // ignore any signature-verify failure here — the actual error (if any)
+  // ignore any signature-verify failure here - the actual error (if any)
   // surfaces in sendTransaction below.
   console.log('[x402] simulating tx');
   try {
@@ -330,7 +330,7 @@ export async function fetchWithX402<T>(
 
   // ---- 7. Persist proof_record so Payments tab can list this transfer -----
   // Without this POST the Payments tab table is empty even though the on-chain
-  // tx succeeded — the agent does the equivalent submitProofRecord call but
+  // tx succeeded - the agent does the equivalent submitProofRecord call but
   // the dashboard-driven manual flow needs to do it itself.
   const proofPayloadAmount = amountLamports / 10 ** config.tokenDecimals;
   try {

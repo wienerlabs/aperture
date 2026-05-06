@@ -144,6 +144,12 @@ services:
       # Empty string == cycle skipped (see services/agent-service/src/index.ts).
       STRIPE_CUSTOMER_ID: ${STRIPE_CUSTOMER_ID:-}
       STRIPE_PAYMENT_METHOD_ID: ${STRIPE_PAYMENT_METHOD_ID:-}
+      # MPP cycle uses the compliance-api's verified-payment/sync endpoint,
+      # which retrieves the PaymentIntent from Stripe directly via
+      # STRIPE_SECRET_KEY when no webhook listener is wired up. Webhook
+      # delivery is still honored (sync upserts on conflict) but no longer
+      # required for the agent loop to make progress.
+      AGENT_MPP_ENABLED: ${AGENT_MPP_ENABLED:-true}
       AGENT_INTERVAL_MS: ${AGENT_INTERVAL_MS:-30000}
     depends_on:
       policy-service:
@@ -167,7 +173,7 @@ services:
         NEXT_PUBLIC_LIGHT_RPC_URL: ${NEXT_PUBLIC_LIGHT_RPC_URL}
     container_name: aperture
     ports:
-      - "3000:3000"
+      - "5175:3000"
     environment:
       POLICY_SERVICE_URL: http://policy-service:3001
       COMPLIANCE_API_URL: http://compliance-api:3002
@@ -188,7 +194,7 @@ services:
       NEXT_PUBLIC_COMPRESSED_ATTESTATION_MINT: EraJfY2Lk1BpWHjBZuxA1T8Re36D515JLkW1FFo7Ah1P
       NEXT_PUBLIC_VUSDC_MINT: E9Ab23WT97qHTmmWxEmHfWCmPsrQb77nJnAFFuDRfhar
       NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
-      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_URL: http://localhost:5175
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-aperture-dev-secret-change-in-prod}
       NODE_ENV: production
     depends_on:

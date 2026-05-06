@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * SettingsSection — Antimetal section card used by SettingsTab. Replaces
+ * SettingsSection - Antimetal section card used by SettingsTab. Replaces
  * the legacy `bg-[rgba(10,10,10,0.8)] backdrop-blur-md` wrapper with our
  * white ap-card + an icon pill in the header.
  */

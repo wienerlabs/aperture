@@ -65,7 +65,7 @@ function statusIcon(status: Status): JSX.Element {
 }
 
 function formatLatency(ms: number | null): string {
-  if (ms === null) return '—';
+  if (ms === null) return '-';
   if (ms < 1000) return `${ms} ms`;
   return `${(ms / 1000).toFixed(2)} s`;
 }
@@ -85,7 +85,7 @@ function OverallBanner({ status, generatedAt, now }: { status: Status; generated
       <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-5 py-4 flex items-start gap-3">
         <XCircle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
         <div>
-          <p className="font-mono text-sm font-semibold text-red-300">Active incident — one or more components are down</p>
+          <p className="font-mono text-sm font-semibold text-red-300">Active incident - one or more components are down</p>
           {generatedAt && <p className="text-xs text-red-300/60 mt-1">Last checked {formatTimeAgo(generatedAt, now)}</p>}
         </div>
       </div>
@@ -232,7 +232,7 @@ function StatusGroup({ title, probes, now }: { title: string; probes: readonly P
             <div className="flex-shrink-0 text-right">
               <p className="font-mono text-sm text-amber-200">{formatLatency(probe.latencyMs)}</p>
               <p className="text-[11px] font-mono text-amber-400/60 mt-0.5">
-                {probe.status === 'unconfigured' ? '—' : formatTimeAgo(probe.checkedAt, now)}
+                {probe.status === 'unconfigured' ? '-' : formatTimeAgo(probe.checkedAt, now)}
               </p>
             </div>
           </div>

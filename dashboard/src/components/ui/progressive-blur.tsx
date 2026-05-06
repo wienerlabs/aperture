@@ -1,12 +1,12 @@
 'use client';
 
 /**
- * ProgressiveBlur — fades a horizontal edge of the parent into the page
+ * ProgressiveBlur - fades a horizontal edge of the parent into the page
  * background. Used at the left/right ends of the InfiniteSlider so logos
  * dissolve instead of hard-cutting.
  *
  * Implementation: a stack of backdrop-filter blur layers each masked by an
- * increasing alpha gradient — the layered approach gives the "progressive"
+ * increasing alpha gradient - the layered approach gives the "progressive"
  * blur (light at the inner edge, opaque at the outer edge).
  */
 

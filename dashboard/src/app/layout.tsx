@@ -10,7 +10,7 @@ const mondwest = localFont({
   display: "swap",
 });
 
-// KMR Waldenburg — primary display face (ivar role)
+// KMR Waldenburg - primary display face (ivar role)
 const waldenburg = localFont({
   src: "../app/fonts/KMRWaldenburg-Regular.otf",
   variable: "--font-waldenburg",
@@ -18,7 +18,7 @@ const waldenburg = localFont({
   weight: "400",
 });
 
-// Primary UI face — Host Grotesk is loaded via @import in globals.css
+// Primary UI face - Host Grotesk is loaded via @import in globals.css
 // (Next.js 14's next/font/google list does not include it yet).
 // Inter kept as a graceful fallback.
 const inter = Inter({

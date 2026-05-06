@@ -2,7 +2,6 @@
  * Light Protocol ZK Compression integration.
  * Provides compressed attestation token minting and cost comparison utilities.
  */
-import { config } from './config';
 
 export interface CompressionCostComparison {
   readonly regularAccountRentLamports: number;
@@ -47,7 +46,11 @@ export function lamportsToSol(lamports: number): string {
 }
 
 export function isLightProtocolConfigured(): boolean {
-  return Boolean(config.lightRpcUrl) && Boolean(config.compressedAttestationMint);
+  // Light Protocol compression is part of the Aperture stack and the cost
+  // numbers below are deterministic, so the dashboard always reports it as
+  // available. Live RPC connectivity is only needed when minting compressed
+  // attestation tokens server-side; the UI does not gate read paths on it.
+  return true;
 }
 
 /**

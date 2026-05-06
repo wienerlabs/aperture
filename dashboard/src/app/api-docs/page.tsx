@@ -112,7 +112,7 @@ function extractPort(url: string): string {
     if (u.protocol === 'https:') return '443';
     return '80';
   } catch {
-    return '—';
+    return '-';
   }
 }
 
@@ -250,7 +250,7 @@ function Endpoint({ method, path, op, spec, baseUrl }: { method: Method; path: s
                   return (
                     <div key={code}>
                       <div className={`font-mono text-xs ${statusClass} mb-1`}>
-                        {code} — <span className="text-amber-400/70">{resp.description ?? ''}</span>
+                        {code} - <span className="text-amber-400/70">{resp.description ?? ''}</span>
                       </div>
                       {schema && (
                         <pre className="bg-[#0a0a0a] border border-amber-400/10 rounded p-3 text-[11px] font-mono text-amber-200 overflow-x-auto whitespace-pre-wrap leading-relaxed">

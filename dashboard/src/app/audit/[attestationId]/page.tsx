@@ -14,7 +14,6 @@ import {
 import { complianceApi, type Attestation, type ProofRecord } from '@/lib/api';
 import { config } from '@/lib/config';
 import { ApertureLogo } from '@/components/shared/ApertureLogo';
-import { ThemeToggle } from '@/components/shared/ThemeToggle';
 import { MatrixRain } from '@/components/shared/MatrixRain';
 import { formatAmount, formatDate, truncateAddress } from '@/lib/utils';
 
@@ -77,10 +76,9 @@ export default function AuditPage() {
       <MatrixRain />
 
       <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 py-12">
-        {/* Logo + Theme Toggle */}
+        {/* Logo */}
         <div className="mb-8 flex items-center gap-4">
           <ApertureLogo />
-          <ThemeToggle />
         </div>
 
         {/* Loading */}

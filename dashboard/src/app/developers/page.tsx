@@ -171,7 +171,7 @@ export default function DevelopersPage() {
         <div className="max-w-5xl mx-auto">
           <h2 className="font-mono text-2xl font-bold text-amber-400 mb-3">Code samples</h2>
           <p className="text-sm text-amber-400/75 mb-6">
-            Real source code from this repository — not hand-edited snippets. Paths are shown below each tab.
+            Real source code from this repository - not hand-edited snippets. Paths are shown below each tab.
           </p>
           <CodeTabs
             tabs={[

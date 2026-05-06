@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * EligibilityChecklist — small inline pill row that explains why a payment
+ * EligibilityChecklist - small inline pill row that explains why a payment
  * action might be disabled. Each item is a "ready / pending / blocked"
  * pill; the disabled state of the parent button is justified visually.
  */

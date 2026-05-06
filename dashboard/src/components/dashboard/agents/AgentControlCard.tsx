@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AgentControlCard — hero-level control surface for the autonomous agent.
+ * AgentControlCard - hero-level control surface for the autonomous agent.
  * Big radial-glow status dot, run/stop CTA, and a compact metadata row
  * (operator, last activity, refresh cadence).
  */

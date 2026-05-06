@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * NetworkStatusCard — pulls Solana RPC liveness, current slot, and the
+ * NetworkStatusCard - pulls Solana RPC liveness, current slot, and the
  * three Aperture program IDs into a single Antimetal-style dashboard card.
  */
 
@@ -88,9 +88,9 @@ export function NetworkStatusCard() {
       <dl className="grid grid-cols-2 gap-3">
         <Cell
           label="Current Slot"
-          value={snap.slot != null ? snap.slot.toLocaleString() : '—'}
+          value={snap.slot != null ? snap.slot.toLocaleString() : '-'}
         />
-        <Cell label="RPC Version" value={snap.version ?? '—'} />
+        <Cell label="RPC Version" value={snap.version ?? '-'} />
       </dl>
 
       <div className="flex flex-col gap-2 mt-1">

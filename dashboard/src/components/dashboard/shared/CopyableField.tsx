@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * CopyableField — labelled monospace value + click-to-copy. Used liberally
+ * CopyableField - labelled monospace value + click-to-copy. Used liberally
  * in Settings (URLs, addresses, operator IDs) and AIP Agents (DIDs, public
  * keys). Antimetal styling: white surface, sharp 0px input radius, hover
  * border tint, copy state shows the green tick for 1.8s.

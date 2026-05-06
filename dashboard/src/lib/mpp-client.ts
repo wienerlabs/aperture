@@ -143,28 +143,63 @@ interface VerifiedReceipt {
   readonly stripe_paid_at: string;
 }
 
-async function pollVerifiedReceipt(
+async function fetchVerifiedReceipt(
   paymentIntentId: string,
   timeoutMs: number,
   onTick?: (elapsed: number) => void,
 ): Promise<VerifiedReceipt> {
+  // Strategy: short read-side poll (2s) so a Stripe webhook that already
+  // landed wins the race, then fall back to a server-side sync where the
+  // compliance-api authenticates to Stripe with STRIPE_SECRET_KEY and pulls
+  // the canonical PaymentIntent itself. The sync path is what makes the flow
+  // work in environments without `stripe listen` or a public webhook URL.
+  const readUrl = `${config.complianceApiUrl}/api/v1/compliance/verified-payment/${paymentIntentId}`;
+  const syncUrl = `${config.complianceApiUrl}/api/v1/compliance/verified-payment/sync/${paymentIntentId}`;
   const start = Date.now();
-  const url = `${config.complianceApiUrl}/api/v1/compliance/verified-payment/${paymentIntentId}`;
-  while (Date.now() - start < timeoutMs) {
+  const fastPathDeadline = start + 2_000;
+
+  while (Date.now() < fastPathDeadline) {
     try {
-      const res = await fetch(url);
+      const res = await fetch(readUrl);
       if (res.ok) {
         const body = (await res.json()) as { data?: VerifiedReceipt };
         if (body.data?.poseidon_hash_hex) return body.data;
       }
     } catch {
-      // ignore transient errors
+      // ignore transient network blips; sync path will surface real errors
     }
     onTick?.(Math.floor((Date.now() - start) / 1000));
-    await new Promise((r) => setTimeout(r, 1000));
+    await new Promise((r) => setTimeout(r, 500));
   }
+
+  // Stripe sandbox occasionally needs an extra moment between confirmCardPayment
+  // resolving and paymentIntents.retrieve seeing status=succeeded. Retry the
+  // sync a few times before failing hard.
+  const retryUntil = start + Math.max(timeoutMs, 12_000);
+  let lastDetail = '';
+  while (Date.now() < retryUntil) {
+    onTick?.(Math.floor((Date.now() - start) / 1000));
+    const syncRes = await fetch(syncUrl, { method: 'POST' });
+    if (syncRes.ok) {
+      const body = (await syncRes.json()) as { data?: VerifiedReceipt };
+      if (body.data?.poseidon_hash_hex) return body.data;
+      lastDetail = 'sync returned 200 with empty body';
+    } else {
+      try {
+        const errBody = (await syncRes.json()) as { error?: string };
+        lastDetail = errBody.error ?? `HTTP ${syncRes.status}`;
+      } catch {
+        lastDetail = `HTTP ${syncRes.status}`;
+      }
+      // 409 means the PI is not yet "succeeded" - keep retrying. Anything
+      // else (auth, network) is fatal and we should not loop on it.
+      if (syncRes.status !== 409) break;
+    }
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+
   throw new Error(
-    `Compliance-api never received the Stripe webhook for ${paymentIntentId} within ${timeoutMs / 1000}s. Production deployments need a public webhook endpoint or stripe listen forwarding.`,
+    `Could not finalize the Stripe receipt for ${paymentIntentId}: ${lastDetail || 'timed out'}`,
   );
 }
 
@@ -212,15 +247,19 @@ export async function completeMppFlow<T>(
 
   const { connection, publicKey, sendTransaction, operatorId, endpoint, challenge, paymentIntentId, onStatus } = args;
 
-  // ---- 1. wait for the signed Stripe webhook to land in the DB --------------
-  onStatus?.('Waiting for Stripe webhook…');
+  // ---- 1. obtain the canonical, signed Stripe receipt -----------------------
+  // Tries the webhook-fed read path first, then falls back to a server-side
+  // sync that retrieves the PaymentIntent directly from Stripe via the
+  // compliance-api's STRIPE_SECRET_KEY. Either path produces the same
+  // verified_payment_intents row.
+  onStatus?.('Verifying Stripe receipt…');
   let receipt: VerifiedReceipt;
   try {
-    receipt = await pollVerifiedReceipt(paymentIntentId, 60_000, (sec) =>
-      onStatus?.(`Waiting for Stripe webhook (${sec}s)…`),
+    receipt = await fetchVerifiedReceipt(paymentIntentId, 30_000, (sec) =>
+      onStatus?.(`Verifying Stripe receipt (${sec}s)…`),
     );
   } catch (err) {
-    return fail(err instanceof Error ? err.message : 'Stripe webhook timeout');
+    return fail(err instanceof Error ? err.message : 'Stripe receipt verification failed');
   }
 
   // ---- 2. resolve an active, on-chain-anchored policy for the operator -----
@@ -330,7 +369,7 @@ export async function completeMppFlow<T>(
     }
     proofData = await proveRes.json();
     if (!proofData.is_compliant) {
-      return fail('Prover reported is_compliant=false — payment violates the active policy.');
+      return fail('Prover reported is_compliant=false - payment violates the active policy.');
     }
   } catch (err) {
     return fail(err instanceof Error ? err.message : 'Prove request failed');
@@ -346,7 +385,7 @@ export async function completeMppFlow<T>(
   );
 
   // The 32-byte message the ed25519 ix authenticates is the raw bytes of
-  // poseidon_hash_hex, NOT the field-element decimal — the on-chain
+  // poseidon_hash_hex, NOT the field-element decimal - the on-chain
   // verifier reads public_inputs[9] as 32 BE bytes and the ed25519 message
   // must match byte-for-byte.
   const stripeReceiptHashBytes = Uint8Array.from(
@@ -354,7 +393,7 @@ export async function completeMppFlow<T>(
   );
   const authoritySignature = base58Decode(receipt.authority_signature_b58);
   if (authoritySignature.length !== 64) {
-    return fail('MPP authority signature is not 64 bytes — webhook persisted bad data');
+    return fail('MPP authority signature is not 64 bytes - webhook persisted bad data');
   }
   const authorityPubkey = new PublicKey(receipt.authority_pubkey_b58);
   const ed25519Ix = buildEd25519VerifyIx(
@@ -389,7 +428,7 @@ export async function completeMppFlow<T>(
 
   // Best-effort pre-flight simulate. Legacy Transaction needs signatures
   // before RPC simulate accepts it; the wallet adapter signs only inside
-  // sendTransaction. So we ignore signature-verify failures here — real
+  // sendTransaction. So we ignore signature-verify failures here - real
   // program errors still surface via sendTransaction below.
   try {
     const sim = await connection.simulateTransaction(tx);
@@ -406,7 +445,7 @@ export async function completeMppFlow<T>(
       }
     }
   } catch {
-    // simulate threw (likely sig verify) — non-blocking
+    // simulate threw (likely sig verify) - non-blocking
   }
 
   let txSignature: string;

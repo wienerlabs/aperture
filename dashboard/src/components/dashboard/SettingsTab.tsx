@@ -98,7 +98,7 @@ export function SettingsTab() {
       });
 
       // Build the create multisig transaction. Threshold 1/1 for the demo
-      // — operators can re-create with a higher threshold once they have
+      // - operators can re-create with a higher threshold once they have
       // multiple signers ready to add.
       const [programConfigPda] = sqds.getProgramConfigPda({});
       const programConfig = await sqds.accounts.ProgramConfig.fromAccountAddress(
@@ -183,7 +183,7 @@ export function SettingsTab() {
           </h1>
           <p className="text-[14px] text-black/55 tracking-tighter max-w-2xl">
             Aperture is wallet-first. Your operator identity, multisig governance, and
-            backend service URLs all live in one place — no admin console required.
+            backend service URLs all live in one place - no admin console required.
           </p>
         </div>
       </section>
@@ -297,7 +297,7 @@ export function SettingsTab() {
         )}
       </SettingsSection>
 
-      {/* Agent Stripe Configuration — kept as its own component, theming
+      {/* Agent Stripe Configuration - kept as its own component, theming
           updates land via globals.css overrides. */}
       <AgentStripeCard operatorId={operatorId} />
 

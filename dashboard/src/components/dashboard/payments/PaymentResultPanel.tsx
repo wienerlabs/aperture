@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * PaymentResultPanel — shared success/failure summary surfaced inside the
+ * PaymentResultPanel - shared success/failure summary surfaced inside the
  * x402 and MPP cards once a flow completes. Replaces the legacy "p4 rounded
  * bg-green-400/5" pile with a clean Antimetal data grid: 1px outer ring,
  * uppercase labels, monospace values, ExternalLink icons for explorers.
@@ -24,7 +24,7 @@ interface PaymentResultPanelProps {
   readonly title: string;
   readonly details?: readonly ResultDetail[];
   readonly errorMessage?: string;
-  /** Optional extra body — typically the JSON response from a paywalled API. */
+  /** Optional extra body - typically the JSON response from a paywalled API. */
   readonly children?: React.ReactNode;
 }
 

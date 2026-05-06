@@ -58,7 +58,7 @@ export default function AIPPage() {
           </blockquote>
           <P>
             The only answer today: hand over all on-chain activity to an auditor. This leaks
-            competitive intelligence — which APIs you use, how often, how much you spend, and
+            competitive intelligence - which APIs you use, how often, how much you spend, and
             who you pay.
           </P>
         </div>
@@ -70,7 +70,7 @@ export default function AIPPage() {
           </div>
           <P>
             Zero-knowledge proofs. Aperture generates a cryptographic proof that a payment
-            is compliant — without revealing the amount, recipient, or any transaction details.
+            is compliant - without revealing the amount, recipient, or any transaction details.
             Auditors verify the proof, not the data.
           </P>
         </div>
@@ -86,7 +86,7 @@ export default function AIPPage() {
           {[
             {
               title: 'Agent Discovery',
-              desc: 'AIP agents are read directly from Solana devnet registry. No API key needed — on-chain data is public.',
+              desc: 'AIP agents are read directly from Solana devnet registry. No API key needed - on-chain data is public.',
               Icon: Search,
             },
             {
@@ -120,7 +120,7 @@ export default function AIPPage() {
             { step: 1, title: 'Operator Sets Policy', desc: 'Daily limit, per-transaction limit, blocked addresses, allowed categories, token whitelist.' },
             { step: 2, title: 'User Selects AIP Agent', desc: 'Browse agents from the AIP registry in the Aperture dashboard. See capabilities, pricing, and live status.' },
             { step: 3, title: 'Compliance Check', desc: 'Before payment, Aperture checks: Does this payment comply with the operator\'s policy? Amount within limits? Address not sanctioned?' },
-            { step: 4, title: 'ZK Proof Generated', desc: 'Circom + Groth16 produces a zero-knowledge proof in ~500 ms: "This payment is compliant" — without revealing amount, recipient, or details.' },
+            { step: 4, title: 'ZK Proof Generated', desc: 'Circom + Groth16 produces a zero-knowledge proof in ~500 ms: "This payment is compliant" - without revealing amount, recipient, or details.' },
             { step: 5, title: 'On-Chain Verification', desc: 'Proof is submitted to Aperture\'s Solana Verifier program. ComplianceStatus PDA is updated on-chain.' },
             { step: 6, title: 'Payment Executes', desc: 'Only after proof verification, the payment is sent to the AIP agent via JSON-RPC. Non-compliant payments are blocked.' },
             { step: 7, title: 'Audit Link Created', desc: 'A shareable audit page is generated. Anyone can verify compliance without seeing transaction details.' },
@@ -377,7 +377,7 @@ ProverOutput {
 
         {/* Footer */}
         <p className="text-center text-amber-100/40 text-xs mt-12">
-          Aperture Protocol — Zero-knowledge compliance for the agent economy. Built on Solana.
+          Aperture Protocol - Zero-knowledge compliance for the agent economy. Built on Solana.
         </p>
       </div>
     </div>

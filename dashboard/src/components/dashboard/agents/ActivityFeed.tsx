@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * ActivityFeed — modern Antimetal feed for the agent's most recent
+ * ActivityFeed - modern Antimetal feed for the agent's most recent
  * activity. Replaces the dark-theme list with white surface, type pills
  * coloured per event class, and a fresh-record highlight that fades after
  * the first paint.
@@ -19,6 +19,7 @@ import {
   AlertOctagon,
 } from 'lucide-react';
 import { config as apertureConfig } from '@/lib/config';
+import { getStripeDashboardUrl } from '@/lib/mpp-client';
 import { truncateAddress } from '@/lib/utils';
 
 export type ActivityType =
@@ -127,10 +128,17 @@ export function ActivityFeed({ records, newIds, loading }: ActivityFeedProps) {
                       </a>
                     )}
 
-                    {record.paymentIntentId && !record.txSignature && (
-                      <span className="font-mono text-[11px] text-black/55">
-                        {record.paymentIntentId.slice(0, 12)}…
-                      </span>
+                    {record.paymentIntentId && (
+                      <a
+                        href={getStripeDashboardUrl(record.paymentIntentId, true)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] text-aperture-dark hover:text-black transition-colors"
+                        title={`Stripe PaymentIntent ${record.paymentIntentId}`}
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        Stripe
+                      </a>
                     )}
 
                     <span className="text-[11px] tracking-tighter text-black/55 w-16 text-right">

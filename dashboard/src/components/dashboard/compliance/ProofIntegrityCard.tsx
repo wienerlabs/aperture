@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * ProofIntegrityCard — surfaces the cryptographic guarantees behind every
+ * ProofIntegrityCard - surfaces the cryptographic guarantees behind every
  * attestation. Shown alongside the Merkle viewer so operators understand
  * exactly what they're signing onto when they anchor a batch on-chain.
  */
@@ -12,7 +12,7 @@ const FACTS = [
   {
     icon: Hash,
     label: 'Poseidon commitment',
-    body: 'Every rule value is hashed inside the circuit so the on-chain leaf only proves existence — not the value itself.',
+    body: 'Every rule value is hashed inside the circuit so the on-chain leaf only proves existence - not the value itself.',
   },
   {
     icon: Shield,
@@ -22,7 +22,7 @@ const FACTS = [
   {
     icon: Network,
     label: 'Atomic settlement',
-    body: 'verify_payment_proof_v2_with_transfer mutates daily_spent and signs the inner SPL transfer in one tx — no race window.',
+    body: 'verify_payment_proof_v2_with_transfer mutates daily_spent and signs the inner SPL transfer in one tx - no race window.',
   },
   {
     icon: CheckCircle2,

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AuditTrailTimeline — chronological strip of the most recent attestations,
+ * AuditTrailTimeline - chronological strip of the most recent attestations,
  * collapsed into a vertical timeline. Useful as a "compliance pulse"
  * summary even when an operator already has a card grid below.
  */

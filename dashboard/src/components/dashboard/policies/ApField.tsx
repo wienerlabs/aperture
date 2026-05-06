@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * ApField — Antimetal-styled form primitives used throughout the dashboard
+ * ApField - Antimetal-styled form primitives used throughout the dashboard
  * forms. Mirrors the floating-label / helper-text pattern popularised by
  * originui (21st.dev/r/originui/input) but keeps every style decision
  * grounded in our existing tokens:

@@ -185,7 +185,7 @@ export function AgentActivityTab() {
             label="Sessions"
             value={(stats?.totalSessions ?? 0).toLocaleString()}
             icon={Activity}
-            hint="Lifetime — start/stop cycles"
+            hint="Lifetime - start/stop cycles"
           />
           <MetricCard
             label="x402 Settlements"

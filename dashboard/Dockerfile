@@ -4,7 +4,9 @@ WORKDIR /app
 FROM base AS deps
 RUN apk add --no-cache python3 make g++ linux-headers eudev-dev libusb-dev
 COPY dashboard/package.json dashboard/package-lock.json* ./
-RUN npm install
+# postprocessing peer-depends on three < 0.185 while we ship a newer three.
+# The runtime works fine; --legacy-peer-deps mirrors local dev behavior.
+RUN npm install --legacy-peer-deps
 
 FROM base AS builder
 WORKDIR /app

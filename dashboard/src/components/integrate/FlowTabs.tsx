@@ -103,7 +103,7 @@ export function FlowTabs({ flows }: FlowTabsProps) {
           <ul className="space-y-1.5">
             {active.prerequisites.map((item) => (
               <li key={item} className="font-mono text-xs text-amber-200/80 flex gap-2">
-                <span className="text-amber-400/60 flex-shrink-0">—</span>
+                <span className="text-amber-400/60 flex-shrink-0">-</span>
                 <span>{item}</span>
               </li>
             ))}

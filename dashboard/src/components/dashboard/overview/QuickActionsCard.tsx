@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * QuickActionsCard — Antimetal-style "fastlane" panel that exposes the
+ * QuickActionsCard - Antimetal-style "fastlane" panel that exposes the
  * three actions an operator wants 90% of the time:
  *  1. Author a new policy
  *  2. Run the protected x402 demo (which fires the TxModal end-to-end)

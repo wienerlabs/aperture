@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AttestationCard — modern Antimetal replacement for the dark glass card
+ * AttestationCard - modern Antimetal replacement for the dark glass card
  * each batch attestation used to render in. Adds an explicit "anchored vs
  * off-chain" pill and a compact 4-cell data grid that mirrors the rest of
  * the dashboard surface language.

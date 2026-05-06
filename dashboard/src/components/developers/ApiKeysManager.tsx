@@ -152,7 +152,7 @@ export function ApiKeysManager() {
             <div>
               <p className="font-mono text-sm font-semibold text-emerald-300">API key created</p>
               <p className="text-xs text-emerald-300/60 mt-1">
-                Copy this key now — the full value will not be shown again. If you lose it, revoke and generate a new one.
+                Copy this key now - the full value will not be shown again. If you lose it, revoke and generate a new one.
               </p>
             </div>
           </div>

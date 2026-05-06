@@ -89,45 +89,58 @@ function ApertureWalletModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
       <div
-        className="relative z-10 w-full max-w-sm rounded-xl border border-amber-400/20 p-6"
-        style={{ backgroundColor: 'rgba(10, 10, 10, 0.95)' }}
+        className="relative z-10 w-full max-w-sm rounded-[20px] p-6"
+        style={{
+          backgroundColor: '#ffffff',
+          boxShadow:
+            'rgba(101, 69, 0, 0.06) 0px 32px 56px -16px, rgba(101, 69, 0, 0.04) 0px 8px 16px -4px, rgba(101, 69, 0, 0.10) 0px 0px 0px 1px',
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="font-mono text-lg font-bold text-amber-400">Connect Wallet</h2>
-          <button onClick={onClose} className="text-amber-400/50 hover:text-amber-400 text-xl">x</button>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-display text-[20px] font-semibold text-black">Connect Wallet</h2>
+          <button
+            onClick={onClose}
+            className="text-black/45 hover:text-black text-xl leading-none"
+            aria-label="Close"
+          >
+            ×
+          </button>
         </div>
 
         {error && (
-          <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+          <div className="mb-4 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-[13px] text-red-700">
             {error}
           </div>
         )}
 
         {connecting && (
-          <div className="mb-4 rounded-lg border border-amber-400/20 bg-amber-400/5 px-3 py-2 text-xs text-amber-400/70 font-mono animate-pulse">
+          <div className="mb-4 rounded-lg border border-aperture/30 bg-aperture/8 px-3 py-2 text-[13px] text-aperture-dark animate-pulse">
             Approve the connection in your wallet...
           </div>
         )}
 
         {installedWallets.length > 0 && (
           <div className="space-y-2 mb-4">
-            <p className="font-mono text-xs text-amber-400/50 mb-2">Detected wallets</p>
+            <p className="text-[12px] uppercase tracking-[0.08em] text-black/55 mb-2">
+              Detected wallets
+            </p>
             {installedWallets.map((w) => (
               <button
                 key={w.adapter.name}
                 onClick={() => handleSelect(w.adapter.name)}
                 disabled={connecting}
-                className="flex w-full items-center gap-3 rounded-lg border border-amber-400/20 px-4 py-3 font-mono text-sm text-amber-400 transition-colors hover:bg-amber-400/10 disabled:opacity-50"
+                className="flex w-full items-center gap-3 rounded-[12px] border border-black/10 bg-white px-4 py-3 text-[15px] text-black transition-colors hover:border-aperture/40 hover:bg-aperture/5 disabled:opacity-50"
               >
                 {w.adapter.icon && (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={w.adapter.icon} alt={w.adapter.name} className="h-6 w-6 rounded" />
                 )}
                 <span className="flex-1 text-left">{w.adapter.name}</span>
                 {connecting && wallet?.adapter.name === w.adapter.name && (
-                  <span className="text-xs text-amber-400/50 animate-pulse">Connecting...</span>
+                  <span className="text-[12px] text-aperture-dark animate-pulse">Connecting...</span>
                 )}
               </button>
             ))}
@@ -136,29 +149,57 @@ function ApertureWalletModal({ onClose }: { onClose: () => void }) {
 
         {otherWallets.length > 0 && (
           <div className="space-y-2">
-            <p className="font-mono text-xs text-amber-400/50 mb-2">More wallets</p>
+            <p className="text-[12px] uppercase tracking-[0.08em] text-black/55 mb-2">
+              More wallets
+            </p>
             {otherWallets.map((w) => (
               <a
                 key={w.adapter.name}
                 href={w.adapter.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex w-full items-center gap-3 rounded-lg border border-amber-400/10 px-4 py-3 font-mono text-sm text-amber-400/50 transition-colors hover:bg-amber-400/5"
+                className="flex w-full items-center gap-3 rounded-[12px] border border-black/8 bg-white px-4 py-3 text-[15px] text-black/65 transition-colors hover:border-aperture/30 hover:bg-aperture/4"
               >
                 {w.adapter.icon && (
-                  <img src={w.adapter.icon} alt={w.adapter.name} className="h-6 w-6 rounded opacity-50" />
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={w.adapter.icon} alt={w.adapter.name} className="h-6 w-6 rounded" />
                 )}
                 <span className="flex-1 text-left">{w.adapter.name}</span>
-                <span className="text-xs">Install</span>
+                <span className="text-[12px] text-aperture-dark">Install</span>
               </a>
             ))}
           </div>
         )}
 
         {wallets.length === 0 && (
-          <p className="text-center font-mono text-sm text-amber-400/50 py-4">
-            No wallets found. Install Phantom or Solflare to connect.
-          </p>
+          <div className="flex flex-col gap-2 py-2">
+            <p className="text-center text-[14px] text-black">
+              No Solana wallets detected in this browser.
+            </p>
+            <p className="text-center text-[12px] text-black/55 mb-2">
+              Install one of the wallets below, then return to connect.
+            </p>
+            <a
+              href="https://phantom.app/download"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex w-full items-center gap-3 rounded-[12px] border border-black/10 bg-white px-4 py-3 text-[15px] text-black transition-colors hover:border-aperture/40 hover:bg-aperture/5"
+            >
+              <span className="flex h-6 w-6 items-center justify-center rounded bg-[#ab9ff2] text-xs font-bold text-black">P</span>
+              <span className="flex-1 text-left">Phantom</span>
+              <span className="text-[12px] text-aperture-dark">Install</span>
+            </a>
+            <a
+              href="https://solflare.com/download"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex w-full items-center gap-3 rounded-[12px] border border-black/10 bg-white px-4 py-3 text-[15px] text-black transition-colors hover:border-aperture/40 hover:bg-aperture/5"
+            >
+              <span className="flex h-6 w-6 items-center justify-center rounded bg-[#fc8a3b] text-xs font-bold text-black">S</span>
+              <span className="flex-1 text-left">Solflare</span>
+              <span className="text-[12px] text-aperture-dark">Install</span>
+            </a>
+          </div>
         )}
       </div>
     </div>

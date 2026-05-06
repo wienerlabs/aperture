@@ -8,7 +8,6 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useSession } from 'next-auth/react';
 import { useApertureWalletModal } from '../shared/WalletModal';
 import { ApertureLogo } from '../shared/ApertureLogo';
-import { ThemeToggle } from '../shared/ThemeToggle';
 import { useWalletAuth } from '@/lib/use-wallet-auth';
 
 interface MoreMenuItem {
@@ -64,11 +63,11 @@ export function Navbar() {
   const handleConnectWallet = useCallback(() => {
     if (isAuthenticated) return;
     if (connected && publicKey) {
-      // Wallet already connected — go straight to signMessage / signIn.
+      // Wallet already connected - go straight to signMessage / signIn.
       void triggerWalletAuth();
       return;
     }
-    // Wallet not connected — arm the flow and open the wallet modal. The hook
+    // Wallet not connected - arm the flow and open the wallet modal. The hook
     // will fire signIn once the wallet finishes connecting.
     armForConnect();
     openWalletModal(true);
@@ -224,10 +223,6 @@ export function Navbar() {
 
           {/* Right - Auth (desktop) */}
           <div className="hidden md:flex items-center gap-3">
-            <ThemeToggle className="!text-black hover:!text-black/70 hover:!bg-black/5" />
-            <Link href="/auth/signin" className="ap-btn-ghost-light">
-              Sign In
-            </Link>
             <button
               onClick={handleConnectWallet}
               disabled={walletAuthRunning}
@@ -350,13 +345,6 @@ export function Navbar() {
               </div>
 
               <div className="border-t border-black/8 pt-4 flex flex-col gap-3">
-                <Link
-                  href="/auth/signin"
-                  className="ap-btn-ghost-light w-full"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  Sign In
-                </Link>
                 <button
                   onClick={() => { handleConnectWallet(); setMobileOpen(false); }}
                   disabled={walletAuthRunning}

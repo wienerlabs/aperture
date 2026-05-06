@@ -14,7 +14,7 @@ import { config } from './config';
 const POLICY_REGISTRY_PROGRAM = new PublicKey(config.programs.policyRegistry);
 const VERIFIER_PROGRAM = new PublicKey(config.programs.verifier);
 
-// Sysvar Instructions program ID — exposes the current transaction's
+// Sysvar Instructions program ID - exposes the current transaction's
 // instruction list to programs that need to introspect prior ix's, e.g. the
 // MPP verifier reading the preceding ed25519 verify instruction.
 const SYSVAR_INSTRUCTIONS_PUBKEY = new PublicKey(
@@ -159,7 +159,7 @@ function hexToBuffer32(hex: string): Buffer {
 /**
  * Builds the policy-registry register_policy instruction. The caller MUST
  * pass the merkle_root_hex / policy_data_hash_hex / policy_id_bytes_hex
- * exactly as they came back from GET /api/v1/policies/:id/onchain-payload —
+ * exactly as they came back from GET /api/v1/policies/:id/onchain-payload -
  * the policy-service is the single source of truth for those commitments.
  *
  * Recomputing them on the client is forbidden because the leaf serialization
@@ -203,7 +203,7 @@ export function buildRegisterPolicyIx(
 
 /**
  * Builds the policy-registry update_policy instruction. Same contract as
- * buildRegisterPolicyIx — the caller passes server-pinned hex commitments.
+ * buildRegisterPolicyIx - the caller passes server-pinned hex commitments.
  * Use derivePolicyPDA(operatorAccount, hexToBuffer32(policyIdBytesHex)) to
  * resolve policyPDA before calling this.
  */
@@ -289,7 +289,7 @@ function readI64LE(buf: Buffer, offset: number): bigint {
  * callers can treat that as a clean zero-spent state without a try/catch.
  *
  * The account layout MUST stay in sync with
- * programs/verifier/src/state/operator_state.rs — any field reordering there
+ * programs/verifier/src/state/operator_state.rs - any field reordering there
  * is a wire-format change that breaks every dashboard build.
  *
  * Layout (after the 8-byte Anchor discriminator):
@@ -306,7 +306,7 @@ export function decodeOperatorState(data: Buffer | Uint8Array): OperatorStateVie
     throw new Error(`OperatorState too short: ${buf.length} bytes (need 65)`);
   }
   if (buf.compare(OPERATOR_STATE_DISCRIMINATOR, 0, 8, 0, 8) !== 0) {
-    throw new Error('OperatorState discriminator mismatch — wrong account?');
+    throw new Error('OperatorState discriminator mismatch - wrong account?');
   }
   return {
     operator: new PublicKey(buf.subarray(8, 8 + 32)),
@@ -324,15 +324,15 @@ export function decodeOperatorState(data: Buffer | Uint8Array): OperatorStateVie
  * init_if_needed.
  */
 const INITIALIZE_OPERATOR_STATE_DISC = Buffer.from([
-  // SHA-256("global:initialize_operator_state").slice(0, 8) — the same bytes
+  // SHA-256("global:initialize_operator_state").slice(0, 8) - the same bytes
   // Anchor would generate when invoking this method via the IDL.
   151, 141, 122, 89, 143, 223, 124, 228,
 ]);
 
 /**
  * Fetches the OperatorState PDA for the given operator and returns a decoded
- * view. When the PDA does not exist yet — the operator has never paid and
- * never explicitly initialized — the function returns null so callers can
+ * view. When the PDA does not exist yet - the operator has never paid and
+ * never explicitly initialized - the function returns null so callers can
  * treat the spend as zero without a special-case try/catch.
  */
 export async function readOperatorState(
@@ -349,7 +349,7 @@ export async function readOperatorState(
  * Returns the daily-spent value the circuit should consume as
  * `daily_spent_before` (Adım 4 public input). Encapsulates the rolling-day
  * rule: if the on-chain `day_start_unix` is older than today's UTC midnight,
- * the effective daily spend is 0 — the next record_payment will reset it
+ * the effective daily spend is 0 - the next record_payment will reset it
  * atomically on-chain, and we mirror that view client-side so the circuit
  * input matches what the verifier will compute.
  */
@@ -437,7 +437,7 @@ export function buildVerifyPaymentProofIx(
 }
 
 // v2: Circom Groth16 verification. Pairs with the prover-service endpoint
-// POST /prove — that response's `groth16` block (proof_a, proof_b, proof_c,
+// POST /prove - that response's `groth16` block (proof_a, proof_b, proof_c,
 // public_inputs as base64) is decoded on the caller side and fed here.
 //
 // The 10 public inputs (Adım 4b + 8b) are, in order:
@@ -504,7 +504,7 @@ function encodeVerifyIxData(
  *   1: compliance_status  (mut, init_if_needed)
  *   2: operator_state     (mut, init_if_needed)
  *   3: policy_account     (read, owned by policy-registry)
- *   4: operator_account   (read, owned by policy-registry — the OperatorPDA)
+ *   4: operator_account   (read, owned by policy-registry - the OperatorPDA)
  *   5: operator           (signer)
  *   6: payer              (signer, mut)
  *   7: system_program

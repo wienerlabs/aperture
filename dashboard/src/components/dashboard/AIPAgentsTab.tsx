@@ -250,7 +250,7 @@ export function AIPAgentsTab() {
       // The AIP task call is an x402-style payment from this wallet to the
       // agent's authority. Compliance is enforced inside the verifier
       // program (verify_payment_proof_v2_with_transfer) so any token the
-      // active policy whitelists works — pick the first whitelisted entry,
+      // active policy whitelists works - pick the first whitelisted entry,
       // preferring USDC, falling back to aUSDC for legacy policies.
       const sentinelMint =
         compiled.data.token_whitelist.find((m: string) => m === config.tokens.usdc) ??
@@ -258,7 +258,7 @@ export function AIPAgentsTab() {
         config.tokens.aUSDC;
       if (!sentinelMint) {
         throw new Error(
-          'Active policy has no whitelisted tokens — edit the policy to enable USDC/USDT/aUSDC.',
+          'Active policy has no whitelisted tokens - edit the policy to enable USDC/USDT/aUSDC.',
         );
       }
       const dailySpentBeforeLamports = (
@@ -457,7 +457,7 @@ export function AIPAgentsTab() {
           agentResponse = 'Agent endpoint not reachable (task recorded with compliance proof)';
         }
       } else {
-        // No public endpoint registered for this AIP agent — only the
+        // No public endpoint registered for this AIP agent - only the
         // on-chain compliance side ran. Surface that explicitly so the
         // operator does not assume a downstream call happened.
         agentResponse = 'AIP agent has no published endpoint. Compliance proof anchored on-chain; downstream task call skipped.';
@@ -604,7 +604,7 @@ export function AIPAgentsTab() {
         </div>
       )}
 
-      {/* Task Execution Panel — animated proving stepper */}
+      {/* Task Execution Panel - animated proving stepper */}
       {executing && provingStatus && (
         <div className="ap-card p-5 flex flex-col gap-4">
           <div className="flex items-center gap-3">
@@ -1076,7 +1076,7 @@ export function AIPAgentsTab() {
                           <ExternalLink className="h-3.5 w-3.5" />
                         </a>
                       ) : (
-                        <span className="text-black/35">—</span>
+                        <span className="text-black/35">-</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-[12px]">

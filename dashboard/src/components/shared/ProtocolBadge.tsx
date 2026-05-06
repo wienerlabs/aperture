@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * ProtocolBadge — small "powered by X" inline badge for protocol references.
- * No background tile, no border tint — just the brand wordmark in subtle ink
+ * ProtocolBadge - small "powered by X" inline badge for protocol references.
+ * No background tile, no border tint - just the brand wordmark in subtle ink
  * with a wee bit of opacity so it doesn't jump out of the page rhythm. Sits
  * happily under the cards' headlines on the Payments tab.
  *
@@ -28,7 +28,7 @@ export type ProtocolId =
 interface ProtocolMeta {
   readonly label: string;
   readonly src?: string | StaticImageData;
-  /** Pixel height — tuned per logo so the optical weight reads even. */
+  /** Pixel height - tuned per logo so the optical weight reads even. */
   readonly height: number;
 }
 
@@ -83,7 +83,7 @@ export function ProtocolBadge({
           }}
         />
       ) : (
-        // Brands without an SVG (Circom, Anchor) — quiet typographic label.
+        // Brands without an SVG (Circom, Anchor) - quiet typographic label.
         <span
           className="font-display text-[13px] tracking-[-0.012em] text-black/55"
           style={{ lineHeight: `${meta.height}px` }}
@@ -105,7 +105,7 @@ interface ProtocolBadgeRowProps {
 }
 
 /**
- * ProtocolBadgeRow — labelled row of badges. e.g.
+ * ProtocolBadgeRow - labelled row of badges. e.g.
  *   "Powered by  [Coinbase] [Solana]"
  * Used as the small footer line under each PaymentMethodCard headline.
  */

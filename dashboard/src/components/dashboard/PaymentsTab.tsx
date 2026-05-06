@@ -56,7 +56,7 @@ function formatElapsed(sec: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-// SPL Token-2022 program — pinned at the protocol level, not a deployment
+// SPL Token-2022 program - pinned at the protocol level, not a deployment
 // concern, so it stays as a literal here. Every Aperture-issued mint with a
 // transfer-hook attached lives under this program.
 const TOKEN_2022_PROGRAM_ID = new PublicKey(
@@ -362,7 +362,7 @@ export function PaymentsTab() {
     setX402Result(null);
     setError(null);
 
-    // 1 USDC by default for the protected report — matches the
+    // 1 USDC by default for the protected report - matches the
     // compliance-api's PUBLISHER_AMOUNT_LAMPORTS env. We seed the modal with
     // this expected shape; the real txSignature lands when the x402 client
     // returns.
@@ -471,12 +471,13 @@ export function PaymentsTab() {
         const card = stripeElementsRef.current.create('card', {
           style: {
             base: {
-              color: '#fef3c7',
+              color: '#0a0a0a',
               fontFamily: 'ui-monospace, SFMono-Regular, monospace',
-              fontSize: '14px',
-              '::placeholder': { color: 'rgba(254, 243, 199, 0.4)' },
+              fontSize: '15px',
+              '::placeholder': { color: 'rgba(10, 10, 10, 0.4)' },
+              iconColor: '#0a0a0a',
             },
-            invalid: { color: '#f87171' },
+            invalid: { color: '#dc2626', iconColor: '#dc2626' },
           },
         });
         card.mount(cardMountRef.current);
@@ -673,7 +674,7 @@ export function PaymentsTab() {
 
       {/* Two-column payment methods */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* x402 — Coinbase / USDC rails */}
+        {/* x402 - Coinbase / USDC rails */}
         <PaymentMethodCard
           title="x402 Protected Report"
           subtitle="HTTP 402 + atomic Groth16 verify + SPL transfer (1 USDC)."
@@ -736,7 +737,7 @@ export function PaymentsTab() {
                   label: 'ZK Proof Hash',
                   value: x402Result.payment.zkProofHash
                     ? truncateAddress(x402Result.payment.zkProofHash, 10)
-                    : '—',
+                    : '-',
                   mono: true,
                 },
                 {
@@ -769,7 +770,7 @@ export function PaymentsTab() {
           )}
         </PaymentMethodCard>
 
-        {/* MPP — Stripe + Solana */}
+        {/* MPP - Stripe + Solana */}
         <PaymentMethodCard
           title="MPP Protected Service"
           subtitle="Stripe charge → ed25519 receipt → on-chain proof ($1.00)."

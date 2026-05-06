@@ -28,7 +28,7 @@ export const config = {
     usdc:
       process.env.NEXT_PUBLIC_USDC_MINT ??
       '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
-    // Devnet USDT — Aperture-issued Token-1 SPL mint (the previous default
+    // Devnet USDT - Aperture-issued Token-1 SPL mint (the previous default
     // EJwZgeZ… address was a placeholder that did not resolve on chain).
     // Production swaps this for the real Tether USDT mint via the
     // NEXT_PUBLIC_USDT_MINT env override.

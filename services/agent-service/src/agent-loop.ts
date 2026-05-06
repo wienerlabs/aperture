@@ -112,6 +112,14 @@ export interface AgentConfig {
   /// is skipped instead of failing.
   readonly stripeCustomerId: string | null;
   readonly stripePaymentMethodId: string | null;
+  /// Gate on the MPP cycle. The MPP B-flow requires a Stripe webhook to be
+  /// reachable so the compliance-api can persist the verified receipt the
+  /// agent then anchors on-chain. In a vanilla local deploy nothing forwards
+  /// Stripe events into the cluster, so the cycle would loop on
+  /// "webhook never arrived" errors. Default false; flip to true (via
+  /// AGENT_MPP_ENABLED=true) once `stripe listen --forward-to ...` is
+  /// running or a public webhook endpoint is wired up.
+  readonly mppEnabled: boolean;
   readonly intervalMs: number;
 }
 
@@ -280,13 +288,19 @@ export class AgentLoop {
       await this.runX402Flow(policy);
       if (!this.running) return;
 
-      const stripeCreds = await this.resolveStripeCredentials();
-      if (stripeCreds) {
-        await this.runMppFlow(policy, stripeCreds);
-      } else {
+      if (!this.config.mppEnabled) {
         log(
-          'Skipping MPP flow — no saved Stripe credentials for this operator (configure from dashboard Settings → Agent Stripe Configuration).',
+          'Skipping MPP flow - AGENT_MPP_ENABLED is not set. Enable it once a Stripe webhook (stripe listen / public endpoint) is reachable so verified_payment_intent rows can land.',
         );
+      } else {
+        const stripeCreds = await this.resolveStripeCredentials();
+        if (stripeCreds) {
+          await this.runMppFlow(policy, stripeCreds);
+        } else {
+          log(
+            'Skipping MPP flow - no saved Stripe credentials for this operator (configure from dashboard Settings -> Agent Stripe Configuration).',
+          );
+        }
       }
       if (!this.running) return;
 
@@ -941,11 +955,11 @@ export class AgentLoop {
     // 60s timeout — Stripe sandbox occasionally delays webhook delivery for
     // off_session direct charges by 5–15 seconds, and the original 30s
     // window meant agent cycles failed intermittently on the first attempt.
-    const verifiedReceipt = await this.pollVerifiedReceipt(pi.id!, 60_000);
+    const verifiedReceipt = await this.pollVerifiedReceipt(pi.id!, 30_000);
     if (!verifiedReceipt) {
       this.pushActivity(
         'error',
-        `Compliance-api never received the Stripe webhook for ${pi.id}. Is stripe listen / production webhook reachable?`,
+        `Could not finalize the verified Stripe receipt for ${pi.id}. Check compliance-api logs for the sync endpoint response.`,
         false,
         { paymentIntentId: pi.id! },
       );
@@ -1089,25 +1103,47 @@ export class AgentLoop {
     paymentIntentId: string,
     timeoutMs: number,
   ): Promise<{ poseidon_hash_hex: string; authority_signature_b58: string; authority_pubkey_b58: string } | null> {
+    // Same hybrid strategy the dashboard uses: short read poll for a
+    // webhook-fed row, then fall back to the server-side sync endpoint that
+    // retrieves the PaymentIntent from Stripe directly.
+    const readUrl = `${this.config.complianceApiUrl}/api/v1/compliance/verified-payment/${paymentIntentId}`;
+    const syncUrl = `${this.config.complianceApiUrl}/api/v1/compliance/verified-payment/sync/${paymentIntentId}`;
+    type Receipt = {
+      readonly poseidon_hash_hex: string;
+      readonly authority_signature_b58: string;
+      readonly authority_pubkey_b58: string;
+    };
     const start = Date.now();
-    const url = `${this.config.complianceApiUrl}/api/v1/compliance/verified-payment/${paymentIntentId}`;
-    while (Date.now() - start < timeoutMs) {
+    const fastPathDeadline = start + 2_000;
+
+    while (Date.now() < fastPathDeadline) {
       try {
-        const res = await fetch(url);
+        const res = await fetch(readUrl);
         if (res.ok) {
-          const body = (await res.json()) as {
-            readonly data?: {
-              readonly poseidon_hash_hex: string;
-              readonly authority_signature_b58: string;
-              readonly authority_pubkey_b58: string;
-            };
-          };
+          const body = (await res.json()) as { readonly data?: Receipt };
           if (body.data?.poseidon_hash_hex) return body.data;
         }
       } catch {
-        // ignore transient errors and retry
+        // ignore transient network blips
       }
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 500));
+    }
+
+    const retryUntil = start + Math.max(timeoutMs, 12_000);
+    while (Date.now() < retryUntil) {
+      try {
+        const syncRes = await fetch(syncUrl, { method: 'POST' });
+        if (syncRes.ok) {
+          const body = (await syncRes.json()) as { readonly data?: Receipt };
+          if (body.data?.poseidon_hash_hex) return body.data;
+        } else if (syncRes.status !== 409) {
+          // 409 = PI not yet succeeded, keep retrying. Anything else is fatal.
+          break;
+        }
+      } catch {
+        // network error -> retry within window
+      }
+      await new Promise((r) => setTimeout(r, 1500));
     }
     return null;
   }

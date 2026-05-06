@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * PaymentMethodCard — chrome for the x402 / MPP / Transfer Hook flows.
+ * PaymentMethodCard - chrome for the x402 / MPP / Transfer Hook flows.
  * Each card carries:
  *   - title + subtitle + brand-coloured icon pill
  *   - protocol shape (FlowDiagram)

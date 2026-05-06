@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * InfiniteSlider — minimal CSS-keyframe horizontal marquee.
+ * InfiniteSlider - minimal CSS-keyframe horizontal marquee.
  * Pure CSS (no measuring), so it stays in sync across SSR/hydration.
  * Children are duplicated so the loop is seamless.
  */

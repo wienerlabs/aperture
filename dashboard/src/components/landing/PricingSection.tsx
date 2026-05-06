@@ -29,7 +29,7 @@ const tiers: PricingTier[] = [
       'Community support',
     ],
     cta: 'Get Started',
-    ctaHref: '/auth/signup',
+    ctaHref: '/auth/signin',
     highlighted: false,
   },
   {
@@ -46,7 +46,7 @@ const tiers: PricingTier[] = [
       'Priority support',
     ],
     cta: 'Get Started',
-    ctaHref: '/auth/signup',
+    ctaHref: '/auth/signin',
     highlighted: true,
   },
   {
