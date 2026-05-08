@@ -493,15 +493,32 @@ function ParticipantRow({
  * Build participant rows from a real ZK-proof payment context. This helper
  * keeps the UI dumb and lets the calling page (PaymentsTab, AIPAgentsTab,
  * MPP webhook handler, x402 client) provide the data.
+ *
+ * `amountLamports` is the smallest-unit base amount (Token-2022 / SPL Token
+ * convention). The on-screen label is the human-readable amount, computed
+ * from the mint's decimal count (defaults to 6, matching every Aperture
+ * stablecoin mint).
  */
+function lamportsToHuman(amountLamports: bigint, decimals: number): number {
+  const divisor = 10n ** BigInt(decimals);
+  const whole = amountLamports / divisor;
+  const fraction = amountLamports % divisor;
+  // Combine whole and fractional parts as a JS number. We accept the small
+  // precision loss here because the modal only displays this; the on-chain
+  // amount stays as the original BigInt all the way to sendTransaction.
+  return Number(whole) + Number(fraction) / Number(divisor);
+}
+
 export function makeFromParticipant(opts: {
   walletPubkey: string;
   tokenSymbol: string;
   amountLamports: bigint;
+  decimals?: number;
 }): TxParticipant {
+  const human = lamportsToHuman(opts.amountLamports, opts.decimals ?? 6);
   return {
     symbol: opts.tokenSymbol,
-    amountLabel: `${formatAmount(opts.amountLamports.toString())} ${opts.tokenSymbol}`,
+    amountLabel: `${formatAmount(human)} ${opts.tokenSymbol}`,
     accountLabel: `Wallet ${truncateAddress(opts.walletPubkey, 4)}`,
   };
 }
@@ -510,11 +527,13 @@ export function makeToParticipant(opts: {
   treasuryPubkey: string;
   tokenSymbol: string;
   amountLamports: bigint;
+  decimals?: number;
   resourceLabel?: string;
 }): TxParticipant {
+  const human = lamportsToHuman(opts.amountLamports, opts.decimals ?? 6);
   return {
     symbol: opts.tokenSymbol,
-    amountLabel: `${formatAmount(opts.amountLamports.toString())} ${opts.tokenSymbol}`,
+    amountLabel: `${formatAmount(human)} ${opts.tokenSymbol}`,
     accountLabel:
       opts.resourceLabel ?? `Treasury ${truncateAddress(opts.treasuryPubkey, 4)}`,
   };
