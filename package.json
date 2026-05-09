@@ -25,7 +25,9 @@
     "migrate": "npm run migrate:policy && npm run migrate:compliance",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
-    "docker:build": "docker compose build"
+    "docker:build": "docker compose build",
+    "squads:bind": "tsx scripts/squads-devnet-bind.ts",
+    "squads": "tsx scripts/squads-cli.ts"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
