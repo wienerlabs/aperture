@@ -19,3 +19,5 @@ docs/assets/proving-silence.html
 # scripts/deploy/. Never commit secret material.
 scripts/deploy/*.json
 !scripts/deploy/.gitkeep
+.aperture-operator.json
+/.aperture-*.json
