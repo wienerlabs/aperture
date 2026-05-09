@@ -7,6 +7,7 @@ import * as migration004 from './004_add_aip_did.js';
 import * as migration005 from './005_add_onchain_fields.js';
 import * as migration006 from './006_backfill_onchain_commitments.js';
 import * as migration007 from './007_recompute_policy_data_hash_poseidon.js';
+import * as migration008 from './008_create_operator_multisig.js';
 
 interface Migration {
   name: string;
@@ -22,6 +23,7 @@ const migrations: Migration[] = [
   { name: '005_add_onchain_fields', ...migration005 },
   { name: '006_backfill_onchain_commitments', ...migration006 },
   { name: '007_recompute_policy_data_hash_poseidon', ...migration007 },
+  { name: '008_create_operator_multisig', ...migration008 },
 ];
 
 async function ensureMigrationsTable(client: import('pg').PoolClient): Promise<void> {

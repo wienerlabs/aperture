@@ -375,3 +375,135 @@ export const aipApi = {
       '/api/aip/agents'
     ),
 };
+
+// -- Squads multisig --
+//
+// The dashboard treats binding state as authoritative through this client:
+// reads cache from the policy-service Postgres, writes go through the same
+// service after the wallet has already confirmed the on-chain
+// set_multisig instruction. We don't keep RPC state on the client because
+// the operator's listing UI must always reflect the same threshold/members
+// the policy-service saw at write time.
+
+export interface MultisigMember {
+  readonly key: string;
+  readonly permissionsMask: number;
+}
+
+export interface MultisigBinding {
+  readonly operatorId: string;
+  readonly multisigAddress: string;
+  readonly vaultIndex: number;
+  readonly vaultPda: string;
+  readonly threshold: number;
+  readonly memberCount: number;
+  readonly members: readonly MultisigMember[];
+  readonly label: string | null;
+  readonly bindTxSignature: string | null;
+  readonly lastSyncedAt: string | null;
+  readonly boundAt: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface MultisigSnapshot {
+  readonly multisigAddress: string;
+  readonly threshold: number;
+  readonly members: readonly MultisigMember[];
+  readonly vaultPda: string;
+  readonly transactionIndex: number;
+}
+
+export interface MultisigAuditEntry {
+  readonly id: number;
+  readonly operatorId: string;
+  readonly action: 'bind' | 'unbind' | 'sync' | 'rotate';
+  readonly multisigAddress: string | null;
+  readonly vaultIndex: number | null;
+  readonly txSignature: string | null;
+  readonly payload: Record<string, unknown>;
+  readonly actor: string;
+  readonly createdAt: string;
+}
+
+interface BindBindingBody {
+  readonly operator_id: string;
+  readonly multisig_address: string;
+  readonly vault_index: number;
+  readonly label?: string;
+  readonly bind_tx_signature?: string;
+  readonly actor: string;
+}
+
+export const multisigApi = {
+  /** Read-only: ask the policy-service to fetch a Squads account from RPC. */
+  lookup: (multisigAddress: string, vaultIndex = 0) =>
+    request<ApiResponse<MultisigSnapshot>>(
+      config.policyServiceUrl,
+      `/api/v1/squads/lookup?multisig_address=${encodeURIComponent(multisigAddress)}&vault_index=${vaultIndex}`,
+    ),
+
+  /** Pure derivation, no RPC. Useful for previewing the vault PDA quickly. */
+  deriveVault: (multisigAddress: string, vaultIndex = 0) =>
+    request<
+      ApiResponse<{
+        multisigAddress: string;
+        vaultIndex: number;
+        vaultPda: string;
+        squadsProgramId: string;
+      }>
+    >(
+      config.policyServiceUrl,
+      `/api/v1/squads/derive-vault?multisig_address=${encodeURIComponent(multisigAddress)}&vault_index=${vaultIndex}`,
+    ),
+
+  /** Cache a binding after the wallet has confirmed set_multisig on-chain. */
+  bind: (body: BindBindingBody) =>
+    request<
+      ApiResponse<{ binding: MultisigBinding; snapshot: MultisigSnapshot }>
+    >(config.policyServiceUrl, '/api/v1/squads/binding', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  /** Get the cached binding (404 → null at this layer). */
+  getBinding: async (operatorId: string): Promise<MultisigBinding | null> => {
+    try {
+      const res = await request<ApiResponse<MultisigBinding>>(
+        config.policyServiceUrl,
+        `/api/v1/squads/binding/${encodeURIComponent(operatorId)}`,
+      );
+      return res.data ?? null;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : '';
+      if (msg.toLowerCase().includes('no multisig binding')) return null;
+      throw error;
+    }
+  },
+
+  /** Re-fetch the on-chain snapshot and refresh the cache. */
+  sync: (operatorId: string, actor: string) =>
+    request<
+      ApiResponse<{ binding: MultisigBinding; snapshot: MultisigSnapshot }>
+    >(
+      config.policyServiceUrl,
+      `/api/v1/squads/binding/${encodeURIComponent(operatorId)}/sync`,
+      { method: 'POST', body: JSON.stringify({ actor }) },
+    ),
+
+  /** Drop the cache. Note: does not change on-chain operator state. */
+  unbind: (operatorId: string, actor: string) =>
+    request<
+      ApiResponse<{ removed: boolean; multisigAddress: string }>
+    >(
+      config.policyServiceUrl,
+      `/api/v1/squads/binding/${encodeURIComponent(operatorId)}`,
+      { method: 'DELETE', body: JSON.stringify({ actor }) },
+    ),
+
+  audit: (operatorId: string, limit = 50) =>
+    request<ApiResponse<readonly MultisigAuditEntry[]>>(
+      config.policyServiceUrl,
+      `/api/v1/squads/audit/${encodeURIComponent(operatorId)}?limit=${limit}`,
+    ),
+};

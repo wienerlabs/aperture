@@ -2,7 +2,6 @@
 
 import { useOperatorId } from '@/hooks/useOperatorId';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useConnection } from '@solana/wallet-adapter-react';
 import {
   Settings,
   Wallet,
@@ -12,151 +11,47 @@ import {
   LogOut,
   Loader2,
   ExternalLink,
-  Plus,
   Cpu,
+  ShieldCheck,
+  Lock,
 } from 'lucide-react';
 import { useState, useCallback, useEffect } from 'react';
 import { config } from '@/lib/config';
 import { truncateAddress } from '@/lib/utils';
-import { Keypair, PublicKey } from '@solana/web3.js';
+import { multisigApi, type MultisigBinding } from '@/lib/api';
 import { AgentStripeCard } from './AgentStripeCard';
 import { SettingsSection } from './shared/SettingsSection';
 import { CopyableField } from './shared/CopyableField';
-
-interface MultisigInfo {
-  readonly address: string;
-  readonly threshold: number;
-  readonly memberCount: number;
-  readonly createKey: string;
-}
+import { MultisigOverviewCard } from './multisig/MultisigOverviewCard';
+import { MultisigBindingCard } from './multisig/MultisigBindingCard';
 
 export function SettingsTab() {
-  const { publicKey, disconnect, connected, signTransaction } = useWallet();
-  const { connection } = useConnection();
+  const { publicKey, disconnect, connected } = useWallet();
   const operatorId = useOperatorId();
 
-  const [creatingMultisig, setCreatingMultisig] = useState(false);
-  const [multisigInfo, setMultisigInfo] = useState<MultisigInfo | null>(null);
-  const [multisigError, setMultisigError] = useState<string | null>(null);
-  const [multisigTxSig, setMultisigTxSig] = useState<string | null>(null);
+  const [binding, setBinding] = useState<MultisigBinding | null>(null);
+  const [bindingLoading, setBindingLoading] = useState(false);
+  const [bindingError, setBindingError] = useState<string | null>(null);
 
   const walletAddress = publicKey?.toBase58() ?? null;
 
-  const checkExistingMultisig = useCallback(async () => {
-    if (!publicKey) return;
+  const loadBinding = useCallback(async (): Promise<void> => {
+    if (!operatorId) return;
+    setBindingLoading(true);
+    setBindingError(null);
     try {
-      const sqds = await import('@sqds/multisig');
-
-      // Check localStorage for previously created multisig
-      const storedKey = localStorage.getItem(
-        `aperture_multisig_createkey_${publicKey.toBase58()}`,
-      );
-      if (!storedKey) return;
-
-      const createKeyPubkey = new PublicKey(storedKey);
-      const [multisigPda] = sqds.getMultisigPda({
-        createKey: createKeyPubkey,
-      });
-
-      const multisigAccount = await sqds.accounts.Multisig.fromAccountAddress(
-        connection,
-        multisigPda,
-      );
-
-      setMultisigInfo({
-        address: multisigPda.toBase58(),
-        threshold: multisigAccount.threshold,
-        memberCount: multisigAccount.members.length,
-        createKey: storedKey,
-      });
-    } catch {
-      // No existing multisig found or error fetching
+      const result = await multisigApi.getBinding(operatorId);
+      setBinding(result);
+    } catch (err: unknown) {
+      setBindingError(err instanceof Error ? err.message : 'Failed to load multisig');
+    } finally {
+      setBindingLoading(false);
     }
-  }, [publicKey, connection]);
+  }, [operatorId]);
 
   useEffect(() => {
-    checkExistingMultisig();
-  }, [checkExistingMultisig]);
-
-  async function createMultisig(): Promise<void> {
-    if (!publicKey || !signTransaction) return;
-
-    setCreatingMultisig(true);
-    setMultisigError(null);
-    setMultisigTxSig(null);
-
-    try {
-      const sqds = await import('@sqds/multisig');
-      const Permissions = sqds.types.Permissions;
-
-      // Generate a new keypair for multisig creation (used as seed)
-      const createKey = Keypair.generate();
-
-      // Derive the multisig PDA
-      const [multisigPda] = sqds.getMultisigPda({
-        createKey: createKey.publicKey,
-      });
-
-      // Build the create multisig transaction. Threshold 1/1 for the demo
-      // - operators can re-create with a higher threshold once they have
-      // multiple signers ready to add.
-      const [programConfigPda] = sqds.getProgramConfigPda({});
-      const programConfig = await sqds.accounts.ProgramConfig.fromAccountAddress(
-        connection,
-        programConfigPda,
-      );
-
-      const createMultisigIx = sqds.instructions.multisigCreateV2({
-        createKey: createKey.publicKey,
-        creator: publicKey,
-        multisigPda,
-        configAuthority: publicKey,
-        threshold: 1,
-        members: [
-          {
-            key: publicKey,
-            permissions: Permissions.all(),
-          },
-        ],
-        timeLock: 0,
-        treasury: programConfig.treasury,
-        rentCollector: publicKey,
-      });
-
-      const { Transaction } = await import('@solana/web3.js');
-      const tx = new Transaction().add(createMultisigIx);
-      tx.feePayer = publicKey;
-      const { blockhash } = await connection.getLatestBlockhash();
-      tx.recentBlockhash = blockhash;
-
-      // createKey must also sign
-      tx.partialSign(createKey);
-
-      const signed = await signTransaction(tx);
-      const sig = await connection.sendRawTransaction(signed.serialize());
-      await connection.confirmTransaction(sig, 'confirmed');
-
-      setMultisigTxSig(sig);
-
-      // Store createKey in localStorage for future lookups
-      localStorage.setItem(
-        `aperture_multisig_createkey_${publicKey.toBase58()}`,
-        createKey.publicKey.toBase58(),
-      );
-
-      setMultisigInfo({
-        address: multisigPda.toBase58(),
-        threshold: 1,
-        memberCount: 1,
-        createKey: createKey.publicKey.toBase58(),
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to create multisig';
-      setMultisigError(message);
-    } finally {
-      setCreatingMultisig(false);
-    }
-  }
+    void loadBinding();
+  }, [loadBinding]);
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -183,7 +78,7 @@ export function SettingsTab() {
           </h1>
           <p className="text-[14px] text-black/55 tracking-tighter max-w-2xl">
             Aperture is wallet-first. Your operator identity, multisig governance, and
-            backend service URLs all live in one place - no admin console required.
+            backend service URLs all live in one place. No admin console required.
           </p>
         </div>
       </section>
@@ -225,87 +120,60 @@ export function SettingsTab() {
         )}
       </SettingsSection>
 
-      {/* Squads Multisig */}
+      {/* Squads Multisig — full lifecycle */}
       <SettingsSection
         icon={Users}
         title="Squads Multisig"
-        description="Squads V4 enables multi-signature approval for policy changes. Policy registration and updates can be routed through the multisig for added security."
+        description="Bind a Squads V4 multisig to this operator. Once bound, every register_policy and update_policy call must go through the multisig vault PDA."
         action={
-          multisigInfo ? (
+          binding ? (
             <span className="inline-flex items-center gap-1.5 rounded-pill bg-green-500/10 px-2.5 py-1 text-[11px] font-medium tracking-tighter text-green-700">
-              <CheckCircle className="h-3 w-3" />
-              Active · {multisigInfo.threshold}/{multisigInfo.memberCount}
+              <Lock className="h-3 w-3" />
+              {binding.threshold}/{binding.memberCount} bound
             </span>
           ) : (
-            <span className="inline-flex items-center rounded-pill bg-black/5 px-2.5 py-1 text-[11px] font-medium tracking-tighter text-black/55">
-              Not configured
+            <span className="inline-flex items-center gap-1.5 rounded-pill bg-black/5 px-2.5 py-1 text-[11px] font-medium tracking-tighter text-black/55">
+              <ShieldCheck className="h-3 w-3" />
+              Single signer
             </span>
           )
         }
       >
-        {multisigInfo ? (
-          <>
-            <CopyableField label="Multisig address" value={multisigInfo.address} />
-            <div className="flex flex-wrap items-center gap-3">
-              <a
-                href={config.explorerUrl(multisigInfo.address)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-pill border border-black/8 bg-white px-3 py-1.5 text-[12px] font-medium tracking-tighter text-aperture-dark hover:border-aperture/40 transition-colors"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                View on Solana
-              </a>
-              {multisigTxSig && (
-                <a
-                  href={config.txExplorerUrl(multisigTxSig)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-[12px] tracking-tighter text-black/55 hover:text-black transition-colors"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  Creation tx
-                </a>
-              )}
-            </div>
-          </>
+        {bindingLoading ? (
+          <div className="flex items-center justify-center py-6">
+            <Loader2 className="h-5 w-5 animate-spin text-aperture-dark" />
+          </div>
+        ) : bindingError ? (
+          <div className="rounded-[12px] border border-red-500/25 bg-red-500/5 p-3 text-[12px] text-red-700 tracking-tighter">
+            {bindingError}
+          </div>
+        ) : binding ? (
+          <MultisigOverviewCard
+            binding={binding}
+            walletAddress={walletAddress}
+            onUpdate={(next) => setBinding(next)}
+          />
+        ) : operatorId ? (
+          <MultisigBindingCard
+            operatorId={operatorId}
+            walletAddress={walletAddress}
+            onBound={(next) => setBinding(next)}
+          />
         ) : (
-          <>
-            {multisigError && (
-              <div className="rounded-[12px] border border-red-500/25 bg-red-500/5 p-3 text-[12px] text-red-700 tracking-tighter">
-                {multisigError}
-              </div>
-            )}
-            <button
-              onClick={createMultisig}
-              disabled={creatingMultisig || !connected}
-              className="ap-btn-orange inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed w-fit"
-            >
-              {creatingMultisig ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4" />
-              )}
-              {creatingMultisig ? 'Creating…' : 'Create Multisig'}
-            </button>
-            <p className="text-[12px] text-black/55 tracking-tighter">
-              Creates a Squads V4 multisig on Devnet with 1/1 threshold. Your connected
-              wallet will be the sole member; raise the threshold once additional
-              signers are ready.
-            </p>
-          </>
+          <p className="text-[14px] text-black/55 tracking-tighter">
+            Connect a wallet first to bind a multisig.
+          </p>
         )}
       </SettingsSection>
 
-      {/* Agent Stripe Configuration - kept as its own component, theming
-          updates land via globals.css overrides. */}
+      {/* Agent Stripe Configuration */}
       <AgentStripeCard operatorId={operatorId} />
 
       {/* API Configuration */}
       <SettingsSection
         icon={Server}
         title="API Configuration"
-        description="Backend service URLs read at runtime. Override via NEXT_PUBLIC_* env to point at staging/prod."
+        description="Backend service URLs read at runtime. Override via NEXT_PUBLIC_* env to point at staging or prod."
       >
         <div className="grid grid-cols-1 gap-3">
           <CopyableField label="Policy Service" value={config.policyServiceUrl} />
@@ -355,6 +223,7 @@ export function SettingsTab() {
             { label: 'Transfer Hook', id: config.programs.transferHook },
             { label: 'AIP Registry', id: config.programs.aipRegistry },
             { label: 'AIP Escrow', id: config.programs.aipEscrow },
+            { label: 'Squads V4', id: 'SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf' },
           ].map((p) => (
             <CopyableField
               key={p.label}

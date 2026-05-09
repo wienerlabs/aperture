@@ -12,3 +12,16 @@ export { type PaymentRequest, type PaymentResult, type ProofRequest, type ProofR
 export { type SolanaConfig, type TokenConfig, DEVNET_TOKENS } from './solana.js';
 export { type ApiResponse, type PaginatedResponse, type ApiError } from './api.js';
 export { type TimeRestriction, type DayOfWeek, DAYS_OF_WEEK } from './time.js';
+export {
+  type Base58Address,
+  type MultisigMember,
+  type MultisigBinding,
+  type MultisigBindingInput,
+  type MultisigOnchainSnapshot,
+  type MultisigAuditAction,
+  type MultisigAuditEntry,
+  type MultisigProposal,
+  type MultisigProposalAction,
+  type MultisigProposalStatus,
+  type MultisigProposalInput,
+} from './multisig.js';

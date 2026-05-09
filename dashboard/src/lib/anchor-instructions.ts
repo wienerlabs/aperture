@@ -27,12 +27,22 @@ const DISCRIMINATORS = {
   initializeOperator: Buffer.from([155, 33, 216, 254, 233, 227, 175, 212]),
   registerPolicy: Buffer.from([62, 66, 167, 36, 252, 227, 38, 132]),
   updatePolicy: Buffer.from([212, 245, 246, 7, 163, 151, 18, 57]),
+  setMultisig: Buffer.from([251, 6, 245, 35, 115, 42, 77, 186]),
+  registerPolicyMultisig: Buffer.from([167, 107, 137, 228, 227, 133, 173, 190]),
+  updatePolicyMultisig: Buffer.from([88, 233, 184, 252, 171, 126, 180, 83]),
   verifyPaymentProof: Buffer.from([247, 147, 241, 26, 26, 113, 39, 66]),
   verifyPaymentProofV2: Buffer.from([15, 218, 30, 217, 205, 0, 219, 86]),
   verifyPaymentProofV2WithTransfer: Buffer.from([135, 175, 216, 175, 66, 118, 196, 204]),
   verifyMppPaymentProof: Buffer.from([91, 1, 37, 88, 220, 232, 8, 48]),
   verifyBatchAttestation: Buffer.from([85, 129, 17, 164, 94, 99, 86, 45]),
 } as const;
+
+// Squads V4 program ID — same on Devnet + Mainnet. Pinned client-side so
+// the dashboard can derive vault PDAs without round-tripping the policy
+// service for the program ID.
+const SQUADS_V4_PROGRAM_ID = new PublicKey(
+  'SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf',
+);
 
 // SPL Token program IDs the verify_payment_proof_v2_with_transfer ix
 // accepts. Token-1 is the legacy program used by Circle USDC, USDT, and
@@ -229,6 +239,172 @@ export function buildUpdatePolicyIx(
       { pubkey: policyPDA, isSigner: false, isWritable: true },
       { pubkey: operatorAccount, isSigner: false, isWritable: false },
       { pubkey: authority, isSigner: true, isWritable: false },
+    ],
+    data,
+  });
+}
+
+// -- Squads V4 Multisig Helpers --
+
+/**
+ * Derives the Squads V4 vault PDA. Mirrors the on-chain derivation in
+ * programs/policy-registry/src/instructions/set_multisig.rs:
+ *   seeds = ["multisig", multisig_key, "vault", vault_index_byte]
+ */
+export function deriveSquadsVaultPDA(
+  multisigKey: PublicKey,
+  vaultIndex: number,
+): [PublicKey, number] {
+  if (vaultIndex < 0 || vaultIndex > 255 || !Number.isInteger(vaultIndex)) {
+    throw new Error('vaultIndex must be an integer in [0, 255]');
+  }
+  return PublicKey.findProgramAddressSync(
+    [
+      Buffer.from('multisig'),
+      multisigKey.toBuffer(),
+      Buffer.from('vault'),
+      Buffer.from([vaultIndex]),
+    ],
+    SQUADS_V4_PROGRAM_ID,
+  );
+}
+
+// -- Multisig Policy Registry Instructions --
+
+/**
+ * Builds the policy-registry set_multisig instruction. Binds the operator
+ * account to a Squads V4 vault PDA so subsequent register_policy_multisig
+ * and update_policy_multisig calls require the multisig as signer.
+ *
+ * Account order matches set_multisig.rs in the policy-registry program:
+ *   [0] operator_account (mutable, has_one authority)
+ *   [1] authority (signer, mutable)
+ *   [2] squads_multisig (read-only, owned by Squads V4)
+ */
+export function buildSetMultisigIx(
+  authority: PublicKey,
+  squadsMultisig: PublicKey,
+  vaultIndex: number,
+): { instruction: TransactionInstruction; vaultPda: PublicKey } {
+  if (vaultIndex < 0 || vaultIndex > 255 || !Number.isInteger(vaultIndex)) {
+    throw new Error('vaultIndex must be an integer in [0, 255]');
+  }
+
+  const [operatorAccount] = deriveOperatorPDA(authority);
+  const [vaultPda] = deriveSquadsVaultPDA(squadsMultisig, vaultIndex);
+
+  // Borsh: discriminator(8) + vault_index(u8)
+  const data = Buffer.alloc(8 + 1);
+  DISCRIMINATORS.setMultisig.copy(data, 0);
+  data.writeUInt8(vaultIndex, 8);
+
+  const instruction = new TransactionInstruction({
+    programId: POLICY_REGISTRY_PROGRAM,
+    keys: [
+      { pubkey: operatorAccount, isSigner: false, isWritable: true },
+      { pubkey: authority, isSigner: true, isWritable: true },
+      { pubkey: squadsMultisig, isSigner: false, isWritable: false },
+    ],
+    data,
+  });
+
+  return { instruction, vaultPda };
+}
+
+interface MultisigPolicyIxArgs {
+  readonly squadsMultisig: PublicKey;
+  /** The vault PDA (signer). Must be derived from squadsMultisig + vaultIndex. */
+  readonly multisigSigner: PublicKey;
+  readonly vaultIndex: number;
+  /** Wallet that pays the rent for the new policy account. */
+  readonly payer: PublicKey;
+  readonly policyIdBytesHex: string;
+  readonly merkleRootHex: string;
+  readonly policyDataHashHex: string;
+}
+
+/**
+ * Builds register_policy_multisig. The transaction MUST be wrapped in a
+ * Squads multisigCreateTransaction call; the vault PDA cannot sign
+ * directly from a wallet keypair.
+ *
+ * Account order matches register_policy_multisig.rs:
+ *   [0] policy_account (init, mutable)
+ *   [1] operator_account (mutable, has multisig field set to the vault PDA)
+ *   [2] squads_multisig (read-only, owned by Squads V4)
+ *   [3] multisig_signer (signer = vault PDA)
+ *   [4] payer (signer, mutable)
+ *   [5] system_program
+ */
+export function buildRegisterPolicyMultisigIx(
+  authorityForOperator: PublicKey,
+  args: MultisigPolicyIxArgs,
+): { instruction: TransactionInstruction; policyPDA: PublicKey } {
+  const policyIdBytes = hexToBuffer32(args.policyIdBytesHex);
+  const merkleRoot = hexToBuffer32(args.merkleRootHex);
+  const policyDataHash = hexToBuffer32(args.policyDataHashHex);
+
+  const [operatorAccount] = deriveOperatorPDA(authorityForOperator);
+  const [policyPDA] = derivePolicyPDA(operatorAccount, policyIdBytes);
+
+  const data = Buffer.alloc(8 + 32 + 32 + 32 + 1);
+  DISCRIMINATORS.registerPolicyMultisig.copy(data, 0);
+  policyIdBytes.copy(data, 8);
+  merkleRoot.copy(data, 40);
+  policyDataHash.copy(data, 72);
+  data.writeUInt8(args.vaultIndex, 104);
+
+  const instruction = new TransactionInstruction({
+    programId: POLICY_REGISTRY_PROGRAM,
+    keys: [
+      { pubkey: policyPDA, isSigner: false, isWritable: true },
+      { pubkey: operatorAccount, isSigner: false, isWritable: true },
+      { pubkey: args.squadsMultisig, isSigner: false, isWritable: false },
+      { pubkey: args.multisigSigner, isSigner: true, isWritable: false },
+      { pubkey: args.payer, isSigner: true, isWritable: true },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+    data,
+  });
+
+  return { instruction, policyPDA };
+}
+
+interface UpdateMultisigPolicyIxArgs {
+  readonly squadsMultisig: PublicKey;
+  readonly multisigSigner: PublicKey;
+  readonly vaultIndex: number;
+  readonly policyPDA: PublicKey;
+  readonly merkleRootHex: string;
+  readonly policyDataHashHex: string;
+}
+
+/**
+ * Builds update_policy_multisig. Same wrapping requirement as
+ * buildRegisterPolicyMultisigIx — must be submitted via Squads.
+ */
+export function buildUpdatePolicyMultisigIx(
+  authorityForOperator: PublicKey,
+  args: UpdateMultisigPolicyIxArgs,
+): TransactionInstruction {
+  const newMerkleRoot = hexToBuffer32(args.merkleRootHex);
+  const newPolicyDataHash = hexToBuffer32(args.policyDataHashHex);
+
+  const [operatorAccount] = deriveOperatorPDA(authorityForOperator);
+
+  const data = Buffer.alloc(8 + 32 + 32 + 1);
+  DISCRIMINATORS.updatePolicyMultisig.copy(data, 0);
+  newMerkleRoot.copy(data, 8);
+  newPolicyDataHash.copy(data, 40);
+  data.writeUInt8(args.vaultIndex, 72);
+
+  return new TransactionInstruction({
+    programId: POLICY_REGISTRY_PROGRAM,
+    keys: [
+      { pubkey: args.policyPDA, isSigner: false, isWritable: true },
+      { pubkey: operatorAccount, isSigner: false, isWritable: false },
+      { pubkey: args.squadsMultisig, isSigner: false, isWritable: false },
+      { pubkey: args.multisigSigner, isSigner: true, isWritable: false },
     ],
     data,
   });

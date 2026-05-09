@@ -1,166 +1,361 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import type { ApiResponse } from '@aperture/types';
+import type { ApiResponse, MultisigBinding, MultisigOnchainSnapshot, MultisigAuditEntry } from '@aperture/types';
 import { validateBody } from '../middleware/validate.js';
 import { AppError } from '../middleware/error-handler.js';
 import { logger } from '../utils/logger.js';
+import {
+  fetchMultisigSnapshot,
+  deriveVaultPda,
+  SQUADS_V4_PROGRAM_ID,
+} from '../utils/squads-fetcher.js';
+import {
+  upsertBinding,
+  syncSnapshot,
+  getBinding,
+  deleteBinding,
+  listAudit,
+} from '../models/operator-multisig.js';
+import { PublicKey } from '@solana/web3.js';
 
 const router = Router();
 
-const CreateMultisigSchema = z.object({
-  operator_id: z.string().uuid(),
-  members: z.array(z.string().min(32).max(44)).min(1),
-  threshold: z.number().int().positive(),
+const Base58Schema = z
+  .string()
+  .min(32)
+  .max(44)
+  .refine((s) => /^[1-9A-HJ-NP-Za-km-z]+$/.test(s), {
+    message: 'Must be a base58 encoded address',
+  });
+
+const SignatureSchema = z
+  .string()
+  .min(32)
+  .max(128)
+  .refine((s) => /^[1-9A-HJ-NP-Za-km-z]+$/.test(s), {
+    message: 'Must be a base58 encoded transaction signature',
+  });
+
+const VaultIndexSchema = z.number().int().min(0).max(255);
+
+const BindBindingSchema = z.object({
+  operator_id: z.string().min(1).max(64),
+  multisig_address: Base58Schema,
+  vault_index: VaultIndexSchema.default(0),
+  label: z.string().min(1).max(255).optional(),
+  bind_tx_signature: SignatureSchema.optional(),
+  actor: Base58Schema,
 });
 
-const CreateProposalSchema = z.object({
-  operator_id: z.string().uuid(),
-  multisig_address: z.string().min(32).max(44),
-  policy_id: z.string().uuid(),
-  action: z.enum(['register', 'update', 'deactivate']),
-  policy_data_hash: z.string().length(64).optional(),
-  merkle_root: z.string().length(64).optional(),
+const LookupSchema = z.object({
+  multisig_address: Base58Schema,
+  vault_index: VaultIndexSchema.default(0),
 });
 
-interface MultisigInfo {
-  address: string;
-  members: string[];
-  threshold: number;
-  operator_id: string;
-}
+const SyncSchema = z.object({
+  actor: Base58Schema,
+});
 
-interface ProposalInfo {
-  proposal_address: string;
-  multisig_address: string;
-  action: string;
-  policy_id: string;
-  status: 'pending' | 'approved' | 'executed' | 'rejected';
-  created_at: string;
+const DeleteSchema = z.object({
+  actor: Base58Schema,
+});
+
+interface BindingResponseBody {
+  readonly binding: MultisigBinding;
+  readonly snapshot: MultisigOnchainSnapshot;
 }
 
 /**
- * @swagger
- * /api/v1/squads/multisig:
- *   post:
- *     summary: Create a Squads multisig for an operator
- *     tags: [Squads]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/CreateMultisig'
- *     responses:
- *       201:
- *         description: Multisig created
+ * GET /api/v1/squads/lookup
+ *   query: ?multisig_address=...&vault_index=0
+ *
+ * Pure read of an on-chain Squads multisig + derived vault PDA. The
+ * dashboard uses this for the "preview before bind" step so the operator
+ * can confirm threshold + members before signing the on-chain set_multisig
+ * instruction.
  */
-router.post('/multisig', validateBody(CreateMultisigSchema), async (req, res, next) => {
+router.get('/lookup', async (req, res, next) => {
   try {
-    const { operator_id, members, threshold } = req.body;
-
-    if (threshold > members.length) {
-      throw new AppError(400, 'Threshold cannot exceed number of members');
+    const parsed = LookupSchema.safeParse({
+      multisig_address: req.query.multisig_address,
+      vault_index: req.query.vault_index ? Number(req.query.vault_index) : undefined,
+    });
+    if (!parsed.success) {
+      throw new AppError(400, parsed.error.issues.map((i) => i.message).join('; '));
     }
 
-    const { Keypair, PublicKey } = await import('@solana/web3.js');
-
-    // Create multisig PDA using Squads protocol seeds
-    const multisigKeypair = Keypair.generate();
-
-    // Build Squads V4 create multisig instruction
-    const squadsProgram = new PublicKey('SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf');
-    const [multisigPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from('squad'), multisigKeypair.publicKey.toBuffer(), Buffer.from('multisig')],
-      squadsProgram
+    const snapshot = await fetchMultisigSnapshot(
+      parsed.data.multisig_address,
+      parsed.data.vault_index,
     );
 
-    const response: ApiResponse<MultisigInfo> = {
+    const response: ApiResponse<MultisigOnchainSnapshot> = {
       success: true,
-      data: {
-        address: multisigPda.toBase58(),
-        members,
-        threshold,
-        operator_id,
-      },
+      data: snapshot,
       error: null,
     };
 
-    logger.info('Squads multisig created', {
-      multisig: multisigPda.toBase58(),
-      operator_id,
-      threshold,
-      member_count: members.length,
+    res.json(response);
+  } catch (error) {
+    if (error instanceof AppError) return next(error);
+    if (error instanceof Error) return next(new AppError(404, error.message));
+    next(error);
+  }
+});
+
+/**
+ * POST /api/v1/squads/binding
+ *
+ * Cache a multisig binding for an operator. The on-chain set_multisig
+ * instruction must already have been signed and confirmed by the wallet
+ * client; this endpoint only mirrors the result into the off-chain ledger
+ * after re-fetching the multisig from RPC to make sure the threshold +
+ * members are accurate at the time of binding.
+ */
+router.post('/binding', validateBody(BindBindingSchema), async (req, res, next) => {
+  try {
+    const body = req.body as z.infer<typeof BindBindingSchema>;
+
+    const snapshot = await fetchMultisigSnapshot(body.multisig_address, body.vault_index);
+
+    const binding = await upsertBinding({
+      operatorId: body.operator_id,
+      multisigAddress: snapshot.multisigAddress,
+      vaultIndex: body.vault_index,
+      vaultPda: snapshot.vaultPda,
+      threshold: snapshot.threshold,
+      memberCount: snapshot.members.length,
+      members: snapshot.members,
+      label: body.label,
+      bindTxSignature: body.bind_tx_signature,
+      actor: body.actor,
     });
 
+    logger.info('Multisig binding created', {
+      operatorId: body.operator_id,
+      multisigAddress: snapshot.multisigAddress,
+      vaultIndex: body.vault_index,
+      threshold: snapshot.threshold,
+      memberCount: snapshot.members.length,
+    });
+
+    const response: ApiResponse<BindingResponseBody> = {
+      success: true,
+      data: { binding, snapshot },
+      error: null,
+    };
+
     res.status(201).json(response);
+  } catch (error) {
+    if (error instanceof AppError) return next(error);
+    if (error instanceof Error) {
+      logger.warn('Multisig binding failed', { error: error.message });
+      return next(new AppError(422, error.message));
+    }
+    next(error);
+  }
+});
+
+/**
+ * GET /api/v1/squads/binding/:operatorId
+ *
+ * Returns the cached binding for an operator. 404 when the operator hasn't
+ * bound a multisig yet — the dashboard treats this as the unbound state.
+ */
+router.get('/binding/:operatorId', async (req, res, next) => {
+  try {
+    const operatorId = String(req.params.operatorId);
+    if (!operatorId || operatorId.length > 64) {
+      throw new AppError(400, 'operatorId must be a non-empty string up to 64 chars');
+    }
+
+    const binding = await getBinding(operatorId);
+    if (!binding) {
+      throw new AppError(404, 'No multisig binding for operator');
+    }
+
+    const response: ApiResponse<MultisigBinding> = {
+      success: true,
+      data: binding,
+      error: null,
+    };
+    res.json(response);
   } catch (error) {
     next(error);
   }
 });
 
 /**
- * @swagger
- * /api/v1/squads/proposal:
- *   post:
- *     summary: Create a policy proposal on the Squads multisig
- *     tags: [Squads]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/CreateProposal'
- *     responses:
- *       201:
- *         description: Proposal created
+ * POST /api/v1/squads/binding/:operatorId/sync
+ *
+ * Re-fetch the on-chain multisig and refresh the cached threshold +
+ * members. Useful when the operator added/removed signers in the Squads
+ * UI and the dashboard view is stale.
  */
-router.post('/proposal', validateBody(CreateProposalSchema), async (req, res, next) => {
-  try {
-    const { operator_id, multisig_address, policy_id, action, policy_data_hash, merkle_root } = req.body;
+router.post(
+  '/binding/:operatorId/sync',
+  validateBody(SyncSchema),
+  async (req, res, next) => {
+    try {
+      const operatorId = String(req.params.operatorId);
+      const { actor } = req.body as z.infer<typeof SyncSchema>;
 
-    if ((action === 'register' || action === 'update') && (!policy_data_hash || !merkle_root)) {
-      throw new AppError(400, 'policy_data_hash and merkle_root are required for register/update actions');
+      const existing = await getBinding(operatorId);
+      if (!existing) {
+        throw new AppError(404, 'No multisig binding for operator');
+      }
+
+      const snapshot = await fetchMultisigSnapshot(
+        existing.multisigAddress,
+        existing.vaultIndex,
+      );
+
+      const binding = await syncSnapshot({
+        operatorId,
+        multisigAddress: snapshot.multisigAddress,
+        vaultIndex: existing.vaultIndex,
+        vaultPda: snapshot.vaultPda,
+        threshold: snapshot.threshold,
+        members: snapshot.members,
+        actor,
+      });
+
+      const response: ApiResponse<BindingResponseBody> = {
+        success: true,
+        data: { binding, snapshot },
+        error: null,
+      };
+      res.json(response);
+    } catch (error) {
+      if (error instanceof AppError) return next(error);
+      if (error instanceof Error) return next(new AppError(422, error.message));
+      next(error);
     }
+  },
+);
 
-    const { PublicKey } = await import('@solana/web3.js');
+/**
+ * DELETE /api/v1/squads/binding/:operatorId
+ *
+ * Remove the off-chain cache. Note that this does NOT clear the on-chain
+ * OperatorAccount.multisig field — that requires a separate set_multisig
+ * call with vault_index pointing at a freshly derived no-op vault. Future
+ * work: expose a "rotate" endpoint that orchestrates both at once.
+ */
+router.delete(
+  '/binding/:operatorId',
+  validateBody(DeleteSchema),
+  async (req, res, next) => {
+    try {
+      const operatorId = String(req.params.operatorId);
+      const { actor } = req.body as z.infer<typeof DeleteSchema>;
 
-    const squadsProgram = new PublicKey('SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf');
-    const multisigPubkey = new PublicKey(multisig_address);
+      const removed = await deleteBinding(operatorId, actor);
+      if (!removed) {
+        throw new AppError(404, 'No multisig binding for operator');
+      }
 
-    // Derive proposal PDA
-    const [proposalPda] = PublicKey.findProgramAddressSync(
-      [
-        Buffer.from('squad'),
-        multisigPubkey.toBuffer(),
-        Buffer.from('transaction'),
-        Buffer.from(new Uint32Array([Date.now()]).buffer),
-      ],
-      squadsProgram
-    );
+      const response: ApiResponse<{ removed: boolean; multisigAddress: string }> = {
+        success: true,
+        data: { removed: true, multisigAddress: removed.multisigAddress },
+        error: null,
+      };
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
-    const proposal: ProposalInfo = {
-      proposal_address: proposalPda.toBase58(),
-      multisig_address,
-      action,
-      policy_id,
-      status: 'pending',
-      created_at: new Date().toISOString(),
-    };
+/**
+ * GET /api/v1/squads/audit/:operatorId
+ *
+ * Full audit history (bind / unbind / sync / rotate) for an operator's
+ * multisig binding. Append-only.
+ */
+router.get('/audit/:operatorId', async (req, res, next) => {
+  try {
+    const operatorId = String(req.params.operatorId);
+    const limit = req.query.limit ? Number(req.query.limit) : 50;
 
-    const response: ApiResponse<ProposalInfo> = {
+    const entries = await listAudit(operatorId, limit);
+    const response: ApiResponse<readonly MultisigAuditEntry[]> = {
       success: true,
-      data: proposal,
+      data: entries,
       error: null,
     };
+    res.json(response);
+  } catch (error) {
+    next(error);
+  }
+});
 
-    logger.info('Squads proposal created', {
-      proposal: proposalPda.toBase58(),
-      operator_id,
-      action,
-      policy_id,
+/**
+ * GET /api/v1/squads/program
+ *
+ * Static metadata about the Squads V4 program — useful for the dashboard
+ * to render the program ID + a deterministic vault PDA preview without
+ * hitting RPC.
+ */
+router.get('/program', (_req, res) => {
+  const response: ApiResponse<{
+    programId: string;
+    vaultPdaPreview: (multisigAddress: string, vaultIndex: number) => string;
+  } & {
+    programId: string;
+    docsUrl: string;
+  }> = {
+    success: true,
+    data: {
+      programId: SQUADS_V4_PROGRAM_ID.toBase58(),
+      docsUrl: 'https://docs.squads.so/main/development/squads-program',
+      vaultPdaPreview: () => '',
+    } as never,
+    error: null,
+  };
+
+  res.json({
+    success: true,
+    data: {
+      programId: SQUADS_V4_PROGRAM_ID.toBase58(),
+      docsUrl: 'https://docs.squads.so/main/development/squads-program',
+    },
+    error: null,
+  });
+  void response;
+});
+
+/**
+ * GET /api/v1/squads/derive-vault
+ *   query: ?multisig_address=...&vault_index=0
+ *
+ * Returns the deterministic vault PDA for a given multisig + vault index.
+ * Lets the dashboard preview the vault address before the operator
+ * commits to a binding.
+ */
+router.get('/derive-vault', (req, res, next) => {
+  try {
+    const parsed = LookupSchema.safeParse({
+      multisig_address: req.query.multisig_address,
+      vault_index: req.query.vault_index ? Number(req.query.vault_index) : undefined,
     });
+    if (!parsed.success) {
+      throw new AppError(400, parsed.error.issues.map((i) => i.message).join('; '));
+    }
 
-    res.status(201).json(response);
+    const multisigPubkey = new PublicKey(parsed.data.multisig_address);
+    const vaultPda = deriveVaultPda(multisigPubkey, parsed.data.vault_index);
+
+    res.json({
+      success: true,
+      data: {
+        multisigAddress: parsed.data.multisig_address,
+        vaultIndex: parsed.data.vault_index,
+        vaultPda: vaultPda.toBase58(),
+        squadsProgramId: SQUADS_V4_PROGRAM_ID.toBase58(),
+      },
+      error: null,
+    });
   } catch (error) {
     next(error);
   }
