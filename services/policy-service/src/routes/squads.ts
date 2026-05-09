@@ -118,9 +118,23 @@ router.get('/lookup', async (req, res, next) => {
       // distinguish "address not on chain" (404) from "address exists
       // but isn't a Squads multisig" (422 — semantic mismatch, not a
       // routing problem) from "address didn't even parse" (400).
-      const kind = (error as Error & { kind?: string }).kind;
-      if (kind === 'invalid_address') return next(new AppError(400, error.message));
-      if (kind === 'wrong_owner') return next(new AppError(422, error.message));
+      const annotated = error as Error & {
+        kind?: string;
+        ownerProgram?: string;
+        ownerLabel?: string;
+      };
+      if (annotated.kind === 'invalid_address') {
+        return next(new AppError(400, error.message));
+      }
+      if (annotated.kind === 'wrong_owner') {
+        // Surface owner program + label as `details` so the dashboard
+        // can render "this looks like a wallet" guidance without
+        // re-running RPC.
+        const details: string[] = [];
+        if (annotated.ownerProgram) details.push(`owner=${annotated.ownerProgram}`);
+        if (annotated.ownerLabel) details.push(`label=${annotated.ownerLabel}`);
+        return next(new AppError(422, error.message, details.length ? details : undefined));
+      }
       return next(new AppError(404, error.message));
     }
     next(error);

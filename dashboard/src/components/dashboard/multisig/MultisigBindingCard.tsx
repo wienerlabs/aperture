@@ -214,10 +214,14 @@ export function MultisigBindingCard({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.2 }}
-            className="flex items-start gap-2 rounded-[14px] border border-red-500/30 bg-red-500/5 px-3 py-2.5"
           >
-            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-red-600" />
-            <p className="text-[12px] tracking-tighter text-red-700 break-all">{error}</p>
+            {classifyError(error) === 'wallet'
+              ? renderWalletHelp(error, multisigAddress.trim())
+              : classifyError(error) === 'squads-v3'
+                ? renderSquadsV3Help(error)
+                : classifyError(error) === 'not-found'
+                  ? renderNotFoundHelp(error, multisigAddress.trim())
+                  : renderGenericError(error)}
           </motion.div>
         )}
       </AnimatePresence>
@@ -475,5 +479,169 @@ function MetaCell({
         {value}
       </div>
     </div>
+  );
+}
+
+// -- Error classifiers + targeted help renderers ---------------------
+//
+// The policy-service returns 422 with a long human-readable message when
+// the lookup hits an account that exists but isn't owned by Squads V4.
+// We pattern-match on a few well-known phrases to render help that
+// actually solves the operator's problem instead of a red pill that
+// just says "no".
+
+type ErrorKind = 'wallet' | 'squads-v3' | 'not-found' | 'generic';
+
+function classifyError(message: string): ErrorKind {
+  const lower = message.toLowerCase();
+  if (lower.includes('regular wallet') || lower.includes('system program')) {
+    return 'wallet';
+  }
+  if (lower.includes('squads v3')) {
+    return 'squads-v3';
+  }
+  if (lower.includes('not found on solana')) {
+    return 'not-found';
+  }
+  return 'generic';
+}
+
+function renderWalletHelp(message: string, pasted: string): JSX.Element {
+  return (
+    <div className="rounded-[14px] border border-aperture/35 bg-[rgba(248,179,0,0.06)] p-4 flex flex-col gap-3">
+      <div className="flex items-start gap-2">
+        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-aperture-dark" />
+        <div className="flex flex-col gap-1">
+          <p className="text-[13px] font-medium tracking-tighter text-black">
+            That looks like a wallet address, not a multisig
+          </p>
+          <p className="text-[12px] text-black/65 tracking-tighter">
+            The address you pasted is owned by the System Program, which is what holds
+            regular Phantom / Solflare wallets. A Squads V4 multisig is a separate PDA
+            that you create at app.squads.so and that lives on-chain under the Squads
+            program.
+          </p>
+        </div>
+      </div>
+      {pasted && (
+        <code className="rounded-[10px] border border-black/8 bg-white px-3 py-2 text-[11px] font-mono text-black/65 break-all">
+          {pasted}
+        </code>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
+        <a
+          href="https://app.squads.so/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="ap-btn-orange inline-flex items-center gap-1.5"
+        >
+          <ExternalLinkIcon />
+          Create a multisig in Squads
+        </a>
+        <a
+          href="https://docs.squads.so/main/development/squads-program"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 rounded-pill border border-black/8 bg-white px-3 py-1.5 text-[12px] font-medium tracking-tighter text-aperture-dark hover:border-aperture/40 transition-colors"
+        >
+          <ExternalLinkIcon />
+          What is a multisig?
+        </a>
+      </div>
+      <details className="text-[11px] text-black/55">
+        <summary className="cursor-pointer hover:text-black">Server response</summary>
+        <p className="mt-1 break-all">{message}</p>
+      </details>
+    </div>
+  );
+}
+
+function renderSquadsV3Help(message: string): JSX.Element {
+  return (
+    <div className="rounded-[14px] border border-red-500/30 bg-red-500/5 p-4 flex flex-col gap-3">
+      <div className="flex items-start gap-2">
+        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-red-600" />
+        <div className="flex flex-col gap-1">
+          <p className="text-[13px] font-medium tracking-tighter text-red-700">
+            Squads V3 multisig detected
+          </p>
+          <p className="text-[12px] text-black/65 tracking-tighter">
+            Aperture only integrates with Squads V4. V3 multisigs use a different
+            program ID and cannot sign the policy registry instructions. Create a fresh
+            V4 multisig at app.squads.so (V3 is in maintenance mode) and bind that
+            instead.
+          </p>
+        </div>
+      </div>
+      <a
+        href="https://app.squads.so/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="ap-btn-orange inline-flex items-center gap-1.5 self-start"
+      >
+        <ExternalLinkIcon />
+        Open Squads (V4)
+      </a>
+      <details className="text-[11px] text-black/55">
+        <summary className="cursor-pointer hover:text-black">Server response</summary>
+        <p className="mt-1 break-all">{message}</p>
+      </details>
+    </div>
+  );
+}
+
+function renderNotFoundHelp(message: string, pasted: string): JSX.Element {
+  return (
+    <div className="rounded-[14px] border border-aperture/35 bg-[rgba(248,179,0,0.06)] p-4 flex flex-col gap-3">
+      <div className="flex items-start gap-2">
+        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-aperture-dark" />
+        <div className="flex flex-col gap-1">
+          <p className="text-[13px] font-medium tracking-tighter text-black">
+            That account doesn&apos;t exist on this cluster
+          </p>
+          <p className="text-[12px] text-black/65 tracking-tighter">
+            Aperture is currently looking at <strong>Solana Devnet</strong>. If your
+            multisig lives on Mainnet, switch your wallet to Devnet and create a fresh
+            multisig there for testing — multisigs cannot be moved across clusters.
+          </p>
+        </div>
+      </div>
+      {pasted && (
+        <code className="rounded-[10px] border border-black/8 bg-white px-3 py-2 text-[11px] font-mono text-black/65 break-all">
+          {pasted}
+        </code>
+      )}
+      <details className="text-[11px] text-black/55">
+        <summary className="cursor-pointer hover:text-black">Server response</summary>
+        <p className="mt-1 break-all">{message}</p>
+      </details>
+    </div>
+  );
+}
+
+function renderGenericError(message: string): JSX.Element {
+  return (
+    <div className="flex items-start gap-2 rounded-[14px] border border-red-500/30 bg-red-500/5 px-3 py-2.5">
+      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-red-600" />
+      <p className="text-[12px] tracking-tighter text-red-700 break-all">{message}</p>
+    </div>
+  );
+}
+
+function ExternalLinkIcon(): JSX.Element {
+  return (
+    <svg
+      className="h-3.5 w-3.5"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <polyline points="15 3 21 3 21 9" />
+      <line x1="10" y1="14" x2="21" y2="3" />
+    </svg>
   );
 }
