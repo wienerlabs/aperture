@@ -288,7 +288,7 @@ export function OverviewTab({
               disabled={demoBusy}
               className="ap-btn-orange disabled:opacity-60"
             >
-              {demoBusy ? 'Running…' : 'Run x402 Demo'}
+              {demoBusy ? 'Running…' : 'Run x402'}
             </button>
             <span className="text-[11px] text-black/45 tracking-tighter">
               Triggers an atomic verify+transfer on Devnet

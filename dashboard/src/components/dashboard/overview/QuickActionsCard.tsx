@@ -39,7 +39,7 @@ export function QuickActionsCard({
       onClick: onCreatePolicy,
     },
     {
-      title: 'Run x402 Demo',
+      title: 'Run x402',
       subtitle: 'Fetches a paywalled report; signs the atomic verify+transfer tx',
       icon: Zap,
       onClick: onTestX402,

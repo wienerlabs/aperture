@@ -64,17 +64,23 @@ export async function fetchMultisigSnapshot(
   try {
     multisigPubkey = new PublicKey(multisigAddress);
   } catch (error) {
-    throw new Error(`Invalid multisig address: ${multisigAddress}`);
+    const err = new Error(`Invalid multisig address: ${multisigAddress}`);
+    (err as Error & { kind?: string }).kind = 'invalid_address';
+    throw err;
   }
 
   const accountInfo = await connection.getAccountInfo(multisigPubkey);
   if (!accountInfo) {
-    throw new Error(`Multisig account not found on Solana: ${multisigAddress}`);
+    const err = new Error(`Multisig account not found on Solana: ${multisigAddress}`);
+    (err as Error & { kind?: string }).kind = 'not_found';
+    throw err;
   }
   if (!accountInfo.owner.equals(SQUADS_V4_PROGRAM_ID)) {
-    throw new Error(
+    const err = new Error(
       `Account ${multisigAddress} is not owned by Squads V4 program`,
     );
+    (err as Error & { kind?: string }).kind = 'wrong_owner';
+    throw err;
   }
 
   const account = await multisig.accounts.Multisig.fromAccountAddress(

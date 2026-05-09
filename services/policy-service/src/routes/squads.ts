@@ -113,7 +113,16 @@ router.get('/lookup', async (req, res, next) => {
     res.json(response);
   } catch (error) {
     if (error instanceof AppError) return next(error);
-    if (error instanceof Error) return next(new AppError(404, error.message));
+    if (error instanceof Error) {
+      // The fetcher annotates errors with a `kind` so the route can
+      // distinguish "address not on chain" (404) from "address exists
+      // but isn't a Squads multisig" (422 — semantic mismatch, not a
+      // routing problem) from "address didn't even parse" (400).
+      const kind = (error as Error & { kind?: string }).kind;
+      if (kind === 'invalid_address') return next(new AppError(400, error.message));
+      if (kind === 'wrong_owner') return next(new AppError(422, error.message));
+      return next(new AppError(404, error.message));
+    }
     next(error);
   }
 });

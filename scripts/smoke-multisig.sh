@@ -14,11 +14,17 @@ set -euo pipefail
 
 POLICY_URL="${POLICY_SERVICE_URL:-http://localhost:3001}"
 
-# Sample multisig address from a known Squads V4 deployment. The lookup
-# call expects the account to either exist (returns metadata) or to fail
-# with 422 ("not owned by Squads V4 program") — both prove the route is
-# wired correctly.
-MULTISIG="${MULTISIG:-BSAinHGEsuZWRYC3UfbMwELeHqZQ8VgWiKsspGbW1zh4}"
+# Smoke-test sentinel: the Squads V4 program ID itself. Devnet does not
+# expose a public Aperture-owned multisig we can hard-code, so we send
+# the program account through `lookup` instead. The account exists
+# (proves RPC is reachable) but is owned by the BPF Loader, not the
+# Squads program — so the route returns 422 with the explicit
+# "not owned by Squads V4 program" guard. That single response proves
+# the RPC layer + owner check are both wired.
+#
+# Override `MULTISIG=...` with a real Squads multisig address (devnet or
+# mainnet) to drive `lookup` toward a 200 with full member metadata.
+MULTISIG="${MULTISIG:-SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf}"
 OPERATOR="${OPERATOR:-J3Vbra9CobQQsXjm4Lxyo4owfU2dQYbkY53wL4mshM7E}"
 VAULT_INDEX="${VAULT_INDEX:-0}"
 
@@ -59,7 +65,7 @@ case_check "GET /squads/derive-vault (deterministic PDA)" 200 \
   "$POLICY_URL/api/v1/squads/derive-vault?multisig_address=$MULTISIG&vault_index=$VAULT_INDEX"
 case_check "GET /squads/derive-vault (bad base58)" 400 \
   "$POLICY_URL/api/v1/squads/derive-vault?multisig_address=NOT_BASE58_!&vault_index=0"
-case_check "GET /squads/lookup (live RPC)" "200|404" \
+case_check "GET /squads/lookup (live RPC + owner guard)" "200|422" \
   "$POLICY_URL/api/v1/squads/lookup?multisig_address=$MULTISIG&vault_index=$VAULT_INDEX"
 case_check "GET /squads/binding/<unbound> (404 boundary)" 404 \
   "$POLICY_URL/api/v1/squads/binding/aperture-test-not-bound"
