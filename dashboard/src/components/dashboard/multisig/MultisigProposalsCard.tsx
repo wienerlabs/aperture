@@ -207,7 +207,10 @@ export function MultisigProposalsCard({
                       )}
                       {proposal.transactionPda && proposal.multisigAddress && (
                         <a
-                          href={`https://app.squads.so/squads/${proposal.multisigAddress}/transactions/${proposal.transactionIndex}`}
+                          href={config.squadsProposalUrl(
+                            proposal.multisigAddress,
+                            proposal.transactionIndex,
+                          )}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 rounded-pill border border-black/8 bg-white px-2 py-0.5 text-[11px] font-medium tracking-tighter text-aperture-dark hover:border-aperture/40 transition-colors"

@@ -344,7 +344,7 @@ export function MultisigBindingCard({
                 Aperture only supports binding to a multisig that already exists.
                 Create one in the{' '}
                 <a
-                  href="https://app.squads.so/"
+                  href={apertureConfig.squadsAppBaseUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="underline text-aperture-dark hover:text-black"
@@ -518,7 +518,7 @@ function renderWalletHelp(message: string, pasted: string): JSX.Element {
           <p className="text-[12px] text-black/65 tracking-tighter">
             The address you pasted is owned by the System Program, which is what holds
             regular Phantom / Solflare wallets. A Squads V4 multisig is a separate PDA
-            that you create at app.squads.so and that lives on-chain under the Squads
+            that you create at {squadsHost()} and that lives on-chain under the Squads
             program.
           </p>
         </div>
@@ -530,7 +530,7 @@ function renderWalletHelp(message: string, pasted: string): JSX.Element {
       )}
       <div className="flex flex-wrap items-center gap-2">
         <a
-          href="https://app.squads.so/"
+          href={apertureConfig.squadsAppBaseUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="ap-btn-orange inline-flex items-center gap-1.5"
@@ -568,13 +568,13 @@ function renderSquadsV3Help(message: string): JSX.Element {
           <p className="text-[12px] text-black/65 tracking-tighter">
             Aperture only integrates with Squads V4. V3 multisigs use a different
             program ID and cannot sign the policy registry instructions. Create a fresh
-            V4 multisig at app.squads.so (V3 is in maintenance mode) and bind that
+            V4 multisig at {squadsHost()} (V3 is in maintenance mode) and bind that
             instead.
           </p>
         </div>
       </div>
       <a
-        href="https://app.squads.so/"
+        href={apertureConfig.squadsAppBaseUrl}
         target="_blank"
         rel="noopener noreferrer"
         className="ap-btn-orange inline-flex items-center gap-1.5 self-start"
@@ -626,6 +626,10 @@ function renderGenericError(message: string): JSX.Element {
       <p className="text-[12px] tracking-tighter text-red-700 break-all">{message}</p>
     </div>
   );
+}
+
+function squadsHost(): string {
+  return apertureConfig.squadsAppBaseUrl.replace(/^https?:\/\//, '');
 }
 
 function ExternalLinkIcon(): JSX.Element {

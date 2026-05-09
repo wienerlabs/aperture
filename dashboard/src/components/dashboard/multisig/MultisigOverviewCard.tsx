@@ -190,7 +190,7 @@ export function MultisigOverviewCard({
 
       <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-black/8">
         <a
-          href={`https://app.squads.so/squads/${binding.multisigAddress}`}
+          href={config.squadsMultisigUrl(binding.multisigAddress)}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 rounded-pill border border-black/8 bg-white px-3 py-1.5 text-[12px] font-medium tracking-tighter text-aperture-dark hover:border-aperture/40 transition-colors"

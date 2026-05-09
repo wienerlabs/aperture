@@ -890,7 +890,10 @@ export function PoliciesTab() {
                       Awaiting multisig approval
                     </span>
                     <a
-                      href={`https://app.squads.so/squads/${pendingProposalByPolicy[policy.id]!.multisigAddress}/transactions/${pendingProposalByPolicy[policy.id]!.transactionIndex}`}
+                      href={config.squadsProposalUrl(
+                        pendingProposalByPolicy[policy.id]!.multisigAddress,
+                        pendingProposalByPolicy[policy.id]!.transactionIndex,
+                      )}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-[11px] font-medium text-aperture-dark hover:text-black transition-colors"

@@ -51,4 +51,31 @@ export const config = {
     `https://explorer.solana.com/address/${address}?cluster=${process.env.NEXT_PUBLIC_SOLANA_NETWORK ?? 'devnet'}`,
   txExplorerUrl: (sig: string) =>
     `https://explorer.solana.com/tx/${sig}?cluster=${process.env.NEXT_PUBLIC_SOLANA_NETWORK ?? 'devnet'}`,
+
+  // Squads V4 doesn't expose an in-app cluster switcher; mainnet and
+  // devnet live on different subdomains. We pick the right one based on
+  // the Solana network Aperture is pointing at so the dashboard never
+  // sends an operator to a multisig they cannot see.
+  squadsAppBaseUrl: (() => {
+    const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK ?? 'devnet';
+    return network === 'mainnet-beta' || network === 'mainnet'
+      ? 'https://app.squads.so'
+      : 'https://devnet.squads.so';
+  })(),
+  squadsMultisigUrl: (multisigAddress: string) => {
+    const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK ?? 'devnet';
+    const base =
+      network === 'mainnet-beta' || network === 'mainnet'
+        ? 'https://app.squads.so'
+        : 'https://devnet.squads.so';
+    return `${base}/squads/${multisigAddress}`;
+  },
+  squadsProposalUrl: (multisigAddress: string, transactionIndex: number) => {
+    const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK ?? 'devnet';
+    const base =
+      network === 'mainnet-beta' || network === 'mainnet'
+        ? 'https://app.squads.so'
+        : 'https://devnet.squads.so';
+    return `${base}/squads/${multisigAddress}/transactions/${transactionIndex}`;
+  },
 } as const;

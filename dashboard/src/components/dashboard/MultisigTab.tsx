@@ -509,7 +509,7 @@ export function MultisigTab(): JSX.Element {
         </a>
         <span className="text-black/30">·</span>
         <a
-          href="https://app.squads.so/"
+          href={config.squadsAppBaseUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="text-aperture-dark hover:text-black transition-colors"
@@ -529,7 +529,7 @@ interface WorkflowStep {
 const WORKFLOW_STEPS: readonly WorkflowStep[] = [
   {
     title: 'Create in Squads',
-    body: 'Open app.squads.so, build a multisig with your team, and choose a threshold. Squads stores all member metadata on-chain.',
+    body: `Open ${config.squadsAppBaseUrl.replace(/^https?:\/\//, '')}, build a multisig with your team, and choose a threshold. Squads stores all member metadata on-chain.`,
   },
   {
     title: 'Look up & preview',
