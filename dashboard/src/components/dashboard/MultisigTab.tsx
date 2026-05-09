@@ -33,10 +33,27 @@ import {
 } from '@/lib/api';
 import { config } from '@/lib/config';
 import { truncateAddress } from '@/lib/utils';
+import dynamic from 'next/dynamic';
 import { MetricCard } from './overview/MetricCard';
 import { MultisigBindingCard } from './multisig/MultisigBindingCard';
 import { MultisigOverviewCard } from './multisig/MultisigOverviewCard';
 import { MultisigProposalsCard } from './multisig/MultisigProposalsCard';
+
+// react-bits effects load WebGL / measure DOM. Both are client-only and
+// dynamic-imported so the static prerender for /dashboard never tries to
+// touch window or instantiate THREE during SSR.
+const TrueFocus = dynamic(() => import('@/components/TrueFocus'), {
+  ssr: false,
+  loading: () => (
+    <span className="font-display text-[36px] sm:text-[44px] leading-[1.04] tracking-[-0.012em] text-black opacity-60">
+      Loading…
+    </span>
+  ),
+});
+const LaserFlow = dynamic(
+  () => import('@/components/LaserFlow').then((mod) => mod.LaserFlow),
+  { ssr: false },
+);
 
 const SQUADS_PROGRAM_ID = 'SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf';
 
@@ -125,12 +142,43 @@ export function MultisigTab(): JSX.Element {
       animate="visible"
       variants={{ visible: { transition: { staggerChildren: 0.06 } } }}
     >
-      {/* Hero ribbon */}
+      {/* Hero ribbon. Two layers behind the content:
+       *   1. LaserFlow shader — only when no multisig is bound. Adds a
+       *      moving aperture-dark beam that nudges the operator toward
+       *      the binding wizard. Suppressed once a multisig is active so
+       *      the success state stays calm.
+       *   2. Radial gradient halo (same as elsewhere in the dashboard).
+       */}
       <motion.section
         variants={sectionVariants}
         className="relative overflow-hidden rounded-[24px] border border-black/8 bg-white p-6 sm:p-8"
-        style={{ boxShadow: 'var(--shadow-card)' }}
+        style={{ boxShadow: 'var(--shadow-card)', minHeight: 240 }}
       >
+        {!isBound && (
+          <div
+            aria-hidden
+            className="absolute inset-0 pointer-events-none"
+            style={{ opacity: 0.55, mixBlendMode: 'screen' }}
+          >
+            <LaserFlow
+              color="#c98f00"
+              horizontalBeamOffset={0.18}
+              verticalBeamOffset={0.05}
+              horizontalSizing={0.85}
+              verticalSizing={3.2}
+              wispDensity={0.7}
+              wispSpeed={9}
+              wispIntensity={4}
+              flowSpeed={0.45}
+              flowStrength={0.2}
+              fogIntensity={0.55}
+              fogScale={0.42}
+              fogFallSpeed={0.55}
+              decay={1.5}
+              falloffStart={1.2}
+            />
+          </div>
+        )}
         <motion.div
           aria-hidden
           initial={{ opacity: 0 }}
@@ -140,26 +188,33 @@ export function MultisigTab(): JSX.Element {
           style={{
             background: isBound
               ? 'radial-gradient(ellipse 50% 70% at 95% 0%, rgba(22,163,74,0.18) 0%, rgba(22,163,74,0) 65%)'
-              : 'radial-gradient(ellipse 50% 80% at 95% 10%, rgba(248,179,0,0.18) 0%, rgba(248,179,0,0) 65%)',
+              : 'radial-gradient(ellipse 50% 80% at 95% 10%, rgba(248,179,0,0.22) 0%, rgba(248,179,0,0) 65%)',
           }}
         />
         <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             <span className="inline-flex items-center gap-1.5 rounded-pill bg-aperture/15 px-2.5 py-1 text-[11px] font-medium tracking-tighter text-aperture-dark w-fit">
               <Users className="h-3 w-3" />
               Multisig Governance
             </span>
             <AnimatePresence mode="wait">
-              <motion.h1
+              <motion.div
                 key={isBound ? 'bound' : 'unbound'}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                className="font-display text-[36px] sm:text-[44px] leading-[1.04] tracking-[-0.012em] text-black"
               >
-                {isBound ? 'Multisig is active' : 'Bind a Squads multisig'}
-              </motion.h1>
+                <TrueFocus
+                  sentence={isBound ? 'Multisig is active' : 'Bind a Squads multisig'}
+                  manualMode={false}
+                  blurAmount={3.2}
+                  borderColor="#f8b300"
+                  glowColor="rgba(248, 179, 0, 0.55)"
+                  animationDuration={0.55}
+                  pauseBetweenAnimations={1.4}
+                />
+              </motion.div>
             </AnimatePresence>
             <p className="text-[14px] text-black/55 tracking-tighter max-w-2xl">
               {isBound
