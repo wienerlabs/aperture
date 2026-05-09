@@ -22,8 +22,7 @@ import { multisigApi, type MultisigBinding } from '@/lib/api';
 import { AgentStripeCard } from './AgentStripeCard';
 import { SettingsSection } from './shared/SettingsSection';
 import { CopyableField } from './shared/CopyableField';
-import { MultisigOverviewCard } from './multisig/MultisigOverviewCard';
-import { MultisigBindingCard } from './multisig/MultisigBindingCard';
+import { ArrowRight } from 'lucide-react';
 
 export function SettingsTab() {
   const { publicKey, disconnect, connected } = useWallet();
@@ -120,11 +119,11 @@ export function SettingsTab() {
         )}
       </SettingsSection>
 
-      {/* Squads Multisig — full lifecycle */}
+      {/* Squads Multisig — summary + link to dedicated tab */}
       <SettingsSection
         icon={Users}
         title="Squads Multisig"
-        description="Bind a Squads V4 multisig to this operator. Once bound, every register_policy and update_policy call must go through the multisig vault PDA."
+        description="Bind a Squads V4 multisig so every register_policy / update_policy is N-of-M signed by your team."
         action={
           binding ? (
             <span className="inline-flex items-center gap-1.5 rounded-pill bg-green-500/10 px-2.5 py-1 text-[11px] font-medium tracking-tighter text-green-700">
@@ -140,7 +139,7 @@ export function SettingsTab() {
         }
       >
         {bindingLoading ? (
-          <div className="flex items-center justify-center py-6">
+          <div className="flex items-center justify-center py-4">
             <Loader2 className="h-5 w-5 animate-spin text-aperture-dark" />
           </div>
         ) : bindingError ? (
@@ -148,22 +147,52 @@ export function SettingsTab() {
             {bindingError}
           </div>
         ) : binding ? (
-          <MultisigOverviewCard
-            binding={binding}
-            walletAddress={walletAddress}
-            onUpdate={(next) => setBinding(next)}
-          />
-        ) : operatorId ? (
-          <MultisigBindingCard
-            operatorId={operatorId}
-            walletAddress={walletAddress}
-            onBound={(next) => setBinding(next)}
-          />
+          <div className="flex flex-col gap-3">
+            <CopyableField
+              label="Multisig address"
+              value={binding.multisigAddress}
+              display={
+                <a
+                  href={config.explorerUrl(binding.multisigAddress)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-aperture-dark hover:text-black transition-colors"
+                >
+                  {truncateAddress(binding.multisigAddress, 8)}
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              }
+            />
+            <p className="text-[12px] text-black/55 tracking-tighter">
+              Last synced{' '}
+              {binding.lastSyncedAt
+                ? new Date(binding.lastSyncedAt).toLocaleString()
+                : 'never'}{' '}
+              · Vault index #{binding.vaultIndex}
+            </p>
+          </div>
         ) : (
-          <p className="text-[14px] text-black/55 tracking-tighter">
-            Connect a wallet first to bind a multisig.
+          <p className="text-[12px] text-black/65 tracking-tighter">
+            No multisig bound yet. Open the Multisig tab to paste an existing Squads
+            address and confirm a one-tx set_multisig with your wallet.
           </p>
         )}
+        <a
+          href="#multisig"
+          onClick={(e) => {
+            // Prevent the URL hash from changing — the dashboard layout uses
+            // its own state-based router, not the URL. We rely on a global
+            // event the layout subscribes to for tab navigation.
+            e.preventDefault();
+            window.dispatchEvent(
+              new CustomEvent('aperture:navigate', { detail: 'multisig' }),
+            );
+          }}
+          className="ap-btn-orange inline-flex items-center gap-2 self-start"
+        >
+          {binding ? 'Manage multisig' : 'Bind a multisig'}
+          <ArrowRight className="h-4 w-4" />
+        </a>
       </SettingsSection>
 
       {/* Agent Stripe Configuration */}

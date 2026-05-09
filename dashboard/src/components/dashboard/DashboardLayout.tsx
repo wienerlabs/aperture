@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import {
@@ -14,11 +14,12 @@ import {
   LayoutDashboard,
   Bot,
   Network,
+  Users,
 } from 'lucide-react';
 import { ApertureLogo } from '../shared/ApertureLogo';
 
 
-type TabId = 'overview' | 'policies' | 'payments' | 'compliance' | 'agent' | 'aip' | 'settings';
+type TabId = 'overview' | 'policies' | 'payments' | 'compliance' | 'agent' | 'aip' | 'multisig' | 'settings';
 
 interface NavItem {
   readonly id: TabId;
@@ -33,6 +34,7 @@ const NAV_ITEMS: readonly NavItem[] = [
   { id: 'compliance', label: 'Compliance', icon: BarChart3 },
   { id: 'agent', label: 'Agent Activity', icon: Bot },
   { id: 'aip', label: 'AIP Agents', icon: Network },
+  { id: 'multisig', label: 'Multisig', icon: Users },
   { id: 'settings', label: 'Settings', icon: Settings },
 ] as const;
 
@@ -52,6 +54,20 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   function handleSignOut(): void {
     signOut({ callbackUrl: '/' });
   }
+
+  // Cross-component tab navigation. Children that aren't directly wired to
+  // the navigate callback (e.g. SettingsTab linking to MultisigTab) dispatch
+  // a `aperture:navigate` event and we route here.
+  useEffect(() => {
+    function onNavigate(event: Event): void {
+      const detail = (event as CustomEvent<TabId>).detail;
+      if (!detail) return;
+      const exists = NAV_ITEMS.some((item) => item.id === detail);
+      if (exists) setActiveTab(detail);
+    }
+    window.addEventListener('aperture:navigate', onNavigate);
+    return () => window.removeEventListener('aperture:navigate', onNavigate);
+  }, []);
 
   return (
     <div className="flex h-screen bg-[#000000] text-amber-100">

@@ -33,6 +33,8 @@ import {
   makeFromParticipant,
   makeToParticipant,
 } from '@/components/shared/TxModal';
+import { multisigApi, type MultisigBinding } from '@/lib/api';
+import { Lock, ShieldCheck } from 'lucide-react';
 import { MetricCard } from './overview/MetricCard';
 import { ProofTrendCard } from './overview/ProofTrendCard';
 import { NetworkStatusCard } from './overview/NetworkStatusCard';
@@ -62,6 +64,15 @@ export function OverviewTab({
   const [data, setData] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [demoBusy, setDemoBusy] = useState(false);
+  const [multisigBinding, setMultisigBinding] = useState<MultisigBinding | null>(null);
+
+  useEffect(() => {
+    if (!operatorId) return;
+    multisigApi
+      .getBinding(operatorId)
+      .then((b) => setMultisigBinding(b))
+      .catch(() => setMultisigBinding(null));
+  }, [operatorId]);
 
   const walletAddress = publicKey?.toBase58() ?? operatorId ?? '';
 
@@ -225,10 +236,41 @@ export function OverviewTab({
         />
         <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
           <div className="flex flex-col gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-pill bg-aperture/15 px-2.5 py-1 text-[11px] font-medium tracking-tighter text-aperture-dark w-fit">
-              <Sparkles className="h-3 w-3" />
-              Operator Overview
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-pill bg-aperture/15 px-2.5 py-1 text-[11px] font-medium tracking-tighter text-aperture-dark w-fit">
+                <Sparkles className="h-3 w-3" />
+                Operator Overview
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  window.dispatchEvent(
+                    new CustomEvent('aperture:navigate', { detail: 'multisig' }),
+                  )
+                }
+                title={
+                  multisigBinding
+                    ? 'Multisig is bound — every register/update needs the vault PDA'
+                    : 'No multisig bound — single signer mode'
+                }
+                className="inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-[11px] font-medium tracking-tighter transition-colors hover:opacity-90"
+                style={{
+                  color: multisigBinding ? '#16a34a' : '#7c8293',
+                  background: multisigBinding
+                    ? 'rgba(22,163,74,0.10)'
+                    : 'rgba(124,130,147,0.10)',
+                }}
+              >
+                {multisigBinding ? (
+                  <Lock className="h-3 w-3" />
+                ) : (
+                  <ShieldCheck className="h-3 w-3" />
+                )}
+                {multisigBinding
+                  ? `${multisigBinding.threshold}/${multisigBinding.memberCount} multisig`
+                  : 'Single signer'}
+              </button>
+            </div>
             <h1 className="font-display text-[36px] sm:text-[44px] leading-[1.04] tracking-[-0.012em] text-black">
               Welcome back, {truncateAddress(walletAddress, 4)}
             </h1>
