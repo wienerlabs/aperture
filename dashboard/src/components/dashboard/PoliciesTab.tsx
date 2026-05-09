@@ -14,8 +14,16 @@ import {
   Loader2,
   AlertTriangle,
   ExternalLink,
+  Lock,
 } from 'lucide-react';
-import { policyApi, type Policy, type PolicyInput } from '@/lib/api';
+import {
+  policyApi,
+  multisigApi,
+  type Policy,
+  type PolicyInput,
+  type MultisigBinding,
+  type MultisigProposal,
+} from '@/lib/api';
 import { config } from '@/lib/config';
 import { formatDate, formatAmount } from '@/lib/utils';
 import { useConnection } from '@solana/wallet-adapter-react';
@@ -109,6 +117,46 @@ export function PoliciesTab() {
   useEffect(() => {
     fetchPolicies();
   }, [fetchPolicies]);
+
+  // Pull the operator's multisig binding + per-policy pending proposals.
+  // Used by PolicyCard to render an "Awaiting multisig" pill so the
+  // operator knows they don't need to anchor again — the proposal is
+  // already in flight in Squads.
+  const [multisigBinding, setMultisigBinding] = useState<MultisigBinding | null>(null);
+  const [pendingProposalByPolicy, setPendingProposalByPolicy] = useState<
+    Record<string, MultisigProposal | undefined>
+  >({});
+  useEffect(() => {
+    if (!operatorId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const binding = await multisigApi.getBinding(operatorId);
+        if (cancelled) return;
+        setMultisigBinding(binding);
+        if (!binding) {
+          setPendingProposalByPolicy({});
+          return;
+        }
+        const proposalsRes = await multisigApi.listProposals(operatorId, {
+          status: 'pending',
+          limit: 100,
+        });
+        if (cancelled) return;
+        const map: Record<string, MultisigProposal> = {};
+        for (const p of proposalsRes.data ?? []) {
+          if (p.policyId) map[p.policyId] = p;
+        }
+        setPendingProposalByPolicy(map);
+      } catch {
+        // Multisig is optional — failure to read it shouldn't block the
+        // policies grid.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [operatorId]);
 
   function updateFormField<K extends keyof PolicyFormData>(
     field: K,
@@ -826,6 +874,36 @@ export function PoliciesTab() {
 
               {/* On-chain anchoring status */}
               <div className="pt-3 border-t border-black/8">
+                {/* Pending multisig proposal pill — shown above the
+                   anchored / unanchored pill when a Squads transaction
+                   for this policy is awaiting signatures. */}
+                {pendingProposalByPolicy[policy.id] && (
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <span
+                      className="inline-flex items-center gap-1 rounded-pill px-2 py-0.5 text-[11px] font-medium tracking-tighter"
+                      style={{
+                        background: 'rgba(248,179,0,0.16)',
+                        color: '#c98f00',
+                      }}
+                    >
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Awaiting multisig approval
+                    </span>
+                    <a
+                      href={`https://app.squads.so/squads/${pendingProposalByPolicy[policy.id]!.multisigAddress}/transactions/${pendingProposalByPolicy[policy.id]!.transactionIndex}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-aperture-dark hover:text-black transition-colors"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      Vote in Squads
+                    </a>
+                    <span className="text-[11px] text-black/55 tracking-tighter">
+                      {pendingProposalByPolicy[policy.id]!.approvalCount} approval
+                      {pendingProposalByPolicy[policy.id]!.approvalCount === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                )}
                 {policy.onchain_status === 'registered' ? (
                   <div className="flex flex-wrap items-center gap-3 text-[12px] tracking-tighter">
                     <span className="inline-flex items-center gap-1 rounded-pill bg-green-500/10 px-2 py-0.5 text-[11px] font-medium text-green-700">
@@ -835,6 +913,16 @@ export function PoliciesTab() {
                         ? ` (v${policy.onchain_version})`
                         : ''}
                     </span>
+                    {multisigBinding && (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-pill px-2 py-0.5 text-[11px] font-medium tracking-tighter"
+                        style={{ background: 'rgba(8,145,178,0.10)', color: '#0891b2' }}
+                        title="Updates require Squads multisig approval"
+                      >
+                        <Lock className="w-3 h-3" />
+                        Multisig governed
+                      </span>
+                    )}
                     {policy.onchain_tx_signature && (
                       <a
                         href={config.txExplorerUrl(policy.onchain_tx_signature)}

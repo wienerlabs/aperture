@@ -1,6 +1,14 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import type { ApiResponse, MultisigBinding, MultisigOnchainSnapshot, MultisigAuditEntry } from '@aperture/types';
+import type {
+  ApiResponse,
+  MultisigBinding,
+  MultisigOnchainSnapshot,
+  MultisigAuditEntry,
+  MultisigProposal,
+  MultisigProposalAction,
+  MultisigProposalStatus,
+} from '@aperture/types';
 import { validateBody } from '../middleware/validate.js';
 import { AppError } from '../middleware/error-handler.js';
 import { logger } from '../utils/logger.js';
@@ -16,6 +24,13 @@ import {
   deleteBinding,
   listAudit,
 } from '../models/operator-multisig.js';
+import {
+  createProposal,
+  listProposalsForOperator,
+  getProposal,
+  updateProposalStatus,
+  listPendingForPolicy,
+} from '../models/multisig-proposals.js';
 import { PublicKey } from '@solana/web3.js';
 
 const router = Router();
@@ -360,5 +375,203 @@ router.get('/derive-vault', (req, res, next) => {
     next(error);
   }
 });
+
+// =========================================================================
+// Multisig proposals
+// =========================================================================
+//
+// Aperture indexes multisig proposals so the dashboard can show "this
+// policy update is awaiting multisig approval" without re-deriving Squads
+// state on every paint. Squads remains the canonical source of truth —
+// these endpoints are the off-chain mirror.
+
+const ProposalActionSchema = z.enum([
+  'register_policy',
+  'update_policy',
+  'deactivate_policy',
+  'rotate_multisig',
+  'custom',
+]);
+
+const ProposalStatusSchema = z.enum([
+  'pending',
+  'approved',
+  'executed',
+  'rejected',
+  'cancelled',
+  'expired',
+]);
+
+const RecordProposalSchema = z.object({
+  operator_id: z.string().min(1).max(64),
+  multisig_address: Base58Schema,
+  transaction_index: z.number().int().nonnegative(),
+  transaction_pda: Base58Schema,
+  proposal_pda: Base58Schema.optional(),
+  action: ProposalActionSchema,
+  policy_id: z.string().uuid().optional(),
+  target_merkle_root: z.string().length(64).optional(),
+  target_policy_hash: z.string().length(64).optional(),
+  created_by: Base58Schema,
+});
+
+const ProposalStatusUpdateSchema = z.object({
+  status: ProposalStatusSchema,
+  approval_count: z.number().int().nonnegative().optional(),
+  rejection_count: z.number().int().nonnegative().optional(),
+  executed_tx: SignatureSchema.optional(),
+});
+
+/**
+ * POST /api/v1/squads/proposal
+ *
+ * Record a Squads transaction proposal in the off-chain index. The
+ * dashboard creates Squads transactions client-side via @sqds/multisig
+ * and calls this endpoint right after the proposal is announced on-chain
+ * so the policies grid can show "Awaiting multisig approval" pills.
+ */
+router.post('/proposal', validateBody(RecordProposalSchema), async (req, res, next) => {
+  try {
+    const body = req.body as z.infer<typeof RecordProposalSchema>;
+
+    const proposal = await createProposal({
+      operatorId: body.operator_id,
+      multisigAddress: body.multisig_address,
+      transactionIndex: body.transaction_index,
+      transactionPda: body.transaction_pda,
+      proposalPda: body.proposal_pda,
+      action: body.action,
+      policyId: body.policy_id,
+      targetMerkleRoot: body.target_merkle_root,
+      targetPolicyHash: body.target_policy_hash,
+      createdBy: body.created_by,
+    });
+
+    logger.info('Multisig proposal recorded', {
+      operatorId: body.operator_id,
+      proposalId: proposal.id,
+      action: proposal.action,
+      multisigAddress: proposal.multisigAddress,
+      transactionIndex: proposal.transactionIndex,
+    });
+
+    const response: ApiResponse<MultisigProposal> = {
+      success: true,
+      data: proposal,
+      error: null,
+    };
+    res.status(201).json(response);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/v1/squads/proposals/operator/:operatorId
+ *   query: ?status=pending|approved|executed|rejected|cancelled|expired|all
+ *   query: ?limit=N (default 50, max 200)
+ *
+ * List proposals for an operator. The dashboard renders pending +
+ * approved by default in the Multisig tab; the policies grid filters
+ * further to the proposals attached to a specific policy.
+ */
+router.get('/proposals/operator/:operatorId', async (req, res, next) => {
+  try {
+    const operatorId = String(req.params.operatorId);
+    if (!operatorId || operatorId.length > 64) {
+      throw new AppError(400, 'operatorId must be a non-empty string up to 64 chars');
+    }
+    const status = req.query.status as MultisigProposalStatus | 'all' | undefined;
+    const limit = req.query.limit ? Number(req.query.limit) : 50;
+
+    const proposals = await listProposalsForOperator(operatorId, { status, limit });
+    const response: ApiResponse<readonly MultisigProposal[]> = {
+      success: true,
+      data: proposals,
+      error: null,
+    };
+    res.json(response);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/v1/squads/proposals/policy/:policyId
+ *
+ * List pending+approved proposals tied to a single policy. Used by the
+ * PoliciesTab pending pill so the operator can see at a glance which
+ * policies are mid-rotation through the multisig.
+ */
+router.get('/proposals/policy/:policyId', async (req, res, next) => {
+  try {
+    const policyId = String(req.params.policyId);
+    if (!policyId) throw new AppError(400, 'policyId is required');
+    const proposals = await listPendingForPolicy(policyId);
+    const response: ApiResponse<readonly MultisigProposal[]> = {
+      success: true,
+      data: proposals,
+      error: null,
+    };
+    res.json(response);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/v1/squads/proposal/:id
+ *
+ * Single proposal lookup, used by the proposal detail panel.
+ */
+router.get('/proposal/:id', async (req, res, next) => {
+  try {
+    const id = String(req.params.id);
+    const proposal = await getProposal(id);
+    if (!proposal) throw new AppError(404, 'Proposal not found');
+    const response: ApiResponse<MultisigProposal> = {
+      success: true,
+      data: proposal,
+      error: null,
+    };
+    res.json(response);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PATCH /api/v1/squads/proposal/:id/status
+ *
+ * Promote a proposal between lifecycle states. Squads is the source of
+ * truth on chain; this endpoint just keeps the dashboard mirror in sync
+ * after the operator votes / executes from the Squads UI.
+ */
+router.patch(
+  '/proposal/:id/status',
+  validateBody(ProposalStatusUpdateSchema),
+  async (req, res, next) => {
+    try {
+      const id = String(req.params.id);
+      const body = req.body as z.infer<typeof ProposalStatusUpdateSchema>;
+      const updated = await updateProposalStatus({
+        id,
+        status: body.status,
+        approvalCount: body.approval_count,
+        rejectionCount: body.rejection_count,
+        executedTx: body.executed_tx,
+      });
+      if (!updated) throw new AppError(404, 'Proposal not found');
+      const response: ApiResponse<MultisigProposal> = {
+        success: true,
+        data: updated,
+        error: null,
+      };
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 export default router;

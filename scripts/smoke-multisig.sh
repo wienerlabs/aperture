@@ -83,6 +83,20 @@ case_check "DELETE /squads/binding/foo (no binding)" 404 \
   -H "content-type: application/json" \
   -d '{"actor":"7xkhe3ay4S5XoMWgWHj4LScvgKJiNoqJSUCrzUFKQwGS"}'
 
+bold "Proposals (off-chain mirror)"
+case_check "GET /squads/proposals/operator/<unbound> (200 + empty)" 200 \
+  "$POLICY_URL/api/v1/squads/proposals/operator/aperture-test-not-bound"
+case_check "GET /squads/proposals/policy/<missing> (200 + empty)" 200 \
+  "$POLICY_URL/api/v1/squads/proposals/policy/00000000-0000-0000-0000-000000000000"
+case_check "GET /squads/proposal/<missing> (404 boundary)" 404 \
+  "$POLICY_URL/api/v1/squads/proposal/00000000-0000-0000-0000-000000000000"
+case_check "POST /squads/proposal (missing body fields)" 400 \
+  -X POST "$POLICY_URL/api/v1/squads/proposal" \
+  -H "content-type: application/json" -d '{}'
+case_check "PATCH /squads/proposal/<missing>/status (404)" 404 \
+  -X PATCH "$POLICY_URL/api/v1/squads/proposal/00000000-0000-0000-0000-000000000000/status" \
+  -H "content-type: application/json" -d '{"status":"executed"}'
+
 echo
 bold "Result: $pass passed, $fail failed (of $case_n)"
 [[ "$fail" == 0 ]]

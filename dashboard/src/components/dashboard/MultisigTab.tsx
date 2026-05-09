@@ -1,15 +1,16 @@
 'use client';
 
 /**
- * MultisigTab — full-width Squads V4 governance surface.
- *
- * The Settings tab still hosts a small summary card that links here, but
- * binding lifecycle, member browsing, audit trail, and the flow guide all
- * live in this dedicated tab so an operator gets a single page to onboard
- * an existing Squads multisig and reason about who can change policy.
+ * MultisigTab — full Squads V4 governance surface with bol bol
+ * framer-motion animation: hero ribbon fades + slides in, every stats
+ * cell staggers, the active-binding swap is animated, proposals filter
+ * pills use a layoutId pop-in, and the workflow guide cards drift in
+ * after the fold. prefers-reduced-motion is respected by the existing
+ * framer-motion default.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useWallet } from '@solana/wallet-adapter-react';
 import {
   Users,
@@ -20,20 +21,29 @@ import {
   Lock,
   ListChecks,
   ExternalLink,
+  Send,
 } from 'lucide-react';
 import { useOperatorId } from '@/hooks/useOperatorId';
 import {
   multisigApi,
   type MultisigBinding,
   type MultisigAuditEntry,
+  type MultisigProposal,
+  type MultisigProposalStatus,
 } from '@/lib/api';
 import { config } from '@/lib/config';
 import { truncateAddress } from '@/lib/utils';
 import { MetricCard } from './overview/MetricCard';
 import { MultisigBindingCard } from './multisig/MultisigBindingCard';
 import { MultisigOverviewCard } from './multisig/MultisigOverviewCard';
+import { MultisigProposalsCard } from './multisig/MultisigProposalsCard';
 
 const SQUADS_PROGRAM_ID = 'SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf';
+
+const sectionVariants = {
+  hidden: { opacity: 0, y: 12 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
+};
 
 export function MultisigTab(): JSX.Element {
   const operatorId = useOperatorId();
@@ -44,20 +54,30 @@ export function MultisigTab(): JSX.Element {
   const [bindingLoading, setBindingLoading] = useState(true);
   const [bindingError, setBindingError] = useState<string | null>(null);
   const [audit, setAudit] = useState<readonly MultisigAuditEntry[]>([]);
+  const [proposals, setProposals] = useState<readonly MultisigProposal[]>([]);
+  const [proposalsLoading, setProposalsLoading] = useState(false);
+  const [statusFilter, setStatusFilter] =
+    useState<MultisigProposalStatus | 'all'>('pending');
 
   const loadAll = useCallback(async (): Promise<void> => {
     if (!operatorId) return;
     setBindingLoading(true);
+    setProposalsLoading(true);
     setBindingError(null);
     try {
-      const result = await multisigApi.getBinding(operatorId);
-      setBinding(result);
-      const auditResult = await multisigApi.audit(operatorId, 25);
+      const [bindingResult, auditResult, proposalsResult] = await Promise.all([
+        multisigApi.getBinding(operatorId),
+        multisigApi.audit(operatorId, 25),
+        multisigApi.listProposals(operatorId, { status: 'all', limit: 50 }),
+      ]);
+      setBinding(bindingResult);
       setAudit(auditResult.data ?? []);
+      setProposals(proposalsResult.data ?? []);
     } catch (err: unknown) {
       setBindingError(err instanceof Error ? err.message : 'Failed to load multisig');
     } finally {
       setBindingLoading(false);
+      setProposalsLoading(false);
     }
   }, [operatorId]);
 
@@ -70,9 +90,20 @@ export function MultisigTab(): JSX.Element {
     void loadAll();
   }
 
+  const isBound = Boolean(binding);
+  const pendingCount = useMemo(
+    () => proposals.filter((p) => p.status === 'pending').length,
+    [proposals],
+  );
+
   if (!operatorId) {
     return (
-      <div className="ap-card p-12 flex flex-col items-center text-center gap-3">
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="ap-card p-12 flex flex-col items-center text-center gap-3"
+      >
         <span className="inline-flex h-12 w-12 items-center justify-center rounded-pill bg-aperture/15 text-aperture-dark">
           <Wallet className="h-6 w-6" />
         </span>
@@ -83,21 +114,28 @@ export function MultisigTab(): JSX.Element {
           Multisig binding is namespaced per operator wallet. Connect with Phantom or
           Solflare to bind a Squads V4 vault to your policies.
         </p>
-      </div>
+      </motion.div>
     );
   }
 
-  const isBound = Boolean(binding);
-
   return (
-    <div className="space-y-6">
+    <motion.div
+      className="space-y-6"
+      initial="hidden"
+      animate="visible"
+      variants={{ visible: { transition: { staggerChildren: 0.06 } } }}
+    >
       {/* Hero ribbon */}
-      <section
+      <motion.section
+        variants={sectionVariants}
         className="relative overflow-hidden rounded-[24px] border border-black/8 bg-white p-6 sm:p-8"
         style={{ boxShadow: 'var(--shadow-card)' }}
       >
-        <div
+        <motion.div
           aria-hidden
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8 }}
           className="absolute inset-0 pointer-events-none"
           style={{
             background: isBound
@@ -111,9 +149,18 @@ export function MultisigTab(): JSX.Element {
               <Users className="h-3 w-3" />
               Multisig Governance
             </span>
-            <h1 className="font-display text-[36px] sm:text-[44px] leading-[1.04] tracking-[-0.012em] text-black">
-              {isBound ? 'Multisig is active' : 'Bind a Squads multisig'}
-            </h1>
+            <AnimatePresence mode="wait">
+              <motion.h1
+                key={isBound ? 'bound' : 'unbound'}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                className="font-display text-[36px] sm:text-[44px] leading-[1.04] tracking-[-0.012em] text-black"
+              >
+                {isBound ? 'Multisig is active' : 'Bind a Squads multisig'}
+              </motion.h1>
+            </AnimatePresence>
             <p className="text-[14px] text-black/55 tracking-tighter max-w-2xl">
               {isBound
                 ? 'Every register_policy and update_policy must be signed by your Squads vault. Single-wallet shortcuts are off.'
@@ -121,23 +168,25 @@ export function MultisigTab(): JSX.Element {
             </p>
           </div>
 
-          <span
+          <motion.span
+            layout
             className="inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-[12px] font-medium tracking-tighter shrink-0"
-            style={{
+            animate={{
               color: isBound ? '#16a34a' : '#c98f00',
               background: isBound ? 'rgba(22,163,74,0.10)' : 'rgba(248,179,0,0.14)',
             }}
+            transition={{ duration: 0.4 }}
           >
             {isBound ? <Lock className="h-3.5 w-3.5" /> : <ShieldCheck className="h-3.5 w-3.5" />}
             {isBound
               ? `${binding!.threshold} of ${binding!.memberCount} signers`
               : 'Single signer'}
-          </span>
+          </motion.span>
         </div>
-      </section>
+      </motion.section>
 
       {/* Stats row */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <motion.section variants={sectionVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           label="Binding"
           value={isBound ? 'Active' : 'Off'}
@@ -155,10 +204,10 @@ export function MultisigTab(): JSX.Element {
           }
         />
         <MetricCard
-          label="Vault Index"
-          value={isBound ? `#${binding!.vaultIndex}` : '—'}
-          icon={ShieldCheck}
-          hint={isBound ? truncateAddress(binding!.vaultPda, 6) : 'Per-multisig sub-account'}
+          label="Pending Proposals"
+          value={pendingCount.toLocaleString()}
+          icon={Send}
+          hint="Awaiting signatures in Squads"
         />
         <MetricCard
           label="Audit Entries"
@@ -166,72 +215,116 @@ export function MultisigTab(): JSX.Element {
           icon={ListChecks}
           hint="Bind / sync / unbind events recorded"
         />
-      </section>
+      </motion.section>
 
       {/* Top-level error */}
-      {bindingError && (
-        <div className="ap-card p-4 flex items-start gap-3" style={{ borderColor: '#fca5a5' }}>
-          <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5 text-red-600" />
-          <p className="text-[13px] text-red-700 tracking-tighter">{bindingError}</p>
-        </div>
-      )}
+      <AnimatePresence>
+        {bindingError && (
+          <motion.div
+            key="err"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            className="ap-card p-4 flex items-start gap-3"
+            style={{ borderColor: '#fca5a5' }}
+          >
+            <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5 text-red-600" />
+            <p className="text-[13px] text-red-700 tracking-tighter">{bindingError}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main lifecycle card */}
-      {bindingLoading ? (
-        <div className="ap-card p-12 flex items-center justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-aperture-dark" />
-        </div>
-      ) : isBound ? (
-        <section className="ap-card p-6 sm:p-7">
-          <header className="flex items-center justify-between gap-3 flex-wrap mb-5">
-            <div className="flex items-center gap-3">
-              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-pill bg-aperture/12 text-aperture-dark">
-                <ShieldCheck className="h-4 w-4" />
-              </span>
-              <div>
-                <h2 className="font-display text-[22px] tracking-[-0.005em] text-black">
-                  Active Binding
-                </h2>
-                <p className="text-[12px] text-black/55 tracking-tighter mt-0.5">
-                  Cached from on-chain at last sync. Unbind only after rotating with a
-                  fresh set_multisig.
-                </p>
-              </div>
-            </div>
-          </header>
-          <MultisigOverviewCard
-            binding={binding!}
-            walletAddress={walletAddress}
-            onUpdate={handleBindingChange}
-          />
-        </section>
-      ) : (
-        <section className="ap-card p-6 sm:p-7">
-          <header className="flex items-center gap-3 mb-5">
-            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-pill bg-aperture/12 text-aperture-dark">
-              <Users className="h-4 w-4" />
-            </span>
-            <div>
-              <h2 className="font-display text-[22px] tracking-[-0.005em] text-black">
-                Bind an existing Squads multisig
-              </h2>
-              <p className="text-[12px] text-black/55 tracking-tighter mt-0.5">
-                Paste the multisig address, pick a vault index, and confirm the
-                set_multisig instruction with your wallet.
-              </p>
-            </div>
-          </header>
-          <MultisigBindingCard
-            operatorId={operatorId}
-            walletAddress={walletAddress}
-            onBound={handleBindingChange}
-          />
-        </section>
-      )}
+      <motion.section variants={sectionVariants}>
+        <AnimatePresence mode="wait">
+          {bindingLoading ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="ap-card p-12 flex items-center justify-center"
+            >
+              <Loader2 className="h-6 w-6 animate-spin text-aperture-dark" />
+            </motion.div>
+          ) : isBound ? (
+            <motion.section
+              key="bound"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+              className="ap-card p-6 sm:p-7"
+            >
+              <header className="flex items-center justify-between gap-3 flex-wrap mb-5">
+                <div className="flex items-center gap-3">
+                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-pill bg-aperture/12 text-aperture-dark">
+                    <ShieldCheck className="h-4 w-4" />
+                  </span>
+                  <div>
+                    <h2 className="font-display text-[22px] tracking-[-0.005em] text-black">
+                      Active Binding
+                    </h2>
+                    <p className="text-[12px] text-black/55 tracking-tighter mt-0.5">
+                      Cached from on-chain at last sync. Unbind only after rotating with a
+                      fresh set_multisig.
+                    </p>
+                  </div>
+                </div>
+              </header>
+              <MultisigOverviewCard
+                binding={binding!}
+                walletAddress={walletAddress}
+                onUpdate={handleBindingChange}
+              />
+            </motion.section>
+          ) : (
+            <motion.section
+              key="unbound"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+              className="ap-card p-6 sm:p-7"
+            >
+              <header className="flex items-center gap-3 mb-5">
+                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-pill bg-aperture/12 text-aperture-dark">
+                  <Users className="h-4 w-4" />
+                </span>
+                <div>
+                  <h2 className="font-display text-[22px] tracking-[-0.005em] text-black">
+                    Bind an existing Squads multisig
+                  </h2>
+                  <p className="text-[12px] text-black/55 tracking-tighter mt-0.5">
+                    Paste the multisig address, pick a vault index, and confirm the
+                    set_multisig instruction with your wallet.
+                  </p>
+                </div>
+              </header>
+              <MultisigBindingCard
+                operatorId={operatorId}
+                walletAddress={walletAddress}
+                onBound={handleBindingChange}
+              />
+            </motion.section>
+          )}
+        </AnimatePresence>
+      </motion.section>
 
-      {/* Workflow guide — always visible so the operator knows what binding
-          means before they sign anything. */}
-      <section className="ap-card p-6 sm:p-7">
+      {/* Proposals */}
+      <motion.section variants={sectionVariants}>
+        <MultisigProposalsCard
+          proposals={proposals}
+          binding={binding}
+          loading={proposalsLoading}
+          statusFilter={statusFilter}
+          onChangeFilter={setStatusFilter}
+          onRefresh={() => void loadAll()}
+        />
+      </motion.section>
+
+      {/* Workflow guide */}
+      <motion.section variants={sectionVariants} className="ap-card p-6 sm:p-7">
         <header className="mb-4">
           <h2 className="font-display text-[20px] tracking-[-0.005em] text-black">
             How it works
@@ -240,11 +333,21 @@ export function MultisigTab(): JSX.Element {
             Four steps from a new Squads multisig to a fully governed operator.
           </p>
         </header>
-        <ol className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <motion.ol
+          variants={{ visible: { transition: { staggerChildren: 0.08 } } }}
+          initial="hidden"
+          animate="visible"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"
+        >
           {WORKFLOW_STEPS.map((step, index) => (
-            <li
+            <motion.li
               key={step.title}
-              className="rounded-[14px] border border-black/8 bg-[rgba(248,179,0,0.03)] px-4 py-3 flex flex-col gap-2"
+              variants={{
+                hidden: { opacity: 0, y: 10 },
+                visible: { opacity: 1, y: 0, transition: { duration: 0.45 } },
+              }}
+              whileHover={{ y: -2 }}
+              className="rounded-[14px] border border-black/8 bg-[rgba(248,179,0,0.03)] px-4 py-3 flex flex-col gap-2 transition-colors hover:border-aperture/40"
             >
               <span className="inline-flex h-7 w-7 items-center justify-center rounded-pill bg-aperture/15 text-aperture-dark text-[12px] font-medium">
                 {index + 1}
@@ -253,13 +356,13 @@ export function MultisigTab(): JSX.Element {
                 {step.title}
               </h3>
               <p className="text-[12px] text-black/65 tracking-tighter">{step.body}</p>
-            </li>
+            </motion.li>
           ))}
-        </ol>
-      </section>
+        </motion.ol>
+      </motion.section>
 
       {/* Audit trail */}
-      <section className="ap-card overflow-hidden">
+      <motion.section variants={sectionVariants} className="ap-card overflow-hidden">
         <header className="px-5 py-4 flex items-center justify-between border-b border-black/8">
           <div className="flex items-center gap-2.5">
             <ListChecks className="h-4 w-4 text-aperture-dark" />
@@ -279,9 +382,21 @@ export function MultisigTab(): JSX.Element {
             </p>
           </div>
         ) : (
-          <ul className="divide-y divide-black/8">
+          <motion.ul
+            className="divide-y divide-black/8"
+            variants={{ visible: { transition: { staggerChildren: 0.04 } } }}
+            initial="hidden"
+            animate="visible"
+          >
             {audit.map((entry) => (
-              <li key={entry.id} className="px-5 py-3 flex flex-wrap items-center gap-3">
+              <motion.li
+                key={entry.id}
+                variants={{
+                  hidden: { opacity: 0, x: -6 },
+                  visible: { opacity: 1, x: 0, transition: { duration: 0.35 } },
+                }}
+                className="px-5 py-3 flex flex-wrap items-center gap-3"
+              >
                 <span
                   className="inline-flex items-center rounded-pill px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.04em]"
                   style={ACTION_STYLE[entry.action]}
@@ -316,14 +431,17 @@ export function MultisigTab(): JSX.Element {
                 <span className="ml-auto text-[11px] tracking-tighter text-black/55">
                   {new Date(entry.createdAt).toLocaleString()}
                 </span>
-              </li>
+              </motion.li>
             ))}
-          </ul>
+          </motion.ul>
         )}
-      </section>
+      </motion.section>
 
       {/* Footer link to the on-chain Squads program */}
-      <div className="flex flex-wrap items-center justify-center gap-2 text-[12px] tracking-tighter text-black/55 pt-2">
+      <motion.div
+        variants={sectionVariants}
+        className="flex flex-wrap items-center justify-center gap-2 text-[12px] tracking-tighter text-black/55 pt-2"
+      >
         <span className="uppercase tracking-[0.08em] text-[11px]">Squads V4</span>
         <a
           href={config.explorerUrl(SQUADS_PROGRAM_ID)}
@@ -343,8 +461,8 @@ export function MultisigTab(): JSX.Element {
         >
           Open Squads app
         </a>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 

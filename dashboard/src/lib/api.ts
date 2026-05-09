@@ -435,6 +435,62 @@ interface BindBindingBody {
   readonly actor: string;
 }
 
+export type MultisigProposalAction =
+  | 'register_policy'
+  | 'update_policy'
+  | 'deactivate_policy'
+  | 'rotate_multisig'
+  | 'custom';
+
+export type MultisigProposalStatus =
+  | 'pending'
+  | 'approved'
+  | 'executed'
+  | 'rejected'
+  | 'cancelled'
+  | 'expired';
+
+export interface MultisigProposal {
+  readonly id: string;
+  readonly operatorId: string;
+  readonly multisigAddress: string;
+  readonly transactionIndex: number;
+  readonly transactionPda: string;
+  readonly proposalPda: string | null;
+  readonly action: MultisigProposalAction;
+  readonly policyId: string | null;
+  readonly targetMerkleRoot: string | null;
+  readonly targetPolicyHash: string | null;
+  readonly status: MultisigProposalStatus;
+  readonly approvalCount: number;
+  readonly rejectionCount: number;
+  readonly executedTx: string | null;
+  readonly createdBy: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly executedAt: string | null;
+}
+
+interface RecordProposalBody {
+  readonly operator_id: string;
+  readonly multisig_address: string;
+  readonly transaction_index: number;
+  readonly transaction_pda: string;
+  readonly proposal_pda?: string;
+  readonly action: MultisigProposalAction;
+  readonly policy_id?: string;
+  readonly target_merkle_root?: string;
+  readonly target_policy_hash?: string;
+  readonly created_by: string;
+}
+
+interface ProposalStatusBody {
+  readonly status: MultisigProposalStatus;
+  readonly approval_count?: number;
+  readonly rejection_count?: number;
+  readonly executed_tx?: string;
+}
+
 export const multisigApi = {
   /** Read-only: ask the policy-service to fetch a Squads account from RPC. */
   lookup: (multisigAddress: string, vaultIndex = 0) =>
@@ -505,5 +561,47 @@ export const multisigApi = {
     request<ApiResponse<readonly MultisigAuditEntry[]>>(
       config.policyServiceUrl,
       `/api/v1/squads/audit/${encodeURIComponent(operatorId)}?limit=${limit}`,
+    ),
+
+  // ---- Proposals ----
+
+  recordProposal: (body: RecordProposalBody) =>
+    request<ApiResponse<MultisigProposal>>(
+      config.policyServiceUrl,
+      '/api/v1/squads/proposal',
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+
+  listProposals: (
+    operatorId: string,
+    options: { status?: MultisigProposalStatus | 'all'; limit?: number } = {},
+  ) => {
+    const qs = new URLSearchParams();
+    if (options.status) qs.set('status', options.status);
+    if (options.limit) qs.set('limit', String(options.limit));
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return request<ApiResponse<readonly MultisigProposal[]>>(
+      config.policyServiceUrl,
+      `/api/v1/squads/proposals/operator/${encodeURIComponent(operatorId)}${suffix}`,
+    );
+  },
+
+  listProposalsForPolicy: (policyId: string) =>
+    request<ApiResponse<readonly MultisigProposal[]>>(
+      config.policyServiceUrl,
+      `/api/v1/squads/proposals/policy/${encodeURIComponent(policyId)}`,
+    ),
+
+  getProposal: (id: string) =>
+    request<ApiResponse<MultisigProposal>>(
+      config.policyServiceUrl,
+      `/api/v1/squads/proposal/${encodeURIComponent(id)}`,
+    ),
+
+  updateProposalStatus: (id: string, body: ProposalStatusBody) =>
+    request<ApiResponse<MultisigProposal>>(
+      config.policyServiceUrl,
+      `/api/v1/squads/proposal/${encodeURIComponent(id)}/status`,
+      { method: 'PATCH', body: JSON.stringify(body) },
     ),
 };
