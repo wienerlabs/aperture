@@ -522,6 +522,30 @@ export const multisigApi = {
       body: JSON.stringify(body),
     }),
 
+  /**
+   * Devnet only: ask policy-service to generate an operator keypair, fund
+   * it from the configured treasury, create a Squads multisig, then call
+   * initialise_operator + set_multisig in one server-side flow. The
+   * response contains the keypair bytes ONCE so the caller can persist
+   * them locally; mainnet returns 403.
+   */
+  bindAutomated: (body: {
+    threshold?: number;
+    extra_members?: readonly string[];
+    label?: string;
+    vault_index?: number;
+  }) =>
+    request<
+      ApiResponse<{
+        binding: MultisigBinding;
+        keypairBytes: readonly number[];
+        signatures: { create: string; bind: string };
+      }>
+    >(config.policyServiceUrl, '/api/v1/squads/bind/automated', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
   /** Get the cached binding (404 → null at this layer). */
   getBinding: async (operatorId: string): Promise<MultisigBinding | null> => {
     try {

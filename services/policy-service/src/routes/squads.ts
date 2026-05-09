@@ -6,7 +6,6 @@ import type {
   MultisigOnchainSnapshot,
   MultisigAuditEntry,
   MultisigProposal,
-  MultisigProposalAction,
   MultisigProposalStatus,
 } from '@aperture/types';
 import { validateBody } from '../middleware/validate.js';
@@ -17,6 +16,10 @@ import {
   deriveVaultPda,
   SQUADS_V4_PROGRAM_ID,
 } from '../utils/squads-fetcher.js';
+import {
+  createAndBindMultisig,
+  SquadsBinderError,
+} from '../utils/squads-binder.js';
 import {
   upsertBinding,
   syncSnapshot,
@@ -193,6 +196,97 @@ router.post('/binding', validateBody(BindBindingSchema), async (req, res, next) 
     next(error);
   }
 });
+
+const AutomatedBindSchema = z.object({
+  threshold: z.number().int().min(1).max(10).optional(),
+  extra_members: z.array(Base58Schema).max(9).optional(),
+  label: z.string().min(1).max(255).optional(),
+  vault_index: VaultIndexSchema.optional(),
+});
+
+interface AutomatedBindResponseBody {
+  readonly binding: MultisigBinding;
+  readonly keypairBytes: readonly number[];
+  readonly signatures: { readonly create: string; readonly bind: string };
+}
+
+/**
+ * POST /api/v1/squads/bind/automated
+ *
+ * Devnet-only convenience: server generates a fresh operator keypair,
+ * funds it from the faucet, calls multisigCreateV2 + initialise_operator
+ * + set_multisig, then mirrors the binding into Postgres. Response
+ * includes the keypair bytes ONCE so the operator can persist them
+ * locally — there is no server-side custody. Mainnet rejects this with
+ * 403 because secret material should never be generated where it might
+ * hold real value.
+ */
+router.post(
+  '/bind/automated',
+  validateBody(AutomatedBindSchema),
+  async (req, res, next) => {
+    try {
+      const body = req.body as z.infer<typeof AutomatedBindSchema>;
+
+      const result = await createAndBindMultisig({
+        threshold: body.threshold,
+        extraMembers: body.extra_members,
+        label: body.label,
+        vaultIndex: body.vault_index,
+      });
+
+      const binding = await upsertBinding({
+        operatorId: result.operatorAuthority,
+        multisigAddress: result.multisigAddress,
+        vaultIndex: result.vaultIndex,
+        vaultPda: result.vaultPda,
+        threshold: result.threshold,
+        memberCount: result.members.length,
+        members: result.members.map((m) => ({
+          key: m.key,
+          permissionsMask: m.permissionsMask,
+        })),
+        label: body.label,
+        bindTxSignature: result.signatures.bind,
+        actor: result.operatorAuthority,
+      });
+
+      logger.info('Automated multisig bind complete', {
+        operatorId: result.operatorAuthority,
+        multisigAddress: result.multisigAddress,
+        vaultPda: result.vaultPda,
+        threshold: result.threshold,
+        memberCount: result.members.length,
+      });
+
+      const response: ApiResponse<AutomatedBindResponseBody> = {
+        success: true,
+        data: {
+          binding,
+          keypairBytes: result.keypairBytes,
+          signatures: result.signatures,
+        },
+        error: null,
+      };
+      res.status(201).json(response);
+    } catch (error) {
+      if (error instanceof SquadsBinderError) {
+        const statusByKind: Record<typeof error.kind, number> = {
+          forbidden: 403,
+          airdrop_failed: 503,
+          treasury_unavailable: 503,
+          treasury_underfunded: 503,
+          invalid_threshold: 400,
+          invalid_member: 400,
+          multisig_create_failed: 502,
+          aperture_bind_failed: 502,
+        };
+        return next(new AppError(statusByKind[error.kind], error.message));
+      }
+      next(error);
+    }
+  },
+);
 
 /**
  * GET /api/v1/squads/binding/:operatorId

@@ -34,15 +34,19 @@ import { Transaction, PublicKey } from '@solana/web3.js';
 import { config as apertureConfig } from '@/lib/config';
 import { multisigApi, type MultisigSnapshot, type MultisigBinding } from '@/lib/api';
 import { buildSetMultisigIx } from '@/lib/anchor-instructions';
+import { Wand2, ClipboardCopy } from 'lucide-react';
 import { ApInput } from '../policies/ApField';
 import { MembersList } from './MembersList';
 import { SdkCommandSnippet } from './SdkCommandSnippet';
+import { MultisigAutoBindFlow } from './MultisigAutoBindFlow';
 
 interface MultisigBindingCardProps {
   readonly operatorId: string;
   readonly walletAddress: string | null;
   readonly onBound: (binding: MultisigBinding) => void;
 }
+
+type Mode = 'auto' | 'paste';
 
 type Phase = 'paste' | 'looking-up' | 'preview' | 'binding' | 'confirmed';
 
@@ -65,6 +69,7 @@ export function MultisigBindingCard({
   const { publicKey, sendTransaction } = useWallet();
   const { connection } = useConnection();
 
+  const [mode, setMode] = useState<Mode>('auto');
   const [multisigAddress, setMultisigAddress] = useState('');
   const [vaultIndex, setVaultIndex] = useState(0);
   const [label, setLabel] = useState('');
@@ -153,6 +158,124 @@ export function MultisigBindingCard({
     }
   }
 
+  return (
+    <div className="flex flex-col gap-5">
+      <ModeToggle mode={mode} onChange={setMode} />
+
+      {mode === 'auto' && (
+        <MultisigAutoBindFlow onBound={onBound} />
+      )}
+
+      {mode === 'paste' && (
+        <PasteFlow
+          stepIndex={stepIndex}
+          phase={phase}
+          multisigAddress={multisigAddress}
+          setMultisigAddress={setMultisigAddress}
+          vaultIndex={vaultIndex}
+          setVaultIndex={setVaultIndex}
+          label={label}
+          setLabel={setLabel}
+          snapshot={snapshot}
+          setSnapshot={setSnapshot}
+          setPhase={setPhase}
+          error={error}
+          signature={signature}
+          canLookup={canLookup}
+          canBind={Boolean(canBind)}
+          handleLookup={handleLookup}
+          handleBind={handleBind}
+          walletAddress={walletAddress}
+        />
+      )}
+    </div>
+  );
+}
+
+interface ModeToggleProps {
+  readonly mode: Mode;
+  readonly onChange: (next: Mode) => void;
+}
+
+function ModeToggle({ mode, onChange }: ModeToggleProps): JSX.Element {
+  const options: ReadonlyArray<{ id: Mode; label: string; icon: typeof Wand2 }> = [
+    { id: 'auto', label: 'Create + bind automatically', icon: Wand2 },
+    { id: 'paste', label: 'Bind an existing multisig', icon: ClipboardCopy },
+  ];
+  return (
+    <div className="inline-flex p-1 rounded-pill border border-black/10 bg-white self-start">
+      {options.map((opt) => {
+        const active = opt.id === mode;
+        const Icon = opt.icon;
+        return (
+          <motion.button
+            key={opt.id}
+            type="button"
+            onClick={() => onChange(opt.id)}
+            whileTap={{ scale: 0.97 }}
+            className="relative inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-[12px] font-medium tracking-tighter transition-colors"
+            style={{
+              color: active ? '#c98f00' : '#7c8293',
+            }}
+          >
+            {active && (
+              <motion.span
+                layoutId="mode-toggle-pill"
+                className="absolute inset-0 rounded-pill"
+                style={{ background: 'rgba(248,179,0,0.18)' }}
+                transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+              />
+            )}
+            <Icon className="relative h-3.5 w-3.5" />
+            <span className="relative">{opt.label}</span>
+          </motion.button>
+        );
+      })}
+    </div>
+  );
+}
+
+interface PasteFlowProps {
+  readonly stepIndex: number;
+  readonly phase: Phase;
+  readonly multisigAddress: string;
+  readonly setMultisigAddress: (s: string) => void;
+  readonly vaultIndex: number;
+  readonly setVaultIndex: (n: number) => void;
+  readonly label: string;
+  readonly setLabel: (s: string) => void;
+  readonly snapshot: MultisigSnapshot | null;
+  readonly setSnapshot: (s: MultisigSnapshot | null) => void;
+  readonly setPhase: (p: Phase) => void;
+  readonly error: string | null;
+  readonly signature: string | null;
+  readonly canLookup: boolean;
+  readonly canBind: boolean;
+  readonly handleLookup: () => void | Promise<void>;
+  readonly handleBind: () => void | Promise<void>;
+  readonly walletAddress: string | null;
+}
+
+function PasteFlow({
+  stepIndex,
+  phase,
+  multisigAddress,
+  setMultisigAddress,
+  vaultIndex,
+  setVaultIndex,
+  label,
+  setLabel,
+  snapshot,
+  setSnapshot,
+  setPhase,
+  error,
+  signature,
+  canLookup,
+  canBind,
+  handleLookup,
+  handleBind,
+  walletAddress,
+}: PasteFlowProps): JSX.Element {
   return (
     <div className="flex flex-col gap-5">
       <Stepper currentStep={stepIndex} />
