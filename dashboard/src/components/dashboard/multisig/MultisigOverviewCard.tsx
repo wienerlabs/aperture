@@ -190,13 +190,13 @@ export function MultisigOverviewCard({
 
       <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-black/8">
         <a
-          href={config.squadsMultisigUrl(binding.multisigAddress)}
+          href={config.multisigViewerUrl(binding.multisigAddress)}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 rounded-pill border border-black/8 bg-white px-3 py-1.5 text-[12px] font-medium tracking-tighter text-aperture-dark hover:border-aperture/40 transition-colors"
         >
           <ShieldCheck className="h-3.5 w-3.5" />
-          Open in Squads
+          {config.multisigViewerIsExplorer ? 'View on Explorer' : 'Open in Squads'}
         </a>
 
         <motion.button

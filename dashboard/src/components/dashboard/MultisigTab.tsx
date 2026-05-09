@@ -508,14 +508,7 @@ export function MultisigTab(): JSX.Element {
           <ExternalLink className="h-3 w-3" />
         </a>
         <span className="text-black/30">·</span>
-        <a
-          href={config.squadsAppBaseUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-aperture-dark hover:text-black transition-colors"
-        >
-          Open Squads app
-        </a>
+        <span className="font-mono text-black/45">npm run squads -- help</span>
       </motion.div>
     </motion.div>
   );
@@ -528,20 +521,20 @@ interface WorkflowStep {
 
 const WORKFLOW_STEPS: readonly WorkflowStep[] = [
   {
-    title: 'Create in Squads',
-    body: `Open ${config.squadsAppBaseUrl.replace(/^https?:\/\//, '')}, build a multisig with your team, and choose a threshold. Squads stores all member metadata on-chain.`,
+    title: 'Create + bind via SDK',
+    body: 'Run `npm run squads:bind -- --threshold 1` from the repo root. The CLI calls multisigCreateV2, initialise_operator and set_multisig in one shot, then mirrors the binding into policy-service. No browser, no Squads UI required.',
   },
   {
     title: 'Look up & preview',
-    body: 'Paste the multisig address here. policy-service reads Squads via RPC and shows you threshold, members, and the derived vault PDA.',
+    body: 'Or paste an existing multisig address here. policy-service reads Squads via RPC and shows you threshold, members, and the derived vault PDA before you commit.',
   },
   {
     title: 'Sign set_multisig',
-    body: 'Your wallet sends one transaction calling set_multisig. The Policy Registry program persists the vault PDA on your OperatorAccount.',
+    body: 'When binding from the dashboard your wallet sends one transaction calling set_multisig. The Policy Registry program persists the vault PDA on your OperatorAccount.',
   },
   {
     title: 'All policy ops governed',
-    body: 'register_policy_multisig and update_policy_multisig now require the vault PDA as signer. Single-wallet shortcuts are rejected.',
+    body: 'register_policy_multisig and update_policy_multisig now require the vault PDA as signer. Use `npm run squads -- auto-policy` to drive the propose/approve/execute flow end-to-end.',
   },
 ];
 

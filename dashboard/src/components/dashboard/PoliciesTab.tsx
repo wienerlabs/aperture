@@ -890,16 +890,17 @@ export function PoliciesTab() {
                       Awaiting multisig approval
                     </span>
                     <a
-                      href={config.squadsProposalUrl(
+                      href={config.proposalViewerUrl(
                         pendingProposalByPolicy[policy.id]!.multisigAddress,
                         pendingProposalByPolicy[policy.id]!.transactionIndex,
+                        pendingProposalByPolicy[policy.id]!.proposalPda ?? undefined,
                       )}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-[11px] font-medium text-aperture-dark hover:text-black transition-colors"
                     >
                       <ExternalLink className="w-3 h-3" />
-                      Vote in Squads
+                      {config.multisigViewerIsExplorer ? 'View on Explorer' : 'Vote in Squads'}
                     </a>
                     <span className="text-[11px] text-black/55 tracking-tighter">
                       {pendingProposalByPolicy[policy.id]!.approvalCount} approval

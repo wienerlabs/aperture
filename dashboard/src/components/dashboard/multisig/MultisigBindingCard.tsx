@@ -36,6 +36,7 @@ import { multisigApi, type MultisigSnapshot, type MultisigBinding } from '@/lib/
 import { buildSetMultisigIx } from '@/lib/anchor-instructions';
 import { ApInput } from '../policies/ApField';
 import { MembersList } from './MembersList';
+import { SdkCommandSnippet } from './SdkCommandSnippet';
 
 interface MultisigBindingCardProps {
   readonly operatorId: string;
@@ -336,37 +337,37 @@ export function MultisigBindingCard({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex items-start gap-2 rounded-[14px] border border-black/8 bg-[rgba(248,179,0,0.03)] px-3 py-2.5"
+            className="flex flex-col gap-3"
           >
-            <Sparkles className="h-4 w-4 shrink-0 mt-0.5 text-aperture-dark" />
-            <div className="text-[12px] text-black/65 tracking-tighter flex-1">
-              <p>
-                Aperture only supports binding to a multisig that already exists.
-                Create one in the{' '}
-                <a
-                  href={apertureConfig.squadsAppBaseUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline text-aperture-dark hover:text-black"
-                >
-                  Squads app
-                </a>{' '}
-                first, then paste its address here.
-              </p>
-              <p className="mt-1 text-black/45">
-                Squads program ID:{' '}
-                <a
-                  href={apertureConfig.explorerUrl(
-                    'SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf',
-                  )}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-mono text-aperture-dark hover:text-black"
-                >
-                  SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf
-                </a>
-              </p>
+            <div className="flex items-start gap-2 rounded-[14px] border border-black/8 bg-[rgba(248,179,0,0.03)] px-3 py-2.5">
+              <Sparkles className="h-4 w-4 shrink-0 mt-0.5 text-aperture-dark" />
+              <div className="text-[12px] text-black/65 tracking-tighter flex-1">
+                <p>
+                  Aperture binds an existing Squads V4 multisig. The Squads
+                  devnet UI is intermittent, so we ship an SDK CLI that creates
+                  + binds the multisig in one shot — no browser needed.
+                </p>
+                <p className="mt-1 text-black/45">
+                  Squads program ID:{' '}
+                  <a
+                    href={apertureConfig.explorerUrl(
+                      'SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf',
+                    )}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-mono text-aperture-dark hover:text-black"
+                  >
+                    SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf
+                  </a>
+                </p>
+              </div>
             </div>
+            <SdkCommandSnippet
+              title="Create + bind a multisig (one shot)"
+              description="From the repo root. Generates a fresh operator keypair on first run, top-funds it, calls multisigCreateV2, then set_multisig + cache mirror — fully UI-free."
+              command={'npm run squads:bind -- --threshold 1'}
+              note="Add --member <pubkey> for each extra signer. Use --keypair to point at an existing JSON keypair."
+            />
           </motion.div>
         )}
       </AnimatePresence>
@@ -518,8 +519,8 @@ function renderWalletHelp(message: string, pasted: string): JSX.Element {
           <p className="text-[12px] text-black/65 tracking-tighter">
             The address you pasted is owned by the System Program, which is what holds
             regular Phantom / Solflare wallets. A Squads V4 multisig is a separate PDA
-            that you create at {squadsHost()} and that lives on-chain under the Squads
-            program.
+            that lives on-chain under the Squads program. Aperture ships an SDK CLI
+            that creates and binds one in a single command — no Squads UI required.
           </p>
         </div>
       </div>
@@ -528,26 +529,21 @@ function renderWalletHelp(message: string, pasted: string): JSX.Element {
           {pasted}
         </code>
       )}
-      <div className="flex flex-wrap items-center gap-2">
-        <a
-          href={apertureConfig.squadsAppBaseUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="ap-btn-orange inline-flex items-center gap-1.5"
-        >
-          <ExternalLinkIcon />
-          Create a multisig in Squads
-        </a>
-        <a
-          href="https://docs.squads.so/main/development/squads-program"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 rounded-pill border border-black/8 bg-white px-3 py-1.5 text-[12px] font-medium tracking-tighter text-aperture-dark hover:border-aperture/40 transition-colors"
-        >
-          <ExternalLinkIcon />
-          What is a multisig?
-        </a>
-      </div>
+      <SdkCommandSnippet
+        title="Create + bind a multisig"
+        description="Runs end-to-end without leaving the terminal: multisigCreateV2 → initialize_operator → set_multisig → cache mirror."
+        command={'npm run squads:bind -- --threshold 1'}
+        note={`Run from the aperture/ repo root. Add --member <pubkey> for each co-signer; the wallet you pasted (${pasted ? pasted.slice(0, 8) + '…' : 'your wallet'}) can go in there.`}
+      />
+      <a
+        href="https://docs.squads.so/main/development/squads-program"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 self-start rounded-pill border border-black/8 bg-white px-3 py-1.5 text-[12px] font-medium tracking-tighter text-aperture-dark hover:border-aperture/40 transition-colors"
+      >
+        <ExternalLinkIcon />
+        What is a Squads V4 multisig?
+      </a>
       <details className="text-[11px] text-black/55">
         <summary className="cursor-pointer hover:text-black">Server response</summary>
         <p className="mt-1 break-all">{message}</p>
@@ -566,22 +562,18 @@ function renderSquadsV3Help(message: string): JSX.Element {
             Squads V3 multisig detected
           </p>
           <p className="text-[12px] text-black/65 tracking-tighter">
-            Aperture only integrates with Squads V4. V3 multisigs use a different
-            program ID and cannot sign the policy registry instructions. Create a fresh
-            V4 multisig at {squadsHost()} (V3 is in maintenance mode) and bind that
-            instead.
+            Aperture only integrates with Squads V4. V3 uses a different program
+            ID and cannot sign the policy registry instructions. Create a fresh
+            V4 multisig with the SDK CLI below — it goes straight through
+            multisigCreateV2 and binds the result to your operator account.
           </p>
         </div>
       </div>
-      <a
-        href={apertureConfig.squadsAppBaseUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="ap-btn-orange inline-flex items-center gap-1.5 self-start"
-      >
-        <ExternalLinkIcon />
-        Open Squads (V4)
-      </a>
+      <SdkCommandSnippet
+        title="Create + bind a V4 multisig"
+        command={'npm run squads:bind -- --threshold 1'}
+        note={'Add --member <pubkey> for each extra signer. Add --label "Treasury 2-of-3" to tag it in the audit log.'}
+      />
       <details className="text-[11px] text-black/55">
         <summary className="cursor-pointer hover:text-black">Server response</summary>
         <p className="mt-1 break-all">{message}</p>
@@ -626,10 +618,6 @@ function renderGenericError(message: string): JSX.Element {
       <p className="text-[12px] tracking-tighter text-red-700 break-all">{message}</p>
     </div>
   );
-}
-
-function squadsHost(): string {
-  return apertureConfig.squadsAppBaseUrl.replace(/^https?:\/\//, '');
 }
 
 function ExternalLinkIcon(): JSX.Element {

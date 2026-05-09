@@ -52,30 +52,40 @@ export const config = {
   txExplorerUrl: (sig: string) =>
     `https://explorer.solana.com/tx/${sig}?cluster=${process.env.NEXT_PUBLIC_SOLANA_NETWORK ?? 'devnet'}`,
 
-  // Squads V4 doesn't expose an in-app cluster switcher; mainnet and
-  // devnet live on different subdomains. We pick the right one based on
-  // the Solana network Aperture is pointing at so the dashboard never
-  // sends an operator to a multisig they cannot see.
-  squadsAppBaseUrl: (() => {
+  // Squads V4 has no in-app cluster switcher and devnet.squads.so has
+  // been intermittent. On non-mainnet clusters we route every "view this
+  // multisig / proposal" link to Solana Explorer instead — Explorer
+  // always renders the same on-chain metadata (members, threshold,
+  // lamports, transaction history). On mainnet, where the Squads UI is
+  // reliable and richer, we keep linking to app.squads.so.
+  multisigViewerUrl: (multisigAddress: string): string => {
     const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK ?? 'devnet';
-    return network === 'mainnet-beta' || network === 'mainnet'
-      ? 'https://app.squads.so'
-      : 'https://devnet.squads.so';
+    if (network === 'mainnet-beta' || network === 'mainnet') {
+      return `https://app.squads.so/squads/${multisigAddress}`;
+    }
+    return `https://explorer.solana.com/address/${multisigAddress}?cluster=${network}`;
+  },
+  proposalViewerUrl: (
+    multisigAddress: string,
+    transactionIndex: number,
+    proposalPda?: string,
+  ): string => {
+    const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK ?? 'devnet';
+    if (network === 'mainnet-beta' || network === 'mainnet') {
+      return `https://app.squads.so/squads/${multisigAddress}/transactions/${transactionIndex}`;
+    }
+    // Devnet: prefer the proposal PDA's account view (it shows the
+    // proposal account directly with approval/rejection counts);
+    // otherwise fall back to the multisig itself.
+    const target = proposalPda ?? multisigAddress;
+    return `https://explorer.solana.com/address/${target}?cluster=${network}`;
+  },
+  // True when the dashboard falls back to Solana Explorer (devnet/testnet).
+  // Components flip the button label between "Open in Squads" and
+  // "View on Explorer" based on this flag so the link text never lies
+  // about where it's about to take the operator.
+  multisigViewerIsExplorer: (() => {
+    const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK ?? 'devnet';
+    return !(network === 'mainnet-beta' || network === 'mainnet');
   })(),
-  squadsMultisigUrl: (multisigAddress: string) => {
-    const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK ?? 'devnet';
-    const base =
-      network === 'mainnet-beta' || network === 'mainnet'
-        ? 'https://app.squads.so'
-        : 'https://devnet.squads.so';
-    return `${base}/squads/${multisigAddress}`;
-  },
-  squadsProposalUrl: (multisigAddress: string, transactionIndex: number) => {
-    const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK ?? 'devnet';
-    const base =
-      network === 'mainnet-beta' || network === 'mainnet'
-        ? 'https://app.squads.so'
-        : 'https://devnet.squads.so';
-    return `${base}/squads/${multisigAddress}/transactions/${transactionIndex}`;
-  },
 } as const;
