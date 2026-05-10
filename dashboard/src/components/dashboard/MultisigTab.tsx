@@ -62,10 +62,46 @@ const sectionVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
 };
 
+// Persist the auto-bind operator authority across reloads. Auto-bind
+// generates a fresh keypair server-side; without this, refreshing the
+// page would lose the link between the connected wallet and the bound
+// multisig and the operator would see the empty state again.
+const MANAGED_OPERATOR_LS_KEY = 'aperture.multisig.managedOperator';
+
+function loadManagedOperator(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage.getItem(MANAGED_OPERATOR_LS_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function persistManagedOperator(id: string | null): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (id) window.localStorage.setItem(MANAGED_OPERATOR_LS_KEY, id);
+    else window.localStorage.removeItem(MANAGED_OPERATOR_LS_KEY);
+  } catch {
+    /* storage may be blocked */
+  }
+}
+
 export function MultisigTab(): JSX.Element {
-  const operatorId = useOperatorId();
+  const walletOperatorId = useOperatorId();
   const { publicKey } = useWallet();
   const walletAddress = publicKey?.toBase58() ?? null;
+
+  // Track an auto-bind managed operator separately from the wallet so
+  // both can co-exist (wallet may bind to multisig X via the paste flow,
+  // separately auto-bind generates managed operator Y).
+  const [managedOperatorId, setManagedOperatorId] = useState<string | null>(() =>
+    loadManagedOperator(),
+  );
+
+  // Active operator: managed (server-generated) takes priority because
+  // it's the most recent action; falls back to the connected wallet.
+  const operatorId = managedOperatorId ?? walletOperatorId;
 
   const [binding, setBinding] = useState<MultisigBinding | null>(null);
   const [bindingLoading, setBindingLoading] = useState(true);
@@ -76,27 +112,31 @@ export function MultisigTab(): JSX.Element {
   const [statusFilter, setStatusFilter] =
     useState<MultisigProposalStatus | 'all'>('pending');
 
-  const loadAll = useCallback(async (): Promise<void> => {
-    if (!operatorId) return;
-    setBindingLoading(true);
-    setProposalsLoading(true);
-    setBindingError(null);
-    try {
-      const [bindingResult, auditResult, proposalsResult] = await Promise.all([
-        multisigApi.getBinding(operatorId),
-        multisigApi.audit(operatorId, 25),
-        multisigApi.listProposals(operatorId, { status: 'all', limit: 50 }),
-      ]);
-      setBinding(bindingResult);
-      setAudit(auditResult.data ?? []);
-      setProposals(proposalsResult.data ?? []);
-    } catch (err: unknown) {
-      setBindingError(err instanceof Error ? err.message : 'Failed to load multisig');
-    } finally {
-      setBindingLoading(false);
-      setProposalsLoading(false);
-    }
-  }, [operatorId]);
+  const loadAll = useCallback(
+    async (overrideOperator?: string): Promise<void> => {
+      const id = overrideOperator ?? operatorId;
+      if (!id) return;
+      setBindingLoading(true);
+      setProposalsLoading(true);
+      setBindingError(null);
+      try {
+        const [bindingResult, auditResult, proposalsResult] = await Promise.all([
+          multisigApi.getBinding(id),
+          multisigApi.audit(id, 25),
+          multisigApi.listProposals(id, { status: 'all', limit: 50 }),
+        ]);
+        setBinding(bindingResult);
+        setAudit(auditResult.data ?? []);
+        setProposals(proposalsResult.data ?? []);
+      } catch (err: unknown) {
+        setBindingError(err instanceof Error ? err.message : 'Failed to load multisig');
+      } finally {
+        setBindingLoading(false);
+        setProposalsLoading(false);
+      }
+    },
+    [operatorId],
+  );
 
   useEffect(() => {
     void loadAll();
@@ -104,7 +144,27 @@ export function MultisigTab(): JSX.Element {
 
   function handleBindingChange(next: MultisigBinding | null): void {
     setBinding(next);
-    void loadAll();
+    if (next && next.operatorId !== walletOperatorId) {
+      // Auto-bind path: remember this server-generated operator so it
+      // survives a refresh and subsequent loads target the right id.
+      setManagedOperatorId(next.operatorId);
+      persistManagedOperator(next.operatorId);
+      void loadAll(next.operatorId);
+    } else if (!next && managedOperatorId) {
+      // Unbind on a managed operator clears the local handoff too.
+      setManagedOperatorId(null);
+      persistManagedOperator(null);
+      void loadAll(walletOperatorId ?? undefined);
+    } else {
+      void loadAll();
+    }
+  }
+
+  function handleClearManagedOperator(): void {
+    setManagedOperatorId(null);
+    persistManagedOperator(null);
+    setBinding(null);
+    void loadAll(walletOperatorId ?? undefined);
   }
 
   const isBound = Boolean(binding);
@@ -240,6 +300,51 @@ export function MultisigTab(): JSX.Element {
         </div>
       </motion.section>
 
+      {/* Managed operator banner — only when an auto-bind has produced a
+          server-generated operator that differs from the connected
+          wallet. Lets the operator switch back to wallet-mode without
+          digging through localStorage. */}
+      <AnimatePresence>
+        {managedOperatorId && (
+          <motion.div
+            key="managed-banner"
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.3 }}
+            className="ap-card flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+            style={{
+              borderColor: 'rgba(248,179,0,0.4)',
+              background: 'rgba(248,179,0,0.06)',
+            }}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-pill bg-aperture/15 text-aperture-dark">
+                <ShieldCheck className="h-3.5 w-3.5" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[12px] font-medium tracking-tighter text-black">
+                  Managed operator (auto-bind)
+                </p>
+                <p className="text-[11px] font-mono text-black/55 truncate">
+                  {managedOperatorId}
+                </p>
+              </div>
+            </div>
+            {walletOperatorId && walletOperatorId !== managedOperatorId && (
+              <button
+                type="button"
+                onClick={handleClearManagedOperator}
+                className="shrink-0 inline-flex items-center gap-1 rounded-pill border border-black/8 bg-white px-3 py-1 text-[11px] font-medium tracking-tighter text-black hover:border-aperture/40 transition-colors"
+              >
+                <Wallet className="h-3 w-3" />
+                Switch to wallet ({truncateAddress(walletOperatorId, 4)})
+              </button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Stats row */}
       <motion.section variants={sectionVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
@@ -357,7 +462,7 @@ export function MultisigTab(): JSX.Element {
                 </div>
               </header>
               <MultisigBindingCard
-                operatorId={operatorId}
+                operatorId={walletOperatorId ?? operatorId}
                 walletAddress={walletAddress}
                 onBound={handleBindingChange}
               />
