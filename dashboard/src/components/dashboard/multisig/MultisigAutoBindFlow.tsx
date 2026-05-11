@@ -148,14 +148,21 @@ export function MultisigAutoBindFlow({
           label="Threshold"
           type="number"
           min={1}
-          max={Math.max(1, totalMembers)}
           value={String(threshold)}
           onChange={(e) => {
             const n = Number(e.target.value);
+            // Hard cap at 10 to keep the input sane; the actual validity
+            // (threshold <= totalMembers) is enforced visually via helper +
+            // the Run button being disabled. We deliberately do NOT pass
+            // max={} on the input element because some browsers refuse
+            // typing past it before co-signers are pasted, locking the
+            // value at 1 even when the operator types 2.
             setThreshold(Number.isFinite(n) ? Math.max(1, Math.min(10, Math.floor(n))) : 1);
           }}
           fieldClassName="sm:w-32"
-          helper={`${threshold} of ${totalMembers}`}
+          helper={`${threshold} of ${totalMembers}${
+            thresholdValid ? '' : ' - add co-signers first'
+          }`}
         />
       </fieldset>
 

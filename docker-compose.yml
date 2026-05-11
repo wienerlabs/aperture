@@ -47,9 +47,18 @@ services:
       USDC_MINT_ADDRESS: 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU
       USDT_MINT_ADDRESS: EJwZgeZrdC8TXTQbQBoL6bfuAnFUQS7QEkCybt4rCxsT
       SOLANA_RPC_URL: ${SOLANA_RPC_URL:-https://api.devnet.solana.com}
+      SOLANA_NETWORK: ${SOLANA_NETWORK:-devnet}
       POLICY_REGISTRY_PROGRAM: FXD7ycSguBQw7o3DXqq4VUBHtdx5ZQpu9P2zb4KG4ZEU
+      # Auto-bind treasury: pre-funded devnet keypair the policy-service uses
+      # to fund freshly-generated operator authorities (~0.08 SOL/bind).
+      # SQUADS_TREASURY_KEYPAIR_JSON wins when set; falls back to PATH and
+      # then to the public devnet faucet.
+      SQUADS_TREASURY_KEYPAIR_JSON: ${SQUADS_TREASURY_KEYPAIR_JSON:-}
+      SQUADS_TREASURY_KEYPAIR_PATH: ${SQUADS_TREASURY_KEYPAIR_PATH:-/secrets/treasury.json}
       LOG_LEVEL: info
       NODE_ENV: production
+    volumes:
+      - ./.aperture-treasury.json:/secrets/treasury.json:ro
     depends_on:
       postgres-policy:
         condition: service_healthy
@@ -178,6 +187,7 @@ services:
       args:
         NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
         NEXT_PUBLIC_LIGHT_RPC_URL: ${NEXT_PUBLIC_LIGHT_RPC_URL}
+        NEXT_PUBLIC_SOLANA_RPC_URL: ${NEXT_PUBLIC_SOLANA_RPC_URL:-${SOLANA_RPC_URL:-https://api.devnet.solana.com}}
     container_name: aperture
     ports:
       - "5175:3000"
@@ -192,7 +202,7 @@ services:
       NEXT_PUBLIC_COMPLIANCE_API_URL: http://localhost:3002
       NEXT_PUBLIC_PROVER_SERVICE_URL: http://localhost:3003
       NEXT_PUBLIC_AGENT_SERVICE_URL: http://localhost:3004
-      NEXT_PUBLIC_SOLANA_RPC_URL: https://api.devnet.solana.com
+      NEXT_PUBLIC_SOLANA_RPC_URL: ${NEXT_PUBLIC_SOLANA_RPC_URL:-${SOLANA_RPC_URL:-https://api.devnet.solana.com}}
       NEXT_PUBLIC_SOLANA_NETWORK: devnet
       NEXT_PUBLIC_POLICY_REGISTRY_PROGRAM: FXD7ycSguBQw7o3DXqq4VUBHtdx5ZQpu9P2zb4KG4ZEU
       NEXT_PUBLIC_VERIFIER_PROGRAM: AzKirEv7h5PstLNYNqLj7fCXU9EFA6nSnuoed3QkmUfU

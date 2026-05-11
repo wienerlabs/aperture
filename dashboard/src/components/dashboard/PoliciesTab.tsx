@@ -35,6 +35,7 @@ import {
   buildUpdatePolicyIx,
   deriveOperatorPDA,
 } from '@/lib/anchor-instructions';
+import { autoAnchorPolicy } from '@/lib/multisig-actions';
 import {
   ApInput,
   ApCheckbox,
@@ -289,6 +290,60 @@ export function PoliciesTab() {
       return {
         tx_signature: policy.onchain_tx_signature ?? '',
         onchain_pda: payload.onchain_pda ?? '',
+      };
+    }
+
+    // Multisig path: when the operator has a Squads binding active, the
+    // policy registry program rejects a single-key signer and requires the
+    // vault PDA to authorize the change. We orchestrate Squads
+    // vaultTransactionCreate + proposalCreate + proposalApprove +
+    // vaultTransactionExecute end-to-end in the browser via Squads SDK.
+    // For 1-of-1 multisigs the connected wallet alone meets threshold and
+    // executes immediately; N-of-M throws after the propose+approve step
+    // (the remaining members approve from the Multisig tab).
+    if (multisigBinding) {
+      const wallet = { publicKey, sendTransaction } as Parameters<typeof autoAnchorPolicy>[1];
+      const result = await autoAnchorPolicy(
+        connection,
+        wallet,
+        {
+          action: payload.operation === 'register' ? 'register' : 'update',
+          multisigAddress: multisigBinding.multisigAddress,
+          vaultIndex: multisigBinding.vaultIndex,
+          policyIdBytesHex: payload.policy_id_bytes_hex,
+          policyPda: payload.onchain_pda ?? undefined,
+          merkleRootHex: payload.merkle_root_hex,
+          policyDataHashHex: payload.policy_data_hash_hex,
+          policyUuid: policy.id,
+          threshold: multisigBinding.threshold,
+          memo: `${payload.operation}_policy ${policy.name}`.slice(0, 64),
+        },
+        () => {
+          // Future hook: surface step-by-step progress in a toast/banner.
+        },
+      );
+      const policyPDABase58 = result.policyPda.toBase58();
+      // After a successful multisig re-anchor, the on-chain hashes match
+      // the current DB hashes. Bumping onchain_version by +1 leaves the
+      // counter behind every time the user edited multiple times before
+      // anchoring (DB v5, on-chain v1 -> +1 = v2, pending pill stays
+      // because 5 > 2). Aligning to policy.version so the divergence
+      // pill correctly clears once chain catches up.
+      const nextOnchainVersion =
+        payload.operation === 'register'
+          ? Math.max(1, policy.version)
+          : Math.max(policy.version, (payload.onchain_version ?? 1) + 1);
+      await policyApi.confirmOnchain(policy.id, {
+        status: 'registered',
+        tx_signature: result.executeSignature,
+        onchain_pda: policyPDABase58,
+        onchain_version: nextOnchainVersion,
+        merkle_root_hex: payload.merkle_root_hex,
+        policy_data_hash_hex: payload.policy_data_hash_hex,
+      });
+      return {
+        tx_signature: result.executeSignature,
+        onchain_pda: policyPDABase58,
       };
     }
 
@@ -938,6 +993,28 @@ export function PoliciesTab() {
                         View tx
                       </a>
                     )}
+                    {policy.onchain_version !== null &&
+                      policy.version > policy.onchain_version && (
+                        <>
+                          <span
+                            className="inline-flex items-center gap-1 rounded-pill bg-aperture/15 px-2 py-0.5 text-[11px] font-medium text-aperture-dark"
+                            title={`DB v${policy.version} diverged from on-chain v${policy.onchain_version}`}
+                          >
+                            <AlertTriangle className="w-3 h-3" />
+                            Off-chain edits pending - re-anchor
+                          </span>
+                          <button
+                            onClick={() => handleAnchor(policy)}
+                            disabled={anchoringId === policy.id || !publicKey}
+                            className="ap-btn-orange inline-flex items-center gap-1.5 px-3 h-8 text-[13px] disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {anchoringId === policy.id && (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            )}
+                            {multisigBinding ? 'Re-anchor via multisig' : 'Re-anchor'}
+                          </button>
+                        </>
+                      )}
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2">
@@ -968,7 +1045,13 @@ export function PoliciesTab() {
                         {anchoringId === policy.id && (
                           <Loader2 className="w-3 h-3 animate-spin" />
                         )}
-                        {policy.onchain_pda ? 'Re-anchor' : 'Anchor on-chain'}
+                        {multisigBinding
+                          ? policy.onchain_pda
+                            ? 'Re-anchor via multisig'
+                            : 'Anchor via multisig'
+                          : policy.onchain_pda
+                            ? 'Re-anchor'
+                            : 'Anchor on-chain'}
                       </button>
                     </div>
                     {policy.onchain_status === 'failed' &&

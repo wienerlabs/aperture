@@ -21,3 +21,9 @@ scripts/deploy/*.json
 !scripts/deploy/.gitkeep
 .aperture-operator.json
 /.aperture-*.json
+1778241349899152.mp4
+multisig.mp4
+aperture-sunum-v2.html
+aperture-presentation.html
+aperture-presentation-v2.html
+_deploy-presentation/

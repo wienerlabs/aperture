@@ -11,7 +11,7 @@
  * status pills cross-fade between phases.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ExternalLink,
@@ -21,7 +21,10 @@ import {
   Send,
   Sparkles,
   Loader2,
+  Vote,
+  Play,
 } from 'lucide-react';
+import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { config } from '@/lib/config';
 import { truncateAddress } from '@/lib/utils';
 import type {
@@ -29,6 +32,11 @@ import type {
   MultisigProposal,
   MultisigProposalStatus,
 } from '@/lib/api';
+import {
+  approveProposal,
+  executeProposal,
+} from '@/lib/multisig-actions';
+import { policyApi } from '@/lib/api';
 
 interface MultisigProposalsCardProps {
   readonly proposals: readonly MultisigProposal[];
@@ -37,6 +45,12 @@ interface MultisigProposalsCardProps {
   readonly statusFilter: MultisigProposalStatus | 'all';
   readonly onChangeFilter: (status: MultisigProposalStatus | 'all') => void;
   readonly onRefresh?: () => void;
+}
+
+type ActionKind = 'approve' | 'execute';
+interface ActionState {
+  readonly proposalId: string;
+  readonly kind: ActionKind;
 }
 
 const FILTER_OPTIONS: ReadonlyArray<{
@@ -86,11 +100,89 @@ export function MultisigProposalsCard({
   loading,
   statusFilter,
   onChangeFilter,
+  onRefresh,
 }: MultisigProposalsCardProps): JSX.Element {
   const filtered = useMemo(() => {
     if (statusFilter === 'all') return proposals;
     return proposals.filter((p) => p.status === statusFilter);
   }, [proposals, statusFilter]);
+
+  const wallet = useWallet();
+  const { connection } = useConnection();
+  const [actionState, setActionState] = useState<ActionState | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const handleApprove = async (proposal: MultisigProposal): Promise<void> => {
+    if (!binding) return;
+    setActionError(null);
+    setActionState({ proposalId: proposal.id, kind: 'approve' });
+    try {
+      await approveProposal(connection, wallet, {
+        multisigAddress: binding.multisigAddress,
+        transactionIndex: proposal.transactionIndex,
+        threshold: binding.threshold,
+        proposalRecordId: proposal.id,
+      });
+      onRefresh?.();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Approve failed');
+    } finally {
+      setActionState(null);
+    }
+  };
+
+  const handleExecute = async (proposal: MultisigProposal): Promise<void> => {
+    if (!binding) return;
+    setActionError(null);
+    setActionState({ proposalId: proposal.id, kind: 'execute' });
+    try {
+      const result = await executeProposal(connection, wallet, {
+        multisigAddress: binding.multisigAddress,
+        transactionIndex: proposal.transactionIndex,
+        proposalRecordId: proposal.id,
+      });
+
+      // Mirror the chain-side commitment back into the policy row so the
+      // Policies tab flips from "pending" to "Anchored on Solana" without
+      // requiring the operator to re-anchor. Squads holds the canonical
+      // state; we just update the local index. Errors are swallowed so a
+      // mirror failure does not undo a successful chain registration.
+      if (
+        proposal.policyId &&
+        (proposal.action === 'register_policy' ||
+          proposal.action === 'update_policy')
+      ) {
+        try {
+          const payloadRes = await policyApi.getOnchainPayload(proposal.policyId);
+          const payload = payloadRes.data;
+          const policyRes = await policyApi.get(proposal.policyId);
+          const policy = policyRes.data;
+          if (payload && policy && payload.onchain_pda) {
+            const nextOnchainVersion =
+              proposal.action === 'register_policy'
+                ? Math.max(1, policy.version)
+                : Math.max(policy.version, (payload.onchain_version ?? 1) + 1);
+            await policyApi.confirmOnchain(proposal.policyId, {
+              status: 'registered',
+              tx_signature: result.signature,
+              onchain_pda: payload.onchain_pda,
+              onchain_version: nextOnchainVersion,
+              merkle_root_hex: payload.merkle_root_hex,
+              policy_data_hash_hex: payload.policy_data_hash_hex,
+            });
+          }
+        } catch (mirrorErr) {
+          console.warn('Policy mirror update after execute failed', mirrorErr);
+        }
+      }
+
+      onRefresh?.();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Execute failed');
+    } finally {
+      setActionState(null);
+    }
+  };
 
   return (
     <section className="ap-card overflow-hidden">
@@ -133,6 +225,23 @@ export function MultisigProposalsCard({
           })}
         </div>
       </header>
+
+      {actionError && (
+        <div className="px-5 py-2 border-b border-red-500/25 bg-red-500/4 flex items-start gap-2">
+          <XCircle className="h-3.5 w-3.5 mt-0.5 text-red-700 flex-shrink-0" />
+          <p className="text-[12px] text-red-700/85 flex-1 break-words">
+            {actionError}
+          </p>
+          <button
+            type="button"
+            onClick={() => setActionError(null)}
+            className="text-black/45 hover:text-black text-sm leading-none"
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
@@ -205,6 +314,42 @@ export function MultisigProposalsCard({
                           Tx
                         </a>
                       )}
+                      {binding && wallet.publicKey && proposal.status === 'pending' && (
+                        <button
+                          type="button"
+                          onClick={() => handleApprove(proposal)}
+                          disabled={actionState !== null}
+                          className="inline-flex items-center gap-1 rounded-pill border border-aperture/40 bg-aperture/8 px-2 py-0.5 text-[11px] font-medium tracking-tighter text-aperture-dark hover:bg-aperture/14 disabled:opacity-50 transition-colors"
+                        >
+                          {actionState?.proposalId === proposal.id &&
+                          actionState?.kind === 'approve' ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Vote className="h-3 w-3" />
+                          )}
+                          Approve
+                        </button>
+                      )}
+                      {binding &&
+                        wallet.publicKey &&
+                        (proposal.status === 'approved' ||
+                          (proposal.status === 'pending' &&
+                            proposal.approvalCount >= binding.threshold)) && (
+                          <button
+                            type="button"
+                            onClick={() => handleExecute(proposal)}
+                            disabled={actionState !== null}
+                            className="inline-flex items-center gap-1 rounded-pill border border-green-600/40 bg-green-600/10 px-2 py-0.5 text-[11px] font-medium tracking-tighter text-green-700 hover:bg-green-600/16 disabled:opacity-50 transition-colors"
+                          >
+                            {actionState?.proposalId === proposal.id &&
+                            actionState?.kind === 'execute' ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Play className="h-3 w-3" />
+                            )}
+                            Execute
+                          </button>
+                        )}
                       {proposal.transactionPda && proposal.multisigAddress && (
                         <a
                           href={config.proposalViewerUrl(

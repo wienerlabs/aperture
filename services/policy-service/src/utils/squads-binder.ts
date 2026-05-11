@@ -146,8 +146,41 @@ const TREASURY_MIN_RESERVE = 0.05 * LAMPORTS_PER_SOL;
 
 let cachedTreasury: Keypair | null = null;
 
+/**
+ * Treasury keypair lookup with two equivalent paths so the same code runs
+ * cleanly under Railway (no filesystem write access) and a local docker
+ * mount.
+ *
+ *   SQUADS_TREASURY_KEYPAIR_JSON  - the raw JSON byte array (preferred for
+ *                                   cloud deploys; multiline value works in
+ *                                   Railway env)
+ *   SQUADS_TREASURY_KEYPAIR_PATH  - filesystem path to the same JSON file
+ *                                   (preferred for local dev where you can
+ *                                   point at ~/.aperture-treasury.json)
+ *
+ * Returning null means no treasury is configured; the caller falls back to
+ * the public devnet faucet which is rate-limited.
+ */
 function loadTreasuryKeypair(): Keypair | null {
   if (cachedTreasury) return cachedTreasury;
+
+  const inlineJson = process.env.SQUADS_TREASURY_KEYPAIR_JSON;
+  if (inlineJson && inlineJson.trim().length > 0) {
+    try {
+      const raw = JSON.parse(inlineJson);
+      if (!Array.isArray(raw)) {
+        logger.warn('SQUADS_TREASURY_KEYPAIR_JSON is not a byte array');
+      } else {
+        cachedTreasury = Keypair.fromSecretKey(Uint8Array.from(raw));
+        return cachedTreasury;
+      }
+    } catch (err) {
+      logger.warn('SQUADS_TREASURY_KEYPAIR_JSON parse failed', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   const keypairPath = process.env.SQUADS_TREASURY_KEYPAIR_PATH;
   if (!keypairPath) return null;
   const resolved = path.resolve(keypairPath);
