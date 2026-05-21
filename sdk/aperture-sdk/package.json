@@ -1,0 +1,69 @@
+{
+  "name": "@aperturerwa/sdk",
+  "version": "0.1.2",
+  "description": "Aperture compliance SDK for AI agents on Solana. Generates Circom + Groth16 ZK proofs of policy compliance and submits them to Solana through the x402 and MPP payment protocols.",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wienerlabs/aperture.git",
+    "directory": "sdk/aperture-sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/wienerlabs/aperture/issues"
+  },
+  "homepage": "https://github.com/wienerlabs/aperture#readme",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./anchor": {
+      "types": "./dist/anchor/index.d.ts",
+      "import": "./dist/anchor/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "solana",
+    "zk",
+    "groth16",
+    "circom",
+    "compliance",
+    "ai-agents",
+    "x402",
+    "mpp",
+    "aperture"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:unit": "vitest run tests/unit",
+    "test:live": "vitest run --config vitest.config.live.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@solana/spl-token": "^0.4.9",
+    "@solana/web3.js": "^1.98.0",
+    "bs58": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.4"
+  }
+}
